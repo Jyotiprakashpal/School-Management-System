@@ -1,0 +1,15 @@
+{
+  "title": "School Management System",
+  "description": "A school management application",
+  "language": "en",
+  "robots": {
+    "index": true
+  },
+  "icons": {},
+  "openGraph": {},
+  "analytics": {},
+  "customScripts": {},
+  "accessibility": {
+    "addBypassLinks": true
+  }
+}
