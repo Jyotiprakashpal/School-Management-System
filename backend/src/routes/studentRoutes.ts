@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import {
   getAllStudents,
   getStudentById,
@@ -7,7 +7,7 @@ import {
   deleteStudent
 } from '../controllers/studentController.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.get('/', getAllStudents);
 router.get('/:id', getStudentById);

@@ -1,16 +1,16 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import studentRoutes from './routes/studentRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 
-const app = express();
+const app: Application = express();
 const PORT = Number(process.env.PORT || 5000);
 
 app.use(cors());
 app.use(express.json());
 
-app.get('/api/health', async (_req, res) => {
+app.get('/api/health', async (_req: Request, res: Response) => {
   try {
     await sql`SELECT 1`;
     res.json({
