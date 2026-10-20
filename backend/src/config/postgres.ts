@@ -1,5 +1,8 @@
 import 'dotenv/config';
+import dns from 'node:dns';
 import postgres from 'postgres';
+
+dns.setDefaultResultOrder('ipv4first');
 
 const connectionString = process.env.DATABASE_URL;
 

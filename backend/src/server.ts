@@ -30,19 +30,22 @@ app.get('/api/health', async (_req: Request, res: Response) => {
 
 app.use('/api/students', studentRoutes);
 
-const startServer = async () => {
+const connectDatabase = async () => {
   try {
     await connectPostgres();
     console.log('Connected to PostgreSQL');
   } catch (error) {
     console.error('PostgreSQL connection failed:', (error as Error).message);
-    await sql.end({ timeout: 5 }).catch(() => undefined);
-    process.exit(1);
+    console.error('The API is running, but database operations are unavailable. Retrying in 10 seconds...');
+    setTimeout(() => void connectDatabase(), 10000);
   }
+};
 
+const startServer = () => {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
+  void connectDatabase();
 };
 
 const shutdown = async () => {
