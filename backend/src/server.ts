@@ -3,6 +3,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import userRoutes from './routes/userRoutes.js';
 import studentRoutes from './routes/studentRoutes.js';
+import admissionEnquiryRoutes from './routes/admissionEnquiryRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 import { initializeDatabase } from './db-init.js';
 
@@ -32,6 +33,7 @@ app.get('/api/health', async (_req: Request, res: Response) => {
 
 app.use('/api/users', userRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/admission-enquiries', admissionEnquiryRoutes);
 
 const connectDatabase = async () => {
   try {
