@@ -103,13 +103,13 @@ export default function Login({ onLogin }: LoginProps) {
 
   return (
     <div className="login-screen h-dvh overflow-hidden">
-      <main className="grid h-dvh overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(28rem,.9fr)]">
-        <section className="login-visual relative hidden h-full overflow-hidden lg:flex lg:flex-col lg:justify-between">
+      <main className="grid h-dvh grid-rows-[5.5rem_minmax(0,1fr)] overflow-hidden lg:grid-rows-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(28rem,.9fr)]">
+        <section className="login-visual relative flex h-full min-h-0 flex-col justify-center overflow-hidden lg:justify-between">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-teal-950/65 to-cyan-900/25" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/20" />
 
-          <div className="relative z-10 flex items-center gap-3 p-8 xl:p-10">
-            <div className="grid size-12 place-items-center rounded-2xl border border-white/20 bg-white/15 text-white shadow-xl backdrop-blur-md">
+          <div className="relative z-10 flex items-center gap-3 p-4 lg:p-8 xl:p-10">
+            <div className="grid size-10 place-items-center rounded-2xl border border-white/20 bg-white/15 text-white shadow-xl backdrop-blur-md lg:size-12">
               <LoginIcon name="book" className="size-6" />
             </div>
             <div>
@@ -122,7 +122,7 @@ export default function Login({ onLogin }: LoginProps) {
             </div>
           </div>
 
-          <div className="login-story relative z-10 max-w-2xl p-6 xl:p-8">
+          <div className="login-story relative z-10 hidden max-w-2xl p-6 xl:p-8 lg:block">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-cyan-50 backdrop-blur-md">
               <LoginIcon name="spark" className="size-3.5 text-cyan-300" />A
               smarter way to manage education
@@ -177,7 +177,7 @@ export default function Login({ onLogin }: LoginProps) {
           </div>
         </section>
 
-        <section className="login-form-panel relative flex h-dvh min-h-0 flex-col overflow-hidden">
+        <section className="login-form-panel relative flex h-full min-h-0 flex-col overflow-hidden lg:h-dvh">
           <div className="login-accent-bar absolute inset-x-0 top-0 z-20 h-1" />
           <span className="login-theme-orb absolute -right-16 top-24 size-44 rounded-full" />
           <span className="login-theme-orb absolute -left-20 bottom-20 size-52 rounded-full opacity-60" />
