@@ -42,6 +42,20 @@ const selectUserColumns = sql`
 `;
 
 export const userRepository = {
+  async initializeTable(): Promise<void> {
+    await sql`
+      CREATE TABLE IF NOT EXISTS users (
+        "userId" TEXT PRIMARY KEY,
+        username VARCHAR(80) NOT NULL UNIQUE,
+        name VARCHAR(120) NOT NULL,
+        role VARCHAR(40) NOT NULL DEFAULT 'user',
+        "createdBy" TEXT,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+  },
+
   async findMany(params: UserQuery): Promise<{ data: User[]; total: number }> {
     const page = Math.max(1, params.page || 1);
     const limit = Math.min(100, Math.max(1, params.limit || 10));

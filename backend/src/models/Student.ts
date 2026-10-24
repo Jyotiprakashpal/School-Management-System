@@ -57,6 +57,24 @@ const selectStudentColumns = sql`
 `;
 
 export const studentRepository = {
+  async initializeTable(): Promise<void> {
+    await sql`
+      CREATE TABLE IF NOT EXISTS students (
+        "userId" TEXT PRIMARY KEY REFERENCES users("userId") ON DELETE CASCADE,
+        name VARCHAR(120) NOT NULL,
+        "admissionNo" VARCHAR(80) NOT NULL UNIQUE,
+        "fatherName" VARCHAR(120) NOT NULL,
+        class VARCHAR(50) NOT NULL,
+        section VARCHAR(10) NOT NULL,
+        phone VARCHAR(40) NOT NULL,
+        gender VARCHAR(20) NOT NULL,
+        "admissionDate" DATE NOT NULL,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+  },
+
   async findMany(params: StudentQuery): Promise<{ data: Student[]; total: number }> {
     const page = Math.max(1, params.page || 1);
     const limit = Math.min(100, Math.max(1, params.limit || 10));
