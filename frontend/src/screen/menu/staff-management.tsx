@@ -19,7 +19,7 @@ type StaffMember = {
 };
 
 const initialStaff: StaffMember[] = [
-  { id: 1, staffId: "EMP-26-1001", name: "Raj Kumar", designation: "Principal", department: "Administration", phone: "7310095239", email: "raj.kumar@pal.edu", salary: 42000, joiningDate: "2022-04-01", status: "Active" },
+  { id: 1, staffId: "EMP-26-1001", name: "Raj Kumar", designation: "Principal", department: "Administration", phone: "9827142339", email: "raj.kumar@pal.edu", salary: 42000, joiningDate: "2022-04-01", status: "Active" },
   { id: 2, staffId: "EMP-26-1002", name: "Priya Sharma", designation: "English Teacher", department: "Academics", phone: "9876543210", email: "priya.sharma@pal.edu", salary: 28500, joiningDate: "2023-07-10", status: "Active" },
   { id: 3, staffId: "EMP-26-1003", name: "Ravi Verma", designation: "Mathematics Teacher", department: "Academics", phone: "9837456120", email: "ravi.verma@pal.edu", salary: 30000, joiningDate: "2021-06-15", status: "Active" },
   { id: 4, staffId: "EMP-26-1004", name: "Neha Singh", designation: "Science Teacher", department: "Academics", phone: "9765432180", email: "neha.singh@pal.edu", salary: 29500, joiningDate: "2024-04-03", status: "On Leave" },

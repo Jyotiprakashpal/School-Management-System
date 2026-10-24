@@ -75,7 +75,7 @@ export default function AdmitCardPrint({ className, examName, onBack, schedules,
         <div className="border-b-4 border-double border-blue-950 px-5 py-6 text-center sm:px-8">
           <div className="font-display text-2xl font-extrabold tracking-tight text-blue-950 sm:text-3xl">PAL IT HUB</div>
           <div className="mt-1 text-sm font-semibold text-slate-600">Knowledge Park, Lucknow, Uttar Pradesh</div>
-          <div className="mt-1 text-xs text-slate-500">Phone: 7310095239 &nbsp;|&nbsp; admin@palithub.edu</div>
+          <div className="mt-1 text-xs text-slate-500">Phone: 9827142339 &nbsp;|&nbsp; admin@palithub.edu</div>
           <div className="mx-auto mt-4 w-fit rounded-md bg-blue-950 px-6 py-2 font-display text-sm font-bold uppercase tracking-widest text-white sm:px-10 sm:text-base">{examName} — Admit Card</div>
         </div>
 

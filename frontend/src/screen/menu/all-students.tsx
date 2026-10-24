@@ -5,7 +5,7 @@ import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
 const initialRows = [
-  ["ADM-26-1001", "Rahul Kumar", "Hari Prasad", "UKG", "7310095239", "Active", "View"],
+  ["ADM-26-1001", "Rahul Kumar", "Hari Prasad", "UKG", "9827142339", "Active", "View"],
   ["ADM-26-1023", "Ravi Kumar", "Rahul Kumar", "UKG", "8601XXXXXX", "Active", "View"],
   ["ADM-26-1024", "Ananya Sharma", "Vikas Sharma", "Class 2", "9876543210", "Active", "View"],
   ["ADM-26-1025", "Aarav Singh", "Rohit Singh", "Class 1", "9123456780", "Active", "View"],
@@ -203,7 +203,7 @@ function StudentIdCard({ initials, student }: { initials: string; student: strin
           <div className="font-bold uppercase tracking-widest text-(--app-accent-dark)">If found, please return to</div>
           <div className="mt-1 font-bold">PAL IT HUB</div>
           <div>Knowledge Park · School Office</div>
-          <div>Ph: 7310095239 · help@palithub.edu</div>
+          <div>Ph: 9827142339 · help@palithub.edu</div>
         </div>
 
         <p className="mt-auto pt-5 text-[0.52rem] leading-3 text-slate-500"><strong className="text-slate-700">Note:</strong> This card must be carried daily and shown on demand. It is not transferable. Loss of the card must be reported to the school office.</p>

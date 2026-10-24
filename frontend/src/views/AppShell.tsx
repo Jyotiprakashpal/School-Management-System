@@ -65,7 +65,7 @@ const screenConfigs: Record<string, ScreenConfig> = {
     stats: [{ label: "Total Students", value: "9" }, { label: "Active", value: "9", tone: "green" }, { label: "Classes", value: "5", tone: "amber" }],
     filters: ["Search name, admission no...", "All Classes", "Active"],
     columns: ["Adm. No", "Student", "Class", "Guardian", "Phone", "Status"],
-    rows: [["ADM-26-1001", "Rahul Kumar", "UKG", "S/O Raj Kumar", "7310095239", "Active"], ["ADM-26-1023", "Ravi Kumar", "UKG", "S/O Ravi Lal", "8601XXXXXX", "Active"], ["ADM-26-1041", "Amit Kumar", "Class 10-A", "Mahima Kumar", "—", "Active"]],
+    rows: [["ADM-26-1001", "Rahul Kumar", "UKG", "S/O Raj Kumar", "9827142339", "Active"], ["ADM-26-1023", "Ravi Kumar", "UKG", "S/O Ravi Lal", "8601XXXXXX", "Active"], ["ADM-26-1041", "Amit Kumar", "Class 10-A", "Mahima Kumar", "—", "Active"]],
   },
   "Passed Out Archive": {
     subtitle: "Former students and transfer records",
@@ -105,7 +105,7 @@ const screenConfigs: Record<string, ScreenConfig> = {
     stats: [{ label: "Pending Contacts", value: "3", tone: "amber" }, { label: "Sent This Month", value: "12", tone: "green" }],
     filters: ["Select Class", "Minimum Due", "Message Template"],
     columns: ["Student", "Guardian", "Phone", "Pending Fee", "Last Reminder", "Select"],
-    rows: [["Rahul Kumar", "Raj Kumar", "7310095239", "₹500", "18 Sep 2026", "Selected"], ["Amit Kumar", "Mahima Kumar", "—", "₹200", "Not sent", "—"]],
+    rows: [["Rahul Kumar", "Raj Kumar", "9827142339", "₹500", "18 Sep 2026", "Selected"], ["Amit Kumar", "Mahima Kumar", "—", "₹200", "Not sent", "—"]],
   },
   "Fee Deletion Log": {
     subtitle: "Audit removed fee transactions",
@@ -189,7 +189,7 @@ const screenConfigs: Record<string, ScreenConfig> = {
     stats: [{ label: "Total Staff", value: "1" }, { label: "Active Staff", value: "1", tone: "green" }, { label: "Monthly Payroll", value: "₹0", tone: "amber" }],
     filters: ["Name, ID, phone, designation", "Active", "All Departments"],
     columns: ["Staff ID", "Name", "Designation", "Phone", "Basic Salary", "Joining Date", "Status"],
-    rows: [["EMP-26-1001", "Raj Kumar", "Principal", "7310095239", "₹0", "01 Sep 2026", "Active"]],
+    rows: [["EMP-26-1001", "Raj Kumar", "Principal", "9827142339", "₹0", "01 Sep 2026", "Active"]],
   },
   "Salary Management": {
     subtitle: "Process staff salaries and allowances",
@@ -299,7 +299,7 @@ function FormModule({ active, fields }: { active: string; fields: string[] }) {
         {isAttendance ? <section className="panel">
           <div className="panel-title flex-wrap gap-2 py-2"><div className="flex items-center gap-2"><Icon name="attendance" className="size-5 text-teal-600" /><h2>UKG — 25 September 2026</h2></div><div className="flex gap-2"><button className="tiny-green">All Present</button><button className="tiny-red">All Absent</button></div></div>
           <div className="attendance-list overflow-x-auto"><table className="module-table"><thead><tr><th>Adm. No</th><th>Name</th><th>Present</th><th>Absent</th><th>Leave</th></tr></thead><tbody>{["Rahul Kumar", "Ravi Kumar"].map((name, index) => <tr key={name}><td data-label="Admission No.">ADM-26-{index ? "1023" : "1001"}</td><td data-label="Student" className="font-semibold">{name}</td><td data-label="Present"><input type="radio" name={`attendance-${index}`} defaultChecked /></td><td data-label="Absent"><input type="radio" name={`attendance-${index}`} /></td><td data-label="Leave"><input type="radio" name={`attendance-${index}`} /></td></tr>)}</tbody></table></div>
-        </section> : active === "Admission Enquiry" ? <DataTable config={{ subtitle: "", filters: ["Search enquiries...", "All Status"], columns: ["Student", "Class", "Mobile", "Form", "Fee", "Action"], rows: [["Karan Kumar", "UKG", "0000002652", "FORM-26-1001", "₹100", "Take Admission"], ["Ravi Kumar", "UKG", "8601XXXXXX", "FORM-26-1003", "₹150", "Take Admission"], ["Rahul Kumar", "UKG", "7310095239", "FORM-26-1004", "₹50", "Take Admission"]] }} /> : active === "Fee Structure" ? <DataTable config={{ subtitle: "", columns: ["Class", "Fee Type", "Amount", "Year", "Frequency", "Action"], empty: "No fee structure defined yet" }} /> : null}
+        </section> : active === "Admission Enquiry" ? <DataTable config={{ subtitle: "", filters: ["Search enquiries...", "All Status"], columns: ["Student", "Class", "Mobile", "Form", "Fee", "Action"], rows: [["Karan Kumar", "UKG", "0000002652", "FORM-26-1001", "₹100", "Take Admission"], ["Ravi Kumar", "UKG", "8601XXXXXX", "FORM-26-1003", "₹150", "Take Admission"], ["Rahul Kumar", "UKG", "9827142339", "FORM-26-1004", "₹50", "Take Admission"]] }} /> : active === "Fee Structure" ? <DataTable config={{ subtitle: "", columns: ["Class", "Fee Type", "Amount", "Year", "Frequency", "Action"], empty: "No fee structure defined yet" }} /> : null}
       </div>
     </main>
   </div>;

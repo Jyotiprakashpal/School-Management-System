@@ -15,7 +15,7 @@ function FooterIcon({ name }: { name: FooterIconName }) {
 }
 
 const footerItems: { icon: FooterIconName; label: string }[] = [
-  { icon: "phone", label: "7310095239" },
+  { icon: "phone", label: "9827142339" },
   { icon: "globe", label: "Website" },
   { icon: "youtube", label: "YouTube" },
   { icon: "facebook", label: "Facebook" },

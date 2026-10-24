@@ -9,7 +9,7 @@ export type FeeItem = { amount: string; className: string; frequency: string; id
 const head = (id: number, name: string, amount: number, paid: number): FeeHead => ({ id, name, amount, paid, selected: false });
 
 const initialStudents: Student[] = [
-  { id: 1, name: "Rahul Kumar", adm: "ADM-26-1001", className: "UKG-A", father: "Hari Prasad", phone: "7310095239", fees: [head(1, "Transport Fee", 500, 150), head(2, "Tuition Fee", 1200, 1200), head(3, "Examination Fee", 300, 300)] },
+  { id: 1, name: "Rahul Kumar", adm: "ADM-26-1001", className: "UKG-A", father: "Hari Prasad", phone: "9827142339", fees: [head(1, "Transport Fee", 500, 150), head(2, "Tuition Fee", 1200, 1200), head(3, "Examination Fee", 300, 300)] },
   { id: 2, name: "Ananya Sharma", adm: "ADM-26-1002", className: "Class 1-A", father: "Rakesh Sharma", phone: "9876501234", fees: [head(1, "Tuition Fee", 1400, 700), head(2, "Transport Fee", 600, 0), head(3, "Activity Fee", 250, 250)] },
   { id: 3, name: "Mohit Verma", adm: "ADM-26-1003", className: "Class 3-B", father: "Sunil Verma", phone: "9123456780", fees: [head(1, "Tuition Fee", 1600, 1600), head(2, "Examination Fee", 350, 350)] },
   { id: 4, name: "Priya Singh", adm: "ADM-26-1004", className: "Class 2-A", father: "Dinesh Singh", phone: "8800112233", fees: [head(1, "Tuition Fee", 1500, 500), head(2, "Library Fee", 200, 0), head(3, "Computer Lab Fee", 400, 100)] },
