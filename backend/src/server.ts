@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import studentRoutes from './routes/studentRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 
 const app: Application = express();
@@ -28,7 +28,7 @@ app.get('/api/health', async (_req: Request, res: Response) => {
   }
 });
 
-app.use('/api/students', studentRoutes);
+app.use('/api/users', userRoutes);
 
 const connectDatabase = async () => {
   try {

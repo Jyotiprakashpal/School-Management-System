@@ -19,14 +19,11 @@ export const sql = postgres(connectionString, {
 export const connectPostgres = async () => {
   await sql`SELECT 1`;
   await sql`
-    CREATE TABLE IF NOT EXISTS students (
-      id SERIAL PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY,
+      username VARCHAR(80) NOT NULL UNIQUE,
       name VARCHAR(120) NOT NULL,
-      adm VARCHAR(80) NOT NULL UNIQUE,
-      "className" VARCHAR(120) NOT NULL,
-      father VARCHAR(120) NOT NULL,
-      phone VARCHAR(40) NOT NULL,
-      fees JSONB NOT NULL DEFAULT '[]'::jsonb,
+      role VARCHAR(40) NOT NULL DEFAULT 'user',
       "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
