@@ -4,6 +4,7 @@ import cors from 'cors';
 import userRoutes from './routes/userRoutes.js';
 import studentRoutes from './routes/studentRoutes.js';
 import admissionEnquiryRoutes from './routes/admissionEnquiryRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 import { initializeDatabase } from './db-init.js';
 
@@ -34,6 +35,7 @@ app.get('/api/health', async (_req: Request, res: Response) => {
 app.use('/api/users', userRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/admission-enquiries', admissionEnquiryRoutes);
+app.use('/api/settings', settingsRoutes);
 
 const connectDatabase = async () => {
   try {
