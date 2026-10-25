@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Server as SocketIOServer } from 'socket.io';
 import {
   userRepository,
   User,
@@ -14,6 +15,8 @@ interface PaginatedUsers {
   limit: number;
   totalPages: number;
 }
+
+const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
 const parseUserId = (value: string): string | null => {
   if (!value || value.trim() === '') return null;
@@ -96,6 +99,9 @@ export const createUser = async (req: Request<{}, User | { error: string }, Crea
       createdBy
     });
 
+    // Emit real-time event
+    getIO(req).to('users').emit('user:created', user);
+
     res.status(201).json(user);
   } catch (error) {
     console.error('Create user error:', error);
@@ -131,6 +137,9 @@ export const updateUser = async (req: Request<{ id: string }, User | { error: st
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Emit real-time event
+    getIO(req).to('users').emit('user:updated', user);
+
     res.json(user);
   } catch (error) {
     console.error('Update user error:', error);
@@ -149,6 +158,10 @@ export const deleteUser = async (req: Request<{ id: string }>, res: Response<voi
     }
 
     await userRepository.delete(userId);
+
+    // Emit real-time event
+    getIO(req).to('users').emit('user:deleted', { userId });
+
     res.status(204).send();
   } catch (error) {
     console.error('Delete user error:', error);

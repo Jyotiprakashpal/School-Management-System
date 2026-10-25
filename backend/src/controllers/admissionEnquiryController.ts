@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Server as SocketIOServer } from 'socket.io';
 import {
   admissionEnquiryRepository,
   AdmissionEnquiry,
@@ -6,6 +7,8 @@ import {
   UpdateAdmissionEnquiryDto,
   AdmissionEnquiryQuery
 } from '../models/AdmissionEnquiry.js';
+
+const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
 interface PaginatedEnquiries {
   data: AdmissionEnquiry[];
@@ -85,6 +88,9 @@ export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error:
       remarks
     });
 
+    // Emit real-time event
+    getIO(req).to('enquiries').emit('enquiry:created', enquiry);
+
     res.status(201).json(enquiry);
   } catch (error) {
     console.error('Create enquiry error:', error);
@@ -120,6 +126,9 @@ export const updateEnquiry = async (req: Request<{ studentId: string }, Admissio
       return res.status(404).json({ error: 'Enquiry not found' });
     }
 
+    // Emit real-time event
+    getIO(req).to('enquiries').emit('enquiry:updated', enquiry);
+
     res.json(enquiry);
   } catch (error) {
     console.error('Update enquiry error:', error);
@@ -138,6 +147,10 @@ export const deleteEnquiry = async (req: Request<{ studentId: string }>, res: Re
     }
 
     await admissionEnquiryRepository.delete(studentId);
+
+    // Emit real-time event
+    getIO(req).to('enquiries').emit('enquiry:deleted', { studentId });
+
     res.status(204).send();
   } catch (error) {
     console.error('Delete enquiry error:', error);

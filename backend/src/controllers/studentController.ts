@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Server as SocketIOServer } from 'socket.io';
 import {
   studentRepository,
   Student,
@@ -6,6 +7,8 @@ import {
   UpdateStudentDto,
   StudentQuery
 } from '../models/Student.js';
+
+const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
 interface PaginatedStudents {
   data: Student[];
@@ -114,6 +117,9 @@ export const createStudent = async (req: Request<{}, Student | { error: string }
       admissionDate
     });
 
+    // Emit real-time event
+    getIO(req).to('students').emit('student:created', student);
+
     res.status(201).json(student);
   } catch (error) {
     console.error('Create student error:', error);
@@ -167,6 +173,9 @@ export const updateStudent = async (req: Request<{ userId: string; admissionNo: 
       return res.status(404).json({ error: 'Student not found' });
     }
 
+    // Emit real-time event
+    getIO(req).to('students').emit('student:updated', student);
+
     res.json(student);
   } catch (error) {
     console.error('Update student error:', error);
@@ -185,6 +194,10 @@ export const deleteStudent = async (req: Request<{ userId: string; admissionNo: 
     }
 
     await studentRepository.delete(userId, admissionNo);
+
+    // Emit real-time event
+    getIO(req).to('students').emit('student:deleted', { userId, admissionNo });
+
     res.status(204).send();
   } catch (error) {
     console.error('Delete student error:', error);
