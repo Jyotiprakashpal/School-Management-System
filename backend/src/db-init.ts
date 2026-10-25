@@ -4,6 +4,7 @@ import { admissionEnquiryRepository } from './models/AdmissionEnquiry.js';
 import { settingsRepository } from './models/Settings.js';
 import { notificationRepository } from './models/Notification.js';
 import { admissionRepository } from './models/Admission.js';
+import { archivedStudentRepository } from './models/ArchivedStudent.js';
 
 export async function initializeDatabase(): Promise<void> {
   await userRepository.initializeTable();
@@ -12,4 +13,5 @@ export async function initializeDatabase(): Promise<void> {
   await settingsRepository.initializeTable();
   await notificationRepository.initializeTable();
   await admissionRepository.initializeTable();
+  await archivedStudentRepository.initializeTable();
 }
