@@ -193,7 +193,7 @@ export const updateUser = async (req: Request<{ id: string }, User | { error: st
   }
 };
 
-export const deleteUser = async (req: Request<{ id: string }>, res: Response<void | { error: string }>) => {
+export const deleteUser = async (req: Request<{ id: string }>, res: Response<{ message: string } | { error: string }>) => {
   try {
     const userId = parseUserId(req.params.id);
     if (userId === null) {
@@ -219,7 +219,7 @@ export const deleteUser = async (req: Request<{ id: string }>, res: Response<voi
       });
     }
 
-    res.status(204).send();
+    res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ error: 'Failed to delete user' });

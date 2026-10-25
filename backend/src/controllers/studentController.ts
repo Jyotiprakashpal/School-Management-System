@@ -229,7 +229,7 @@ export const updateStudent = async (req: Request<{ userId: string; admissionNo: 
   }
 };
 
-export const deleteStudent = async (req: Request<{ userId: string; admissionNo: string }>, res: Response<void | { error: string }>) => {
+export const deleteStudent = async (req: Request<{ userId: string; admissionNo: string }>, res: Response<{ message: string } | { error: string }>) => {
   try {
     const { userId, admissionNo } = req.params;
     if (!userId || !admissionNo) {
@@ -255,7 +255,7 @@ export const deleteStudent = async (req: Request<{ userId: string; admissionNo: 
       });
     }
 
-    res.status(204).send();
+    res.json({ message: 'Student deleted successfully' });
   } catch (error) {
     console.error('Delete student error:', error);
     res.status(500).json({ error: 'Failed to delete student' });

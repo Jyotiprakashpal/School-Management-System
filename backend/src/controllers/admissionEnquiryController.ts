@@ -180,7 +180,7 @@ export const updateEnquiry = async (req: Request<{ studentId: string }, Admissio
   }
 };
 
-export const deleteEnquiry = async (req: Request<{ studentId: string }>, res: Response<void | { error: string }>) => {
+export const deleteEnquiry = async (req: Request<{ studentId: string }>, res: Response<{ message: string } | { error: string }>) => {
   try {
     const { studentId } = req.params;
     if (!studentId) {
@@ -205,7 +205,7 @@ export const deleteEnquiry = async (req: Request<{ studentId: string }>, res: Re
       });
     }
 
-    res.status(204).send();
+    res.json({ message: 'Enquiry deleted successfully' });
   } catch (error) {
     console.error('Delete enquiry error:', error);
     res.status(500).json({ error: 'Failed to delete enquiry' });

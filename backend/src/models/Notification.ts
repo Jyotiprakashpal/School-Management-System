@@ -6,7 +6,7 @@ export interface Notification {
   title: string;
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
-  entityType: 'user' | 'student' | 'enquiry' | 'settings' | 'system';
+  entityType: 'user' | 'student' | 'enquiry' | 'admission' | 'settings' | 'system';
   entityId: string | null;
   isRead: boolean;
   createdAt: Date;
@@ -17,7 +17,7 @@ export interface CreateNotificationDto {
   title: string;
   message: string;
   type?: 'info' | 'success' | 'warning' | 'error';
-  entityType: 'user' | 'student' | 'enquiry' | 'settings' | 'system';
+  entityType: 'user' | 'student' | 'enquiry' | 'admission' | 'settings' | 'system';
   entityId?: string;
 }
 
