@@ -7,6 +7,7 @@ import {
   UpdateUserDto,
   UserQuery
 } from '../models/User.js';
+import { notificationRepository } from '../models/Notification.js';
 
 interface PaginatedUsers {
   data: User[];
@@ -17,6 +18,28 @@ interface PaginatedUsers {
 }
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
+
+const createNotification = async (req: Request, data: {
+  userId?: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  entityType: 'user';
+  entityId: string;
+}) => {
+  try {
+    const notification = await notificationRepository.create({
+      ...data,
+      entityType: 'user'
+    });
+    getIO(req).to(`user:${data.userId || 'all'}`).emit('notification:created', notification);
+    if (!data.userId) {
+      getIO(req).to('notifications').emit('notification:created', notification);
+    }
+  } catch (error) {
+    console.error('Failed to create notification:', error);
+  }
+};
 
 const parseUserId = (value: string): string | null => {
   if (!value || value.trim() === '') return null;
@@ -102,6 +125,16 @@ export const createUser = async (req: Request<{}, User | { error: string }, Crea
     // Emit real-time event
     getIO(req).to('users').emit('user:created', user);
 
+    // Create notification
+    await createNotification(req, {
+      userId: createdBy,
+      title: 'New User Created',
+      message: `User ${name} (${username}) has been created`,
+      type: 'success',
+      entityType: 'user',
+      entityId: userId
+    });
+
     res.status(201).json(user);
   } catch (error) {
     console.error('Create user error:', error);
@@ -140,6 +173,16 @@ export const updateUser = async (req: Request<{ id: string }, User | { error: st
     // Emit real-time event
     getIO(req).to('users').emit('user:updated', user);
 
+    // Create notification
+    await createNotification(req, {
+      userId: user.userId,
+      title: 'User Updated',
+      message: `User ${user.name} (${user.username}) has been updated`,
+      type: 'info',
+      entityType: 'user',
+      entityId: userId
+    });
+
     res.json(user);
   } catch (error) {
     console.error('Update user error:', error);
@@ -157,10 +200,24 @@ export const deleteUser = async (req: Request<{ id: string }>, res: Response<voi
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
+    const user = await userRepository.findById(userId);
+
     await userRepository.delete(userId);
 
     // Emit real-time event
     getIO(req).to('users').emit('user:deleted', { userId });
+
+    // Create notification
+    if (user) {
+      await createNotification(req, {
+        userId: user.userId,
+        title: 'User Deleted',
+        message: `User ${user.name} (${user.username}) has been deleted`,
+        type: 'warning',
+        entityType: 'user',
+        entityId: userId
+      });
+    }
 
     res.status(204).send();
   } catch (error) {

@@ -7,8 +7,31 @@ import {
   UpdateAdmissionEnquiryDto,
   AdmissionEnquiryQuery
 } from '../models/AdmissionEnquiry.js';
+import { notificationRepository } from '../models/Notification.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
+
+const createNotification = async (req: Request, data: {
+  userId?: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  entityType: 'enquiry';
+  entityId: string;
+}) => {
+  try {
+    const notification = await notificationRepository.create({
+      ...data,
+      entityType: 'enquiry'
+    });
+    getIO(req).to(`user:${data.userId || 'all'}`).emit('notification:created', notification);
+    if (!data.userId) {
+      getIO(req).to('notifications').emit('notification:created', notification);
+    }
+  } catch (error) {
+    console.error('Failed to create notification:', error);
+  }
+};
 
 interface PaginatedEnquiries {
   data: AdmissionEnquiry[];
@@ -91,6 +114,15 @@ export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error:
     // Emit real-time event
     getIO(req).to('enquiries').emit('enquiry:created', enquiry);
 
+    // Create notification
+    await createNotification(req, {
+      title: 'New Admission Enquiry',
+      message: `New enquiry from ${name} for class ${classInterested} (${mobileNumber})`,
+      type: 'success',
+      entityType: 'enquiry',
+      entityId: enquiry.studentId
+    });
+
     res.status(201).json(enquiry);
   } catch (error) {
     console.error('Create enquiry error:', error);
@@ -129,6 +161,15 @@ export const updateEnquiry = async (req: Request<{ studentId: string }, Admissio
     // Emit real-time event
     getIO(req).to('enquiries').emit('enquiry:updated', enquiry);
 
+    // Create notification
+    await createNotification(req, {
+      title: 'Enquiry Updated',
+      message: `Enquiry for ${enquiry.name} (${enquiry.mobileNumber}) has been updated`,
+      type: 'info',
+      entityType: 'enquiry',
+      entityId: studentId
+    });
+
     res.json(enquiry);
   } catch (error) {
     console.error('Update enquiry error:', error);
@@ -146,10 +187,23 @@ export const deleteEnquiry = async (req: Request<{ studentId: string }>, res: Re
       return res.status(400).json({ error: 'Student ID is required' });
     }
 
+    const enquiry = await admissionEnquiryRepository.findByStudentId(studentId);
+
     await admissionEnquiryRepository.delete(studentId);
 
     // Emit real-time event
     getIO(req).to('enquiries').emit('enquiry:deleted', { studentId });
+
+    // Create notification
+    if (enquiry) {
+      await createNotification(req, {
+        title: 'Enquiry Deleted',
+        message: `Enquiry for ${enquiry.name} (${enquiry.mobileNumber}) has been deleted`,
+        type: 'warning',
+        entityType: 'enquiry',
+        entityId: studentId
+      });
+    }
 
     res.status(204).send();
   } catch (error) {

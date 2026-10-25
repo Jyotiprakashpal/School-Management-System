@@ -7,6 +7,7 @@ import userRoutes from './routes/userRoutes.js';
 import studentRoutes from './routes/studentRoutes.js';
 import admissionEnquiryRoutes from './routes/admissionEnquiryRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 import { initializeDatabase } from './db-init.js';
 
@@ -62,6 +63,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/admission-enquiries', admissionEnquiryRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 const connectDatabase = async () => {
   try {

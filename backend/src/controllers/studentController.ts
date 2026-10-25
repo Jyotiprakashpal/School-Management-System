@@ -7,8 +7,31 @@ import {
   UpdateStudentDto,
   StudentQuery
 } from '../models/Student.js';
+import { notificationRepository } from '../models/Notification.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
+
+const createNotification = async (req: Request, data: {
+  userId?: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  entityType: 'student';
+  entityId: string;
+}) => {
+  try {
+    const notification = await notificationRepository.create({
+      ...data,
+      entityType: 'student'
+    });
+    getIO(req).to(`user:${data.userId || 'all'}`).emit('notification:created', notification);
+    if (!data.userId) {
+      getIO(req).to('notifications').emit('notification:created', notification);
+    }
+  } catch (error) {
+    console.error('Failed to create notification:', error);
+  }
+};
 
 interface PaginatedStudents {
   data: Student[];
@@ -120,6 +143,16 @@ export const createStudent = async (req: Request<{}, Student | { error: string }
     // Emit real-time event
     getIO(req).to('students').emit('student:created', student);
 
+    // Create notification
+    await createNotification(req, {
+      userId,
+      title: 'New Student Added',
+      message: `Student ${name} (${admissionNo}) has been added to class ${className}-${section}`,
+      type: 'success',
+      entityType: 'student',
+      entityId: `${userId}-${admissionNo}`
+    });
+
     res.status(201).json(student);
   } catch (error) {
     console.error('Create student error:', error);
@@ -176,6 +209,16 @@ export const updateStudent = async (req: Request<{ userId: string; admissionNo: 
     // Emit real-time event
     getIO(req).to('students').emit('student:updated', student);
 
+    // Create notification
+    await createNotification(req, {
+      userId,
+      title: 'Student Updated',
+      message: `Student ${student.name} (${student.admissionNo}) has been updated`,
+      type: 'info',
+      entityType: 'student',
+      entityId: `${userId}-${admissionNo}`
+    });
+
     res.json(student);
   } catch (error) {
     console.error('Update student error:', error);
@@ -193,10 +236,24 @@ export const deleteStudent = async (req: Request<{ userId: string; admissionNo: 
       return res.status(400).json({ error: 'userId and admissionNo are required' });
     }
 
+    const student = await studentRepository.findByCompositeKey(userId, admissionNo);
+
     await studentRepository.delete(userId, admissionNo);
 
     // Emit real-time event
     getIO(req).to('students').emit('student:deleted', { userId, admissionNo });
+
+    // Create notification
+    if (student) {
+      await createNotification(req, {
+        userId,
+        title: 'Student Deleted',
+        message: `Student ${student.name} (${admissionNo}) has been deleted`,
+        type: 'warning',
+        entityType: 'student',
+        entityId: `${userId}-${admissionNo}`
+      });
+    }
 
     res.status(204).send();
   } catch (error) {
