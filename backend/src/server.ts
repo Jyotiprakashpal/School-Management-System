@@ -13,6 +13,7 @@ import archivedStudentRoutes from './routes/archivedStudentRoutes.js';
 import promotionRoutes from './routes/promotionRoutes.js';
 import feeRoutes from './routes/feeRoutes.js';
 import feeCollectionRoutes from './routes/feeCollectionRoutes.js';
+import attendanceRoutes from './routes/attendanceRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 import { initializeDatabase } from './db-init.js';
 
@@ -74,6 +75,7 @@ app.use('/api/archived-students', archivedStudentRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/fee-collections', feeCollectionRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 const connectDatabase = async () => {
   try {
