@@ -9,6 +9,8 @@ import { promotionRepository } from './models/Promotion.js';
 import { feeRepository } from './models/Fee.js';
 import { feeCollectionRepository } from './models/FeeCollection.js';
 import { attendanceRepository } from './models/Attendance.js';
+import { examRepository } from './models/Exam.js';
+import { examScheduleRepository } from './models/ExamSchedule.js';
 
 export async function initializeDatabase(): Promise<void> {
   await userRepository.initializeTable();
@@ -22,4 +24,6 @@ export async function initializeDatabase(): Promise<void> {
   await feeRepository.initializeTable();
   await feeCollectionRepository.initializeTable();
   await attendanceRepository.initializeTable();
+  await examRepository.initializeTable();
+  await examScheduleRepository.initializeTable();
 }
