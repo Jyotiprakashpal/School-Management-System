@@ -11,6 +11,12 @@ import { feeCollectionRepository } from './models/FeeCollection.js';
 import { attendanceRepository } from './models/Attendance.js';
 import { examRepository } from './models/Exam.js';
 import { examScheduleRepository } from './models/ExamSchedule.js';
+import { markEntryRepository } from './models/MarkEntry.js';
+import { classResultRepository } from './models/ClassResult.js';
+import { subjectRepository } from './models/Subject.js';
+import { classSubjectMapRepository } from './models/ClassSubjectMap.js';
+import { cashflowRepository } from './models/Cashflow.js';
+import { reportRepository } from './models/Report.js';
 
 export async function initializeDatabase(): Promise<void> {
   await userRepository.initializeTable();
@@ -26,4 +32,11 @@ export async function initializeDatabase(): Promise<void> {
   await attendanceRepository.initializeTable();
   await examRepository.initializeTable();
   await examScheduleRepository.initializeTable();
+  await markEntryRepository.initializeTable();
+  await classResultRepository.initializeTable();
+  await subjectRepository.initializeTable();
+  await classSubjectMapRepository.initializeTable();
+  await cashflowRepository.initializeTable();
+  await reportRepository.initializeTable();
+  await reportRepository.seedTemplates();
 }

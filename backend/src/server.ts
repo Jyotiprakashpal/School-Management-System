@@ -16,6 +16,12 @@ import feeCollectionRoutes from './routes/feeCollectionRoutes.js';
 import attendanceRoutes from './routes/attendanceRoutes.js';
 import examRoutes from './routes/examRoutes.js';
 import examScheduleRoutes from './routes/examScheduleRoutes.js';
+import markEntryRoutes from './routes/markEntryRoutes.js';
+import classResultRoutes from './routes/classResultRoutes.js';
+import subjectRoutes from './routes/subjectRoutes.js';
+import classSubjectMapRoutes from './routes/classSubjectMapRoutes.js';
+import expenseRoutes from './routes/expenseRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 import { initializeDatabase } from './db-init.js';
 
@@ -80,6 +86,12 @@ app.use('/api/fee-collections', feeCollectionRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/exam-schedules', examScheduleRoutes);
+app.use('/api/marks', markEntryRoutes);
+app.use('/api/class-results', classResultRoutes);
+app.use('/api/subjects', subjectRoutes);
+app.use('/api/class-subject-maps', classSubjectMapRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/reports', reportRoutes);
 
 const connectDatabase = async () => {
   try {
