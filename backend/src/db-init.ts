@@ -17,6 +17,10 @@ import { subjectRepository } from './models/Subject.js';
 import { classSubjectMapRepository } from './models/ClassSubjectMap.js';
 import { cashflowRepository } from './models/Cashflow.js';
 import { reportRepository } from './models/Report.js';
+import { staffRepository } from './models/Staff.js';
+import { salaryRepository } from './models/Salary.js';
+import { sessionRepository } from './models/Session.js';
+import { adminSettingsRepository } from './models/AdminSettings.js';
 
 export async function initializeDatabase(): Promise<void> {
   await userRepository.initializeTable();
@@ -39,4 +43,8 @@ export async function initializeDatabase(): Promise<void> {
   await cashflowRepository.initializeTable();
   await reportRepository.initializeTable();
   await reportRepository.seedTemplates();
+  await staffRepository.initializeTable();
+  await salaryRepository.initializeTable();
+  await sessionRepository.initializeTable();
+  await adminSettingsRepository.initializeTable();
 }

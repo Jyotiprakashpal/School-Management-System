@@ -22,6 +22,10 @@ import subjectRoutes from './routes/subjectRoutes.js';
 import classSubjectMapRoutes from './routes/classSubjectMapRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import staffRoutes from './routes/staffRoutes.js';
+import salaryRoutes from './routes/salaryRoutes.js';
+import sessionRoutes from './routes/sessionRoutes.js';
+import adminSettingsRoutes from './routes/adminSettingsRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 import { initializeDatabase } from './db-init.js';
 
@@ -92,6 +96,10 @@ app.use('/api/subjects', subjectRoutes);
 app.use('/api/class-subject-maps', classSubjectMapRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/salary', salaryRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/admin-settings', adminSettingsRoutes);
 
 const connectDatabase = async () => {
   try {
