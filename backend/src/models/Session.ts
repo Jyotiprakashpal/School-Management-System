@@ -6,6 +6,7 @@ export interface AcademicSession {
   startDate: string;
   endDate: string;
   current: boolean;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,6 +16,7 @@ export interface CreateSessionDto {
   startDate: string;
   endDate: string;
   current?: boolean;
+  createdBy?: string;
 }
 
 export interface UpdateSessionDto {
@@ -44,7 +46,7 @@ function toSessionResponse(row: SessionRow): AcademicSession {
 }
 
 const selectSessionColumns = sql`
-  id, name, "startDate", "endDate", current, "createdAt", "updatedAt"
+  id, name, "startDate", "endDate", current, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const sessionRepository = {
@@ -56,6 +58,7 @@ export const sessionRepository = {
         "startDate" DATE NOT NULL,
         "endDate" DATE NOT NULL,
         current BOOLEAN NOT NULL DEFAULT FALSE,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -120,8 +123,8 @@ export const sessionRepository = {
     }
 
     const [session] = await sql<AcademicSession[]>`
-      INSERT INTO academic_sessions (name, "startDate", "endDate", current)
-      VALUES (${data.name}, ${data.startDate}, ${data.endDate}, ${data.current || false})
+      INSERT INTO academic_sessions (name, "startDate", "endDate", current, "createdBy")
+      VALUES (${data.name}, ${data.startDate}, ${data.endDate}, ${data.current || false}, ${data.createdBy || null})
       RETURNING ${selectSessionColumns}
     `;
     return session;

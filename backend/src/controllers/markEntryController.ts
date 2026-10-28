@@ -60,7 +60,6 @@ const validateMarkEntryBody = (body: Partial<CreateMarkEntryDto>): string | null
     if (typeof body.marksObtained !== 'number' || body.marksObtained < 0) return 'Marks obtained must be a non-negative number';
     if (body.marksObtained > body.maximumMarks) return 'Marks obtained cannot exceed maximum marks';
   }
-  if (typeof body.enteredBy !== 'string' || !body.enteredBy.trim()) return 'Entered by is required';
   return null;
 };
 
@@ -82,7 +81,6 @@ const validateBulkBody = (body: Partial<BulkMarkEntryDto>): string | null => {
       if (entry.marksObtained > body.maximumMarks) return `Marks for ${entry.studentName} cannot exceed maximum marks`;
     }
   }
-  if (typeof body.enteredBy !== 'string' || !body.enteredBy.trim()) return 'Entered by is required';
   return null;
 };
 

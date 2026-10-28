@@ -8,6 +8,7 @@ export interface AdmissionEnquiry {
   classInterested: string;
   address: string | null;
   remarks: string | null;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +20,7 @@ export interface CreateAdmissionEnquiryDto {
   classInterested: string;
   address?: string;
   remarks?: string;
+  createdBy?: string;
 }
 
 export interface UpdateAdmissionEnquiryDto {
@@ -44,7 +46,7 @@ function toEnquiryResponse(enquiry: EnquiryRow): AdmissionEnquiry {
 }
 
 const selectEnquiryColumns = sql`
-  "studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, "createdAt", "updatedAt"
+  "studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const admissionEnquiryRepository = {
@@ -58,6 +60,7 @@ export const admissionEnquiryRepository = {
         "classInterested" VARCHAR(50) NOT NULL,
         address TEXT,
         remarks TEXT,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -118,8 +121,8 @@ export const admissionEnquiryRepository = {
   async create(data: CreateAdmissionEnquiryDto): Promise<AdmissionEnquiry> {
     const studentId = await this.generateStudentId();
     const [enquiry] = await sql<EnquiryRow[]>`
-      INSERT INTO admission_enquiries ("studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks)
-      VALUES (${studentId}, ${data.name.trim()}, ${data.fatherName?.trim() || null}, ${data.mobileNumber.trim()}, ${data.classInterested.trim()}, ${data.address?.trim() || null}, ${data.remarks?.trim() || null})
+      INSERT INTO admission_enquiries ("studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, "createdBy")
+      VALUES (${studentId}, ${data.name.trim()}, ${data.fatherName?.trim() || null}, ${data.mobileNumber.trim()}, ${data.classInterested.trim()}, ${data.address?.trim() || null}, ${data.remarks?.trim() || null}, ${data.createdBy || null})
       RETURNING ${selectEnquiryColumns}
     `;
     return toEnquiryResponse(enquiry);

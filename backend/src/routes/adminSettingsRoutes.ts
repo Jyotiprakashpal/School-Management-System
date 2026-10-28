@@ -14,7 +14,7 @@ import {
   getAdminStats,
 } from '../controllers/adminSettingsController.js';
 
-const router = Router();
+const router: Router = Router();
 
 // Admin settings
 router.get('/', getAdminSettings);

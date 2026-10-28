@@ -4,15 +4,35 @@ import {
   getUserById,
   createUser,
   updateUser,
-  deleteUser
+  deleteUser,
+  resetPassword,
+  getUserStats,
+  getUserActivity,
+  getUserSessions,
+  terminateSession,
+  toggleUserStatus,
 } from '../controllers/userController.js';
 
 const router: Router = Router();
 
+// Stats
+router.get('/stats', getUserStats);
+
+// User management
 router.get('/', getAllUsers);
 router.get('/:id', getUserById);
 router.post('/', createUser);
 router.put('/:id', updateUser);
+router.put('/:id/status', toggleUserStatus);
 router.delete('/:id', deleteUser);
+
+// Password reset
+router.post('/reset-password', resetPassword);
+
+// Activity & sessions
+router.get('/activity', getUserActivity);
+router.get('/sessions', getUserSessions);
+router.get('/:userId/sessions', getUserSessions);
+router.post('/sessions/:id/terminate', terminateSession);
 
 export default router;

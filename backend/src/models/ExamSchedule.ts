@@ -12,6 +12,7 @@ export interface ExamSchedule {
   room: string;
   invigilator: string;
   maxMarks: number;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +28,7 @@ export interface CreateExamScheduleDto {
   room: string;
   invigilator: string;
   maxMarks: number;
+  createdBy?: string;
 }
 
 export interface UpdateExamScheduleDto {
@@ -103,6 +105,7 @@ export const examScheduleRepository = {
         room VARCHAR(50) NOT NULL,
         invigilator VARCHAR(120) NOT NULL,
         "maxMarks" INTEGER NOT NULL,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -240,8 +243,8 @@ export const examScheduleRepository = {
 
   async create(data: CreateExamScheduleDto): Promise<ExamSchedule> {
     const [schedule] = await sql<ExamScheduleRow[]>`
-      INSERT INTO exam_schedules ("examId", "examName", subject, "className", date, "startTime", "endTime", room, invigilator, "maxMarks")
-      VALUES (${data.examId || null}, ${data.examName}, ${data.subject}, ${data.className}, ${data.date}, ${data.startTime}, ${data.endTime}, ${data.room}, ${data.invigilator}, ${data.maxMarks})
+      INSERT INTO exam_schedules ("examId", "examName", subject, "className", date, "startTime", "endTime", room, invigilator, "maxMarks", "createdBy")
+      VALUES (${data.examId || null}, ${data.examName}, ${data.subject}, ${data.className}, ${data.date}, ${data.startTime}, ${data.endTime}, ${data.room}, ${data.invigilator}, ${data.maxMarks}, ${data.createdBy || null})
       RETURNING ${selectExamScheduleColumns}
     `;
     return toExamScheduleResponse(schedule);
@@ -400,5 +403,5 @@ function toExamScheduleResponse(schedule: ExamScheduleRow): ExamSchedule {
 }
 
 const selectExamScheduleColumns = sql`
-  id, "examId", "examName", subject, "className", date, "startTime", "endTime", room, invigilator, "maxMarks", "createdAt", "updatedAt"
+  id, "examId", "examName", subject, "className", date, "startTime", "endTime", room, invigilator, "maxMarks", "createdBy", "createdAt", "updatedAt"
 `;

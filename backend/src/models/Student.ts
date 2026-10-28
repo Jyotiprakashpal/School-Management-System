@@ -10,6 +10,7 @@ export interface Student {
   phone: string;
   gender: string;
   admissionDate: Date;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +25,7 @@ export interface CreateStudentDto {
   phone: string;
   gender: string;
   admissionDate: string | Date;
+  createdBy?: string;
 }
 
 export interface UpdateStudentDto {
@@ -53,7 +55,7 @@ function toStudentResponse(student: StudentRow): Student {
 }
 
 const selectStudentColumns = sql`
-  "userId", name, "admissionNo", "fatherName", class, section, phone, gender, "admissionDate", "createdAt", "updatedAt"
+  "userId", name, "admissionNo", "fatherName", class, section, phone, gender, "admissionDate", "createdBy", "createdAt", "updatedAt"
 `;
 
 export const studentRepository = {
@@ -69,6 +71,7 @@ export const studentRepository = {
         phone VARCHAR(40) NOT NULL,
         gender VARCHAR(20) NOT NULL,
         "admissionDate" DATE NOT NULL,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -130,8 +133,8 @@ export const studentRepository = {
 
   async create(data: CreateStudentDto): Promise<Student> {
     const [student] = await sql<StudentRow[]>`
-      INSERT INTO students ("userId", name, "admissionNo", "fatherName", class, section, phone, gender, "admissionDate")
-      VALUES (${data.userId}, ${data.name.trim()}, ${data.admissionNo.trim()}, ${data.fatherName.trim()}, ${data.class.trim()}, ${data.section.trim()}, ${data.phone.trim()}, ${data.gender.trim()}, ${data.admissionDate})
+      INSERT INTO students ("userId", name, "admissionNo", "fatherName", class, section, phone, gender, "admissionDate", "createdBy")
+      VALUES (${data.userId}, ${data.name.trim()}, ${data.admissionNo.trim()}, ${data.fatherName.trim()}, ${data.class.trim()}, ${data.section.trim()}, ${data.phone.trim()}, ${data.gender.trim()}, ${data.admissionDate}, ${data.createdBy || null})
       RETURNING ${selectStudentColumns}
     `;
     return toStudentResponse(student);

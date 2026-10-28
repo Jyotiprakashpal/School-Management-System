@@ -11,6 +11,7 @@ export interface Staff {
   salary: number;
   joiningDate: string;
   status: 'Active' | 'On Leave';
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +26,7 @@ export interface CreateStaffDto {
   salary: number;
   joiningDate: string;
   status?: 'Active' | 'On Leave';
+  createdBy?: string;
 }
 
 export interface UpdateStaffDto {
@@ -60,7 +62,7 @@ function toStaffResponse(staff: StaffRow): Staff {
 }
 
 const selectStaffColumns = sql`
-  id, "staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdAt", "updatedAt"
+  id, "staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const staffRepository = {
@@ -77,6 +79,7 @@ export const staffRepository = {
         salary DECIMAL(10,2) NOT NULL,
         "joiningDate" DATE NOT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'On Leave')),
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -138,8 +141,8 @@ export const staffRepository = {
   async create(data: CreateStaffDto): Promise<Staff> {
     const staffId = data.staffId || `EMP-${Date.now()}`;
     const [staff] = await sql<StaffRow[]>`
-      INSERT INTO staff ("staffId", name, designation, department, phone, email, salary, "joiningDate", status)
-      VALUES (${staffId}, ${data.name}, ${data.designation}, ${data.department}, ${data.phone}, ${data.email}, ${data.salary}, ${data.joiningDate}, ${data.status || 'Active'})
+      INSERT INTO staff ("staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdBy")
+      VALUES (${staffId}, ${data.name}, ${data.designation}, ${data.department}, ${data.phone}, ${data.email}, ${data.salary}, ${data.joiningDate}, ${data.status || 'Active'}, ${data.createdBy || null})
       RETURNING ${selectStaffColumns}
     `;
     return toStaffResponse(staff);

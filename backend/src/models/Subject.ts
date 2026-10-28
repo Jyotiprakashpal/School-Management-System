@@ -8,6 +8,7 @@ export interface Subject {
   classes: string;
   teachers: number;
   status: 'Active' | 'Inactive';
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +20,7 @@ export interface CreateSubjectDto {
   classes: string;
   teachers: number;
   status?: 'Active' | 'Inactive';
+  createdBy?: string;
 }
 
 export interface UpdateSubjectDto {
@@ -52,7 +54,7 @@ function toSubjectResponse(subject: SubjectRow): Subject {
 }
 
 const selectSubjectColumns = sql`
-  id, code, name, type, classes, teachers, status, "createdAt", "updatedAt"
+  id, code, name, type, classes, teachers, status, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const subjectRepository = {
@@ -66,6 +68,7 @@ export const subjectRepository = {
         classes VARCHAR(100) NOT NULL,
         teachers INTEGER NOT NULL DEFAULT 0,
         status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Inactive')),
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -126,8 +129,8 @@ export const subjectRepository = {
 
   async create(data: CreateSubjectDto): Promise<Subject> {
     const [subject] = await sql<SubjectRow[]>`
-      INSERT INTO subjects (code, name, type, classes, teachers, status)
-      VALUES (${data.code.toUpperCase()}, ${data.name}, ${data.type}, ${data.classes}, ${data.teachers}, ${data.status || 'Active'})
+      INSERT INTO subjects (code, name, type, classes, teachers, status, "createdBy")
+      VALUES (${data.code.toUpperCase()}, ${data.name}, ${data.type}, ${data.classes}, ${data.teachers}, ${data.status || 'Active'}, ${data.createdBy || null})
       RETURNING ${selectSubjectColumns}
     `;
     return toSubjectResponse(subject);

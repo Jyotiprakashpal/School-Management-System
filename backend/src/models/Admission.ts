@@ -30,6 +30,7 @@ export interface Admission {
   transportFee: number | null;
   studentPhoto: string | null;
   remarks: string | null;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,6 +64,7 @@ export interface CreateAdmissionDto {
   transportFee?: number;
   studentPhoto?: string;
   remarks?: string;
+  createdBy?: string;
 }
 
 export interface UpdateAdmissionDto {
@@ -127,7 +129,7 @@ const selectAdmissionColumns = sql`
   id, "admissionNo", "formNumber", "fullName", "fatherName", "motherName", "dateOfBirth",
   gender, "bloodGroup", aadhaar, pen, "className", section, status, "admissionDate",
   category, religion, nationality, "academicYear", mobile, "altMobile", email, address,
-  "pinCode", district, state, "transportFee", "studentPhoto", remarks, "createdAt", "updatedAt"
+  "pinCode", district, state, "transportFee", "studentPhoto", remarks, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const admissionRepository = {
@@ -163,6 +165,7 @@ export const admissionRepository = {
         "transportFee" INTEGER DEFAULT 0,
         "studentPhoto" TEXT,
         remarks TEXT,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -236,7 +239,7 @@ export const admissionRepository = {
         "admissionNo", "formNumber", "fullName", "fatherName", "motherName", "dateOfBirth",
         gender, "bloodGroup", aadhaar, pen, "className", section, status, "admissionDate",
         category, religion, nationality, "academicYear", mobile, "altMobile", email, address,
-        "pinCode", district, state, "transportFee", "studentPhoto", remarks
+        "pinCode", district, state, "transportFee", "studentPhoto", remarks, "createdBy"
       )
       VALUES (
         ${data.admissionNo}, ${data.formNumber || null}, ${data.fullName}, ${data.fatherName || null},
@@ -247,7 +250,7 @@ export const admissionRepository = {
         ${data.nationality || null}, ${data.academicYear || null}, ${data.mobile || null},
         ${data.altMobile || null}, ${data.email || null}, ${data.address || null},
         ${data.pinCode || null}, ${data.district || null}, ${data.state || null},
-        ${data.transportFee || 0}, ${data.studentPhoto || null}, ${data.remarks || null}
+        ${data.transportFee || 0}, ${data.studentPhoto || null}, ${data.remarks || null}, ${data.createdBy || null}
       )
       RETURNING ${selectAdmissionColumns}
     `;

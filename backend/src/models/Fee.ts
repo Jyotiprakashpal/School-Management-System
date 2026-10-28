@@ -7,6 +7,7 @@ export interface FeeHead {
   amount: number;
   year: string;
   frequency: string;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +18,7 @@ export interface CreateFeeHeadDto {
   amount: number;
   year: string;
   frequency: string;
+  createdBy?: string;
 }
 
 export interface UpdateFeeHeadDto {
@@ -48,6 +50,7 @@ export interface FeeAssignment {
 export interface CreateFeeAssignmentDto {
   className: string;
   year: string;
+  createdBy?: string;
 }
 
 export interface FeeAssignmentQuery {
@@ -76,7 +79,7 @@ function toFeeAssignmentResponse(assignment: FeeAssignmentRow): FeeAssignment {
 }
 
 const selectFeeHeadColumns = sql`
-  id, "className", name, amount, year, frequency, "createdAt", "updatedAt"
+  id, "className", name, amount, year, frequency, "createdBy", "createdAt", "updatedAt"
 `;
 
 const selectFeeAssignmentColumns = sql`
@@ -93,6 +96,7 @@ export const feeRepository = {
         amount DECIMAL(10,2) NOT NULL,
         year VARCHAR(20) NOT NULL,
         frequency VARCHAR(20) NOT NULL,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE("className", name, year)
@@ -169,8 +173,8 @@ export const feeRepository = {
 
   async createFeeHead(data: CreateFeeHeadDto): Promise<FeeHead> {
     const [fee] = await sql<FeeHeadRow[]>`
-      INSERT INTO fee_heads ("className", name, amount, year, frequency)
-      VALUES (${data.className}, ${data.name}, ${data.amount}, ${data.year}, ${data.frequency})
+      INSERT INTO fee_heads ("className", name, amount, year, frequency, "createdBy")
+      VALUES (${data.className}, ${data.name}, ${data.amount}, ${data.year}, ${data.frequency}, ${data.createdBy || null})
       RETURNING ${selectFeeHeadColumns}
     `;
     return toFeeHeadResponse(fee);

@@ -10,7 +10,7 @@ import {
   deleteSession
 } from '../controllers/sessionController.js';
 
-const router = Router();
+const router: Router = Router();
 
 // Simple list (for dropdowns, etc.)
 router.get('/simple', getAllSessionsSimple);

@@ -18,6 +18,7 @@ export interface FeePayment {
   paymentDate: Date;
   academicYear: string;
   collectedBy: string;
+  createdBy: string | null;
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -38,6 +39,7 @@ export interface CreateFeePaymentDto {
   paymentDate?: string | Date;
   academicYear: string;
   collectedBy: string;
+  createdBy?: string;
   notes?: string;
 }
 
@@ -104,7 +106,7 @@ function toFeePaymentResponse(payment: FeePaymentRow): FeePayment {
 const selectFeePaymentColumns = sql`
   id, "studentId", "admissionNo", "studentName", "className", section, "feeHeadId", "feeHeadName",
   amount, "paidAmount", "balanceAmount", "paymentMode", "transactionId", "receiptNumber",
-  "paymentDate", "academicYear", "collectedBy", notes, "createdAt", "updatedAt"
+  "paymentDate", "academicYear", "collectedBy", "createdBy", notes, "createdAt", "updatedAt"
 `;
 
 export const feeCollectionRepository = {
@@ -128,6 +130,7 @@ export const feeCollectionRepository = {
         "paymentDate" TIMESTAMPTZ NOT NULL,
         "academicYear" VARCHAR(20) NOT NULL,
         "collectedBy" VARCHAR(120) NOT NULL,
+        "createdBy" TEXT,
         notes TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -295,14 +298,14 @@ export const feeCollectionRepository = {
         "studentId", "admissionNo", "studentName", "className", section,
         "feeHeadId", "feeHeadName", amount, "paidAmount", "balanceAmount",
         "paymentMode", "transactionId", "receiptNumber", "paymentDate",
-        "academicYear", "collectedBy", notes
+        "academicYear", "collectedBy", "createdBy", notes
       )
       VALUES (
         ${data.studentId}, ${data.admissionNo}, ${data.studentName}, ${data.className}, ${data.section},
         ${data.feeHeadId}, ${data.feeHeadName}, ${data.amount}, ${data.paidAmount}, ${balanceAmount},
         ${data.paymentMode}, ${data.transactionId || null}, ${receiptNumber},
         ${data.paymentDate ? new Date(data.paymentDate) : new Date()},
-        ${data.academicYear}, ${data.collectedBy}, ${data.notes || null}
+        ${data.academicYear}, ${data.collectedBy}, ${data.createdBy || null}, ${data.notes || null}
       )
       RETURNING ${selectFeePaymentColumns}
     `;

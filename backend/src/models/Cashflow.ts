@@ -10,6 +10,7 @@ export interface Cashflow {
   mode: string;
   reference: string;
   academicYear: string;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,6 +31,7 @@ export interface CreateCashflowDto {
   mode: string;
   reference?: string;
   academicYear?: string;
+  createdBy?: string;
 }
 
 export interface CreateExpenseDto extends CreateCashflowDto {
@@ -110,11 +112,11 @@ function toExpenseResponse(expense: ExpenseRow): Expense {
 }
 
 const selectCashflowColumns = sql`
-  id, type, category, description, amount, date, mode, reference, "academicYear", "createdAt", "updatedAt"
+  id, type, category, description, amount, date, mode, reference, "academicYear", "createdBy", "createdAt", "updatedAt"
 `;
 
 const selectExpenseColumns = sql`
-  id, type, category, description, amount, date, mode, reference, "academicYear", voucher, payee, status, "createdAt", "updatedAt"
+  id, type, category, description, amount, date, mode, reference, "academicYear", voucher, payee, status, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const cashflowRepository = {
@@ -130,6 +132,7 @@ export const cashflowRepository = {
         mode VARCHAR(50) NOT NULL,
         reference VARCHAR(100),
         "academicYear" VARCHAR(20) NOT NULL,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -253,8 +256,8 @@ export const cashflowRepository = {
     const reference = data.reference || `${data.type === 'Income' ? 'INC' : 'EXP'}-${Date.now()}`;
     
     const [cashflow] = await sql<CashflowRow[]>`
-      INSERT INTO cashflows (type, category, description, amount, date, mode, reference, "academicYear")
-      VALUES (${data.type}, ${data.category}, ${data.description}, ${data.amount}, ${data.date}, ${data.mode}, ${reference}, ${academicYear})
+      INSERT INTO cashflows (type, category, description, amount, date, mode, reference, "academicYear", "createdBy")
+      VALUES (${data.type}, ${data.category}, ${data.description}, ${data.amount}, ${data.date}, ${data.mode}, ${reference}, ${academicYear}, ${data.createdBy || null})
       RETURNING ${selectCashflowColumns}
     `;
     return toCashflowResponse(cashflow);
@@ -266,8 +269,8 @@ export const cashflowRepository = {
     const voucher = data.voucher || `EXP-${Date.now()}`;
     
     const [expense] = await sql<ExpenseRow[]>`
-      INSERT INTO cashflows (type, category, description, amount, date, mode, reference, "academicYear", voucher, payee, status)
-      VALUES ('Expense', ${data.category}, ${data.description}, ${data.amount}, ${data.date}, ${data.mode}, ${reference}, ${academicYear}, ${voucher}, ${data.payee}, ${data.status || 'Pending'})
+      INSERT INTO cashflows (type, category, description, amount, date, mode, reference, "academicYear", voucher, payee, status, "createdBy")
+      VALUES ('Expense', ${data.category}, ${data.description}, ${data.amount}, ${data.date}, ${data.mode}, ${reference}, ${academicYear}, ${voucher}, ${data.payee}, ${data.status || 'Pending'}, ${data.createdBy || null})
       RETURNING ${selectExpenseColumns}
     `;
     return toExpenseResponse(expense);

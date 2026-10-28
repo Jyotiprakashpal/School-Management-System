@@ -9,6 +9,7 @@ export interface Exam {
   startDate: string;
   endDate: string;
   status: 'Upcoming' | 'Active' | 'Completed';
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +22,7 @@ export interface CreateExamDto {
   startDate: string;
   endDate: string;
   status?: 'Upcoming' | 'Active' | 'Completed';
+  createdBy?: string;
 }
 
 export interface UpdateExamDto {
@@ -59,7 +61,7 @@ function toExamResponse(exam: ExamRow): Exam {
 }
 
 const selectExamColumns = sql`
-  id, name, term, session, classes, "startDate", "endDate", status, "createdAt", "updatedAt"
+  id, name, term, session, classes, "startDate", "endDate", status, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const examRepository = {
@@ -74,6 +76,7 @@ export const examRepository = {
         "startDate" DATE NOT NULL,
         "endDate" DATE NOT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'Upcoming' CHECK (status IN ('Upcoming', 'Active', 'Completed')),
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -134,8 +137,8 @@ export const examRepository = {
 
   async create(data: CreateExamDto): Promise<Exam> {
     const [exam] = await sql<ExamRow[]>`
-      INSERT INTO exams (name, term, session, classes, "startDate", "endDate", status)
-      VALUES (${data.name}, ${data.term}, ${data.session}, ${data.classes}, ${data.startDate}, ${data.endDate}, ${data.status || 'Upcoming'})
+      INSERT INTO exams (name, term, session, classes, "startDate", "endDate", status, "createdBy")
+      VALUES (${data.name}, ${data.term}, ${data.session}, ${data.classes}, ${data.startDate}, ${data.endDate}, ${data.status || 'Upcoming'}, ${data.createdBy || null})
       RETURNING ${selectExamColumns}
     `;
     return toExamResponse(exam);

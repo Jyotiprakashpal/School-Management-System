@@ -9,6 +9,7 @@ export interface Notification {
   entityType: 'user' | 'student' | 'enquiry' | 'admission' | 'settings' | 'system';
   entityId: string | null;
   isRead: boolean;
+  createdBy: string | null;
   createdAt: Date;
 }
 
@@ -19,6 +20,7 @@ export interface CreateNotificationDto {
   type?: 'info' | 'success' | 'warning' | 'error';
   entityType: 'user' | 'student' | 'enquiry' | 'admission' | 'settings' | 'system';
   entityId?: string;
+  createdBy?: string;
 }
 
 export interface NotificationQuery {
@@ -37,7 +39,7 @@ function toNotificationResponse(notification: NotificationRow): Notification {
 }
 
 const selectNotificationColumns = sql`
-  id, "userId", title, message, type, "entityType", "entityId", "isRead", "createdAt"
+  id, "userId", title, message, type, "entityType", "entityId", "isRead", "createdBy", "createdAt"
 `;
 
 export const notificationRepository = {
@@ -52,6 +54,7 @@ export const notificationRepository = {
         "entityType" VARCHAR(20) NOT NULL,
         "entityId" TEXT,
         "isRead" BOOLEAN NOT NULL DEFAULT false,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
@@ -68,8 +71,8 @@ export const notificationRepository = {
 
   async create(data: CreateNotificationDto): Promise<Notification> {
     const [notification] = await sql<NotificationRow[]>`
-      INSERT INTO notifications ("userId", title, message, type, "entityType", "entityId")
-      VALUES (${data.userId || null}, ${data.title}, ${data.message}, ${data.type || 'info'}, ${data.entityType}, ${data.entityId || null})
+      INSERT INTO notifications ("userId", title, message, type, "entityType", "entityId", "createdBy")
+      VALUES (${data.userId || null}, ${data.title}, ${data.message}, ${data.type || 'info'}, ${data.entityType}, ${data.entityId || null}, ${data.createdBy || null})
       RETURNING ${selectNotificationColumns}
     `;
     return toNotificationResponse(notification);

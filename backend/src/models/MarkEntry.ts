@@ -17,7 +17,7 @@ export interface MarkEntry {
   percentage: number | null;
   passed: boolean | null;
   remarks: string | null;
-  enteredBy: string;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,13 +35,12 @@ export interface CreateMarkEntryDto {
   maximumMarks: number;
   marksObtained: number | null;
   remarks?: string;
-  enteredBy: string;
+  createdBy?: string;
 }
 
 export interface UpdateMarkEntryDto {
   marksObtained?: number | null;
   remarks?: string;
-  enteredBy?: string;
 }
 
 export interface BulkMarkEntryDto {
@@ -58,8 +57,8 @@ export interface BulkMarkEntryDto {
     rollNo: number;
     marksObtained: number | null;
     remarks?: string;
+    createdBy?: string;
   }>;
-  enteredBy: string;
 }
 
 export interface MarkEntryQuery {
@@ -106,12 +105,13 @@ function toMarkEntryResponse(entry: MarkEntryRow): MarkEntry {
     ...entry,
     createdAt: new Date(entry.createdAt),
     updatedAt: new Date(entry.updatedAt),
+    createdBy: entry.createdBy || null,
   };
 }
 
 const selectMarkEntryColumns = sql`
   id, "examId", "examName", "studentId", "admissionNo", "studentName", "className", section, "rollNo",
-  subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "enteredBy", "createdAt", "updatedAt"
+  subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const markEntryRepository = {
@@ -134,7 +134,7 @@ export const markEntryRepository = {
         percentage DECIMAL(5,2),
         passed BOOLEAN,
         remarks TEXT,
-        "enteredBy" VARCHAR(120) NOT NULL,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE("examId", "studentId", subject)
@@ -226,8 +226,8 @@ export const markEntryRepository = {
     const passed = marksObtained !== null && marksObtained !== undefined ? (marksObtained / maximumMarks) * 100 >= 35 : null;
 
     const [entry] = await sql<MarkEntryRow[]>`
-      INSERT INTO mark_entries ("examId", "examName", "studentId", "admissionNo", "studentName", "className", section, "rollNo", subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "enteredBy")
-      VALUES (${data.examId}, ${data.examName}, ${data.studentId}, ${data.admissionNo}, ${data.studentName}, ${data.className}, ${data.section}, ${data.rollNo}, ${data.subject}, ${data.maximumMarks}, ${marksObtained}, ${grade}, ${percentage}, ${passed}, ${data.remarks || null}, ${data.enteredBy})
+      INSERT INTO mark_entries ("examId", "examName", "studentId", "admissionNo", "studentName", "className", section, "rollNo", subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "createdBy")
+      VALUES (${data.examId}, ${data.examName}, ${data.studentId}, ${data.admissionNo}, ${data.studentName}, ${data.className}, ${data.section}, ${data.rollNo}, ${data.subject}, ${data.maximumMarks}, ${marksObtained}, ${grade}, ${percentage}, ${passed}, ${data.remarks || null}, ${data.createdBy || null})
       ON CONFLICT ("examId", "studentId", subject) DO UPDATE SET
         "marksObtained" = EXCLUDED."marksObtained",
         "maximumMarks" = EXCLUDED."maximumMarks",
@@ -235,7 +235,6 @@ export const markEntryRepository = {
         percentage = EXCLUDED.percentage,
         passed = EXCLUDED.passed,
         remarks = EXCLUDED.remarks,
-        "enteredBy" = EXCLUDED."enteredBy",
         "updatedAt" = NOW()
       RETURNING ${selectMarkEntryColumns}
     `;
@@ -252,8 +251,8 @@ export const markEntryRepository = {
       const passed = marksObtained !== null ? (marksObtained / data.maximumMarks) * 100 >= 35 : null;
 
       const [created] = await sql<MarkEntryRow[]>`
-        INSERT INTO mark_entries ("examId", "examName", "studentId", "admissionNo", "studentName", "className", section, "rollNo", subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "enteredBy")
-        VALUES (${data.examId}, ${data.examName}, ${entry.studentId}, ${entry.admissionNo}, ${entry.studentName}, ${data.className}, ${data.section}, ${entry.rollNo}, ${data.subject}, ${data.maximumMarks}, ${marksObtained}, ${grade}, ${percentage}, ${passed}, ${entry.remarks || null}, ${data.enteredBy})
+        INSERT INTO mark_entries ("examId", "examName", "studentId", "admissionNo", "studentName", "className", section, "rollNo", subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "createdBy")
+        VALUES (${data.examId}, ${data.examName}, ${entry.studentId}, ${entry.admissionNo}, ${entry.studentName}, ${data.className}, ${data.section}, ${entry.rollNo}, ${data.subject}, ${data.maximumMarks}, ${marksObtained}, ${grade}, ${percentage}, ${passed}, ${entry.remarks || null}, ${entry.createdBy || null})
         ON CONFLICT ("examId", "studentId", subject) DO UPDATE SET
           "marksObtained" = EXCLUDED."marksObtained",
           "maximumMarks" = EXCLUDED."maximumMarks",
@@ -261,7 +260,6 @@ export const markEntryRepository = {
           percentage = EXCLUDED.percentage,
           passed = EXCLUDED.passed,
           remarks = EXCLUDED.remarks,
-          "enteredBy" = EXCLUDED."enteredBy",
           "updatedAt" = NOW()
         RETURNING ${selectMarkEntryColumns}
       `;
@@ -285,7 +283,6 @@ export const markEntryRepository = {
       UPDATE mark_entries
        SET "marksObtained" = ${marksObtained},
            remarks = ${data.remarks ?? current.remarks},
-           "enteredBy" = ${data.enteredBy ?? current.enteredBy},
            grade = ${grade},
            percentage = ${percentage},
            passed = ${passed},

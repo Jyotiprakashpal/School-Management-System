@@ -26,6 +26,7 @@ export interface SchoolSettings {
   securityTwoFactor: boolean;
   securityLoginAlerts: boolean;
   sessionTimeout: number;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +56,7 @@ export interface UpdateSettingsDto {
   securityTwoFactor?: boolean;
   securityLoginAlerts?: boolean;
   sessionTimeout?: number;
+  createdBy?: string;
 }
 
 type SettingsRow = Omit<SchoolSettings, 'createdAt' | 'updatedAt'> & { createdAt: string; updatedAt: string };
@@ -67,8 +69,7 @@ const selectSettingsColumns = sql`
   id, "schoolName", "schoolCode", "schoolEmail", "schoolPhone", "schoolAddress", "schoolWebsite", "schoolPrincipal",
   "academicYear", "weekStart", language, timezone, "dateFormat", currency,
   "notificationEmail", "notificationSms", "notificationFee", "notificationAttendance", "notificationReports", "notificationProduct",
-  theme, density, "securityTwoFactor", "securityLoginAlerts", "sessionTimeout",
-  "createdAt", "updatedAt"
+  theme, density, "securityTwoFactor", "securityLoginAlerts", "sessionTimeout", "createdBy", "createdAt", "updatedAt"
 `;
 
 export const settingsRepository = {
@@ -100,6 +101,7 @@ export const settingsRepository = {
         "securityTwoFactor" BOOLEAN NOT NULL DEFAULT true,
         "securityLoginAlerts" BOOLEAN NOT NULL DEFAULT true,
         "sessionTimeout" INTEGER NOT NULL DEFAULT 30,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )

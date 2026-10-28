@@ -13,6 +13,7 @@ export interface Payroll {
   status: 'Pending' | 'Processed' | 'Paid';
   month: string;
   year: number;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +29,7 @@ export interface CreatePayrollDto {
   month: string;
   year: number;
   status?: 'Pending' | 'Processed' | 'Paid';
+  createdBy?: string;
 }
 
 export interface UpdatePayrollDto {
@@ -102,6 +104,7 @@ function toPayrollResponse(row: PayrollRow): Payroll {
     netSalary: row.basic + row.allowances - row.deductions,
     createdAt: new Date(row.createdAt),
     updatedAt: new Date(row.updatedAt),
+    createdBy: row.createdBy || null,
   };
 }
 
@@ -118,7 +121,7 @@ function toEmployeeSalaryResponse(row: EmployeeSalaryRow): EmployeeSalaryReport 
 
 const selectPayrollColumns = sql`
   id, "employeeId", name, designation, department, basic, allowances, deductions,
-  "netSalary", status, month, year, "createdAt", "updatedAt"
+  "netSalary", status, month, year, "createdBy", "createdAt", "updatedAt"
 `;
 
 const selectMonthlyPayrollColumns = sql`
@@ -145,6 +148,7 @@ export const salaryRepository = {
         status VARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Processed', 'Paid')),
         month VARCHAR(20) NOT NULL,
         year INTEGER NOT NULL,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE("employeeId", month, year)
@@ -246,8 +250,8 @@ export const salaryRepository = {
 
   async create(data: CreatePayrollDto): Promise<Payroll> {
     const [payroll] = await sql<PayrollRow[]>`
-      INSERT INTO payrolls ("employeeId", name, designation, department, basic, allowances, deductions, month, year, status)
-      VALUES (${data.employeeId}, ${data.name}, ${data.designation}, ${data.department}, ${data.basic}, ${data.allowances}, ${data.deductions}, ${data.month}, ${data.year}, ${data.status || 'Pending'})
+      INSERT INTO payrolls ("employeeId", name, designation, department, basic, allowances, deductions, month, year, status, "createdBy")
+      VALUES (${data.employeeId}, ${data.name}, ${data.designation}, ${data.department}, ${data.basic}, ${data.allowances}, ${data.deductions}, ${data.month}, ${data.year}, ${data.status || 'Pending'}, ${data.createdBy || null})
       RETURNING ${selectPayrollColumns}
     `;
     return toPayrollResponse(payroll);

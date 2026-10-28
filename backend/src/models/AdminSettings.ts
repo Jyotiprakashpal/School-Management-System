@@ -10,6 +10,7 @@ export interface Backup {
   encryptionKey: string | null;
   cloudPath: string | null;
   emailSent: boolean;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +34,7 @@ export interface AdminSettings {
   lastBackupSize: string | null;
   nextBackupAt: Date | null;
   recoveryKey: string | null;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +42,7 @@ export interface AdminSettings {
 export interface CreateBackupDto {
   type?: 'full' | 'incremental' | 'manual';
   name?: string;
+  createdBy?: string;
 }
 
 export interface UpdateAdminSettingsDto {
@@ -96,14 +99,14 @@ function toAdminSettingsResponse(row: AdminSettingsRow): AdminSettings {
 }
 
 const selectBackupColumns = sql`
-  id, name, size, status, type, "filePath", "encryptionKey", "cloudPath", "emailSent", "createdAt", "updatedAt"
+  id, name, size, status, type, "filePath", "encryptionKey", "cloudPath", "emailSent", "createdBy", "createdAt", "updatedAt"
 `;
 
 const selectAdminSettingsColumns = sql`
   id, "automaticBackup", "backupFrequency", "backupRetentionDays", "encryptionEnabled",
   "cloudBackupEnabled", "cloudProvider", "cloudConnected", "emailBackupEnabled",
   "emailSender", "emailAppPassword", "emailRecipients", "mailServer", "mailPort",
-  "lastBackupAt", "lastBackupSize", "nextBackupAt", "recoveryKey", "createdAt", "updatedAt"
+  "lastBackupAt", "lastBackupSize", "nextBackupAt", "recoveryKey", "createdBy", "createdAt", "updatedAt"
 `;
 
 export const adminSettingsRepository = {
@@ -128,6 +131,7 @@ export const adminSettingsRepository = {
         "lastBackupSize" VARCHAR(20),
         "nextBackupAt" TIMESTAMPTZ,
         "recoveryKey" VARCHAR(500),
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -144,6 +148,7 @@ export const adminSettingsRepository = {
         "encryptionKey" VARCHAR(500),
         "cloudPath" VARCHAR(500),
         "emailSent" BOOLEAN NOT NULL DEFAULT FALSE,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )

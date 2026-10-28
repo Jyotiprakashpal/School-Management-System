@@ -26,6 +26,7 @@ export interface ClassResult {
   published: boolean;
   publishedAt: Date | null;
   publishedBy: string | null;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -95,7 +96,7 @@ function toClassResultResponse(record: ClassResultRow): ClassResult {
 const selectClassResultColumns = sql`
   "examId", "examName", "className", section, "studentId", "admissionNo", "studentName", "rollNo",
   subjects, "totalObtained", "totalMaximum", "overallPercentage", "overallGrade", rank, passed,
-  published, "publishedAt", "publishedBy", "createdAt", "updatedAt"
+  published, "publishedAt", "publishedBy", "createdBy", "createdAt", "updatedAt"
 `;
 
 export const classResultRepository = {
@@ -120,6 +121,7 @@ export const classResultRepository = {
         published BOOLEAN NOT NULL DEFAULT FALSE,
         "publishedAt" TIMESTAMPTZ,
         "publishedBy" VARCHAR(120),
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         PRIMARY KEY ("examId", "studentId")
@@ -212,12 +214,12 @@ export const classResultRepository = {
       const [upserted] = await sql<any[]>`
         INSERT INTO class_results ("examId", "examName", "className", section, "studentId", "admissionNo", "studentName", "rollNo",
           subjects, "totalObtained", "totalMaximum", "overallPercentage", "overallGrade", rank, passed,
-          published, "publishedAt", "publishedBy")
+          published, "publishedAt", "publishedBy", "createdBy")
         VALUES (${result.examId}, ${result.examName}, ${result.className}, ${result.section}, ${result.studentId},
           ${result.admissionNo}, ${result.studentName}, ${result.rollNo},
           ${JSON.stringify(result.subjects)}, ${result.totalObtained}, ${result.totalMaximum},
           ${result.overallPercentage}, ${result.overallGrade}, ${result.rank}, ${result.passed},
-          ${result.published}, ${result.publishedAt}, ${result.publishedBy})
+          ${result.published}, ${result.publishedAt}, ${result.publishedBy}, ${result.createdBy})
         ON CONFLICT ("examId", "studentId") DO UPDATE SET
           "examName" = EXCLUDED."examName",
           "className" = EXCLUDED."className",
@@ -235,6 +237,7 @@ export const classResultRepository = {
           published = EXCLUDED.published,
           "publishedAt" = EXCLUDED."publishedAt",
           "publishedBy" = EXCLUDED."publishedBy",
+          "createdBy" = EXCLUDED."createdBy",
           "updatedAt" = NOW()
         RETURNING *
       `;

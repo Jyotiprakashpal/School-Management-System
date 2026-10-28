@@ -7,6 +7,7 @@ export interface PromotionMove {
   name: string;
   previousClass: string;
   targetClass: string;
+  createdBy: string | null;
   createdAt: Date;
 }
 
@@ -14,6 +15,7 @@ export interface PromotionBatch {
   id: number;
   academicYear: string;
   fromClass: string;
+  createdBy: string | null;
   createdAt: Date;
   moves?: PromotionMove[];
 }
@@ -22,6 +24,7 @@ export interface CreatePromotionDto {
   academicYear: string;
   fromClass: string;
   moves: Omit<PromotionMove, 'id' | 'promotionId' | 'createdAt'>[];
+  createdBy?: string;
 }
 
 export interface PromotionQuery {
@@ -38,11 +41,11 @@ function toPromotionBatchResponse(batch: PromotionBatchRow): PromotionBatch {
 }
 
 const selectPromotionBatchColumns = sql`
-  id, "academicYear", "fromClass", "createdAt"
+  id, "academicYear", "fromClass", "createdBy", "createdAt"
 `;
 
 const selectPromotionMoveColumns = sql`
-  id, "promotionId", "admissionNo", name, "previousClass", "targetClass", "createdAt"
+  id, "promotionId", "admissionNo", name, "previousClass", "targetClass", "createdBy", "createdAt"
 `;
 
 export const promotionRepository = {
@@ -52,6 +55,7 @@ export const promotionRepository = {
         id SERIAL PRIMARY KEY,
         "academicYear" VARCHAR(20) NOT NULL,
         "fromClass" VARCHAR(50) NOT NULL,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
@@ -73,6 +77,7 @@ export const promotionRepository = {
         name VARCHAR(120) NOT NULL,
         "previousClass" VARCHAR(50) NOT NULL,
         "targetClass" VARCHAR(50) NOT NULL,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
@@ -155,16 +160,16 @@ export const promotionRepository = {
 
   async create(data: CreatePromotionDto): Promise<PromotionBatch> {
     const [batch] = await sql<PromotionBatchRow[]>`
-      INSERT INTO promotion_batches ("academicYear", "fromClass")
-      VALUES (${data.academicYear}, ${data.fromClass})
+      INSERT INTO promotion_batches ("academicYear", "fromClass", "createdBy")
+      VALUES (${data.academicYear}, ${data.fromClass}, ${data.createdBy || null})
       RETURNING ${selectPromotionBatchColumns}
     `;
 
     if (data.moves.length > 0) {
       for (const move of data.moves) {
         await sql`
-          INSERT INTO promotion_moves ("promotionId", "admissionNo", name, "previousClass", "targetClass")
-          VALUES (${batch.id}, ${move.admissionNo}, ${move.name}, ${move.previousClass}, ${move.targetClass})
+          INSERT INTO promotion_moves ("promotionId", "admissionNo", name, "previousClass", "targetClass", "createdBy")
+          VALUES (${batch.id}, ${move.admissionNo}, ${move.name}, ${move.previousClass}, ${move.targetClass}, ${move.createdBy || null})
         `;
       }
     }

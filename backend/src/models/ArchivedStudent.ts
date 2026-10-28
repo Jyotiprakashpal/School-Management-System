@@ -10,6 +10,7 @@ export interface ArchivedStudent {
   tcNumber: string;
   phone: string;
   reason: string;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +24,7 @@ export interface CreateArchivedStudentDto {
   phone?: string;
   reason?: string;
   tcNumber?: string;
+  createdBy?: string;
 }
 
 export interface UpdateArchivedStudentDto {
@@ -58,7 +60,7 @@ function toArchivedStudentResponse(student: ArchivedStudentRow): ArchivedStudent
 }
 
 const selectArchivedStudentColumns = sql`
-  id, "admissionNo", name, "fatherName", "className", "passingYear", "tcNumber", phone, reason, "createdAt", "updatedAt"
+  id, "admissionNo", name, "fatherName", "className", "passingYear", "tcNumber", phone, reason, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const archivedStudentRepository = {
@@ -74,6 +76,7 @@ export const archivedStudentRepository = {
         "tcNumber" VARCHAR(80) UNIQUE,
         phone VARCHAR(40),
         reason VARCHAR(100),
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -147,8 +150,8 @@ export const archivedStudentRepository = {
 
   async create(data: CreateArchivedStudentDto): Promise<ArchivedStudent> {
     const [student] = await sql<ArchivedStudentRow[]>`
-      INSERT INTO archived_students ("admissionNo", name, "fatherName", "className", "passingYear", "tcNumber", phone, reason)
-      VALUES (${data.admissionNo}, ${data.name}, ${data.fatherName || null}, ${data.className}, ${data.passingYear}, ${data.tcNumber || null}, ${data.phone || null}, ${data.reason || null})
+      INSERT INTO archived_students ("admissionNo", name, "fatherName", "className", "passingYear", "tcNumber", phone, reason, "createdBy")
+      VALUES (${data.admissionNo}, ${data.name}, ${data.fatherName || null}, ${data.className}, ${data.passingYear}, ${data.tcNumber || null}, ${data.phone || null}, ${data.reason || null}, ${data.createdBy || null})
       RETURNING ${selectArchivedStudentColumns}
     `;
     return toArchivedStudentResponse(student);

@@ -11,6 +11,7 @@ export interface ClassSubjectMap {
   teacher: string;
   periods: number;
   type: 'Required' | 'Optional';
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +25,7 @@ export interface CreateClassSubjectMapDto {
   teacher: string;
   periods: number;
   type: 'Required' | 'Optional';
+  createdBy?: string;
 }
 
 export interface UpdateClassSubjectMapDto {
@@ -65,11 +67,12 @@ function toClassSubjectMapResponse(map: ClassSubjectMapRow): ClassSubjectMap {
     ...map,
     createdAt: new Date(map.createdAt),
     updatedAt: new Date(map.updatedAt),
+    createdBy: map.createdBy || null,
   };
 }
 
 const selectClassSubjectMapColumns = sql`
-  id, "className", section, year, "subjectId", "subjectCode", "subjectName", teacher, periods, type, "createdAt", "updatedAt"
+  id, "className", section, year, "subjectId", "subjectCode", "subjectName", teacher, periods, type, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const classSubjectMapRepository = {
@@ -86,6 +89,7 @@ export const classSubjectMapRepository = {
         teacher VARCHAR(120) NOT NULL DEFAULT 'Unassigned',
         periods INTEGER NOT NULL DEFAULT 1,
         type VARCHAR(20) NOT NULL DEFAULT 'Required' CHECK (type IN ('Required', 'Optional')),
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE("className", section, year, "subjectCode")
@@ -172,8 +176,8 @@ export const classSubjectMapRepository = {
     const subjectId = subject.length > 0 ? subject[0].id : null;
 
     const [map] = await sql<ClassSubjectMapRow[]>`
-      INSERT INTO class_subject_maps ("className", section, year, "subjectId", "subjectCode", "subjectName", teacher, periods, type)
-      VALUES (${data.className}, ${data.section}, ${data.year}, ${subjectId}, ${data.subjectCode.toUpperCase()}, ${data.subjectName}, ${data.teacher}, ${data.periods}, ${data.type})
+      INSERT INTO class_subject_maps ("className", section, year, "subjectId", "subjectCode", "subjectName", teacher, periods, type, "createdBy")
+      VALUES (${data.className}, ${data.section}, ${data.year}, ${subjectId}, ${data.subjectCode.toUpperCase()}, ${data.subjectName}, ${data.teacher}, ${data.periods}, ${data.type}, ${data.createdBy || null})
       RETURNING ${selectClassSubjectMapColumns}
     `;
     return toClassSubjectMapResponse(map);
@@ -247,8 +251,8 @@ export const classSubjectMapRepository = {
       }
 
       await sql`
-        INSERT INTO class_subject_maps ("className", section, year, "subjectId", "subjectCode", "subjectName", teacher, periods, type)
-        VALUES (${targetClassName}, ${targetSection}, ${targetYear}, ${map.subjectId}, ${map.subjectCode}, ${map.subjectName}, ${map.teacher}, ${map.periods}, ${map.type})
+        INSERT INTO class_subject_maps ("className", section, year, "subjectId", "subjectCode", "subjectName", teacher, periods, type, "createdBy")
+        VALUES (${targetClassName}, ${targetSection}, ${targetYear}, ${map.subjectId}, ${map.subjectCode}, ${map.subjectName}, ${map.teacher}, ${map.periods}, ${map.type}, ${map.createdBy})
       `;
       copied++;
     }

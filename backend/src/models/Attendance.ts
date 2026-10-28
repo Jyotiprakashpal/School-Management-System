@@ -11,6 +11,7 @@ export interface AttendanceRecord {
   date: string;
   status: 'present' | 'absent' | 'leave';
   markedBy: string;
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +26,7 @@ export interface CreateAttendanceDto {
   date: string;
   status: 'present' | 'absent' | 'leave';
   markedBy: string;
+  createdBy?: string;
 }
 
 export interface UpdateAttendanceDto {
@@ -78,7 +80,7 @@ function toAttendanceResponse(record: AttendanceRow): AttendanceRecord {
 
 const selectAttendanceColumns = sql`
   id, "studentId", "admissionNo", "studentName", "className", section, "rollNo",
-  date, status, "markedBy", "createdAt", "updatedAt"
+  date, status, "markedBy", "createdBy", "createdAt", "updatedAt"
 `;
 
 export const attendanceRepository = {
@@ -95,6 +97,7 @@ export const attendanceRepository = {
         date DATE NOT NULL,
         status VARCHAR(20) NOT NULL CHECK (status IN ('present', 'absent', 'leave')),
         "markedBy" VARCHAR(120) NOT NULL,
+        "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE("studentId", date)
@@ -114,15 +117,15 @@ export const attendanceRepository = {
     `;
   },
 
-  async upsertMany(records: CreateAttendanceDto[]): Promise<AttendanceRecord[]> {
+async upsertMany(records: CreateAttendanceDto[]): Promise<AttendanceRecord[]> {
     if (records.length === 0) return [];
 
     const results: AttendanceRecord[] = [];
-    
+
     for (const record of records) {
       const [attendance] = await sql<AttendanceRow[]>`
-        INSERT INTO attendance ("studentId", "admissionNo", "studentName", "className", section, "rollNo", date, status, "markedBy")
-        VALUES (${record.studentId}, ${record.admissionNo}, ${record.studentName}, ${record.className}, ${record.section}, ${record.rollNo}, ${record.date}, ${record.status}, ${record.markedBy})
+        INSERT INTO attendance ("studentId", "admissionNo", "studentName", "className", section, "rollNo", date, status, "markedBy", "createdBy")
+        VALUES (${record.studentId}, ${record.admissionNo}, ${record.studentName}, ${record.className}, ${record.section}, ${record.rollNo}, ${record.date}, ${record.status}, ${record.markedBy}, ${record.createdBy || null})
         ON CONFLICT ("studentId", date) DO UPDATE SET
           status = EXCLUDED.status,
           "markedBy" = EXCLUDED."markedBy",

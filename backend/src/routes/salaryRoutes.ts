@@ -18,7 +18,7 @@ import {
   deletePayroll,
 } from '../controllers/salaryController.js';
 
-const router = Router();
+const router: Router = Router();
 
 // Summary and reports
 router.get('/summary/:month/:year', getPayrollSummary);
