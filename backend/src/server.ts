@@ -26,6 +26,7 @@ import staffRoutes from './routes/staffRoutes.js';
 import salaryRoutes from './routes/salaryRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
 import adminSettingsRoutes from './routes/adminSettingsRoutes.js';
+import backupRoutes from './routes/backupRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 import { initializeDatabase } from './db-init.js';
 
@@ -100,6 +101,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/salary', salaryRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/admin-settings', adminSettingsRoutes);
+app.use('/api/backup', backupRoutes);
 
 const connectDatabase = async () => {
   try {
