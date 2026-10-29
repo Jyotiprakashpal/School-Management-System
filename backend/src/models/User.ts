@@ -4,6 +4,7 @@ export interface User {
   id: number;
   username: string;
   name: string;
+  email: string | null;
   role: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant';
   status: 'Active' | 'Suspended';
   lastLogin: string | null;
@@ -53,7 +54,7 @@ function toUserResponse(user: any): User {
 }
 
 const selectUserColumns = sql`
-  id, username, name, role, status, "lastLogin", "createdBy", "createdAt", "updatedAt"
+  id, username, name, email, role, status, "lastLogin", "createdBy", "createdAt", "updatedAt"
 `;
 
 export const userRepository = {
@@ -63,10 +64,13 @@ export const userRepository = {
         id SERIAL PRIMARY KEY,
         username VARCHAR(80) NOT NULL UNIQUE,
         name VARCHAR(120) NOT NULL,
+        email VARCHAR(255),
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(40) NOT NULL DEFAULT 'Operator' CHECK (role IN ('Superadmin', 'Admin', 'Operator', 'Accountant')),
         status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Suspended')),
         "lastLogin" TIMESTAMPTZ,
+        "resetToken" VARCHAR(255),
+        "resetTokenExpiry" TIMESTAMPTZ,
         "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -79,7 +83,10 @@ export const userRepository = {
       ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Suspended')),
       ADD COLUMN IF NOT EXISTS "lastLogin" TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255),
-      ADD COLUMN IF NOT EXISTS "createdBy" TEXT
+      ADD COLUMN IF NOT EXISTS "createdBy" TEXT,
+      ADD COLUMN IF NOT EXISTS "resetToken" VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS "resetTokenExpiry" TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS email VARCHAR(255)
     `;
     
     await sql`
@@ -87,6 +94,9 @@ export const userRepository = {
     `;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_users_status ON users(status)
+    `;
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users("resetToken")
     `;
   },
 
@@ -129,6 +139,13 @@ export const userRepository = {
   async findByUsername(username: string): Promise<User | null> {
     const [user] = await sql<any[]>`
       SELECT ${selectUserColumns} FROM users WHERE username = ${username}
+    `;
+    return user ? toUserResponse(user) : null;
+  },
+
+  async findByEmail(email: string): Promise<User | null> {
+    const [user] = await sql<any[]>`
+      SELECT ${selectUserColumns} FROM users WHERE email = ${email}
     `;
     return user ? toUserResponse(user) : null;
   },
@@ -181,6 +198,54 @@ export const userRepository = {
       DELETE FROM users WHERE id = ${id} RETURNING id
     `;
     return rows.length > 0;
+  },
+
+  async generateResetToken(email: string): Promise<{ token: string; expiry: Date } | null> {
+    const token = require('crypto').randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 3600000); // 1 hour expiry
+    
+    const result = await sql`
+      UPDATE users 
+      SET "resetToken" = ${token}, "resetTokenExpiry" = ${expiry.toISOString()}
+      WHERE email = ${email}
+      RETURNING id
+    `;
+    
+    if (result.length === 0) return null;
+    return { token, expiry };
+  },
+
+  async findByResetToken(token: string): Promise<User | null> {
+    const [user] = await sql<any[]>`
+      SELECT ${selectUserColumns} FROM users 
+      WHERE "resetToken" = ${token} AND "resetTokenExpiry" > NOW()
+    `;
+    return user ? toUserResponse(user) : null;
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<User | null> {
+    const [hash] = await sql<{ crypt: string }[]>`
+      SELECT crypt(${newPassword}, gen_salt('bf'))
+    `;
+    
+    const [user] = await sql<any[]>`
+      UPDATE users 
+      SET password_hash = ${hash.crypt}, 
+          "resetToken" = NULL, 
+          "resetTokenExpiry" = NULL,
+          "updatedAt" = NOW()
+      WHERE "resetToken" = ${token} AND "resetTokenExpiry" > NOW()
+      RETURNING ${selectUserColumns}
+    `;
+    return user ? toUserResponse(user) : null;
+  },
+
+  async clearResetToken(userId: number): Promise<void> {
+    await sql`
+      UPDATE users 
+      SET "resetToken" = NULL, "resetTokenExpiry" = NULL, "updatedAt" = NOW()
+      WHERE id = ${userId}
+    `;
   },
 
   async updateLastLogin(userId: number): Promise<void> {

@@ -11,6 +11,8 @@ import {
   getUserSessions,
   terminateSession,
   toggleUserStatus,
+  forgotPassword,
+  resetPasswordWithToken,
 } from '../controllers/userController.js';
 
 const router: Router = Router();
@@ -28,6 +30,8 @@ router.delete('/:id', deleteUser);
 
 // Password reset
 router.post('/reset-password', resetPassword);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPasswordWithToken);
 
 // Activity & sessions
 router.get('/activity', getUserActivity);

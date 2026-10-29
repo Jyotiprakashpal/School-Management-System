@@ -8,6 +8,7 @@ import {
   UserQuery
 } from '../models/User.js';
 import { notificationRepository } from '../models/Notification.js';
+import { sendPasswordResetEmail, sendPasswordChangedNotification } from '../services/emailService.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
@@ -352,5 +353,71 @@ export const toggleUserStatus = async (req: Request<{ id: string }, User | { err
   } catch (error) {
     console.error('Toggle user status error:', error);
     res.status(500).json({ error: 'Failed to update user status' });
+  }
+};
+
+export const forgotPassword = async (req: Request<{}, { message: string } | { error: string }, { email: string }>, res: Response<{ message: string } | { error: string }>) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email address is required' });
+    }
+
+    // Generate reset token
+    const result = await userRepository.generateResetToken(email);
+    
+    if (!result) {
+      // Don't reveal if email exists or not for security
+      return res.json({ message: 'If the email exists, a password reset link has been sent' });
+    }
+
+    // Get user for email
+    const user = await userRepository.findByEmail(email);
+    if (user) {
+      await sendPasswordResetEmail(email, result.token, user.name);
+    }
+
+    res.json({ message: 'If the email exists, a password reset link has been sent' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to process forgot password request' });
+  }
+};
+
+export const resetPasswordWithToken = async (req: Request<{}, User | { message: string } | { error: string }, { token: string; newPassword: string }>, res: Response<User | { message: string } | { error: string }>) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !token.trim()) {
+      return res.status(400).json({ error: 'Reset token is required' });
+    }
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const user = await userRepository.resetPassword(token, newPassword);
+    
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    await sendPasswordChangedNotification(user.email || '', user.name);
+
+    getIO(req).to('users').emit('user:updated', user);
+
+    await createNotification(req, {
+      title: 'Password Reset',
+      message: `Your password has been successfully reset`,
+      type: 'success',
+      entityType: 'user',
+      entityId: user.id.toString()
+    });
+
+    res.json({ message: 'Password has been successfully reset' });
+  } catch (error) {
+    console.error('Reset password with token error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 };
