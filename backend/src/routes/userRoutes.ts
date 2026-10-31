@@ -29,7 +29,7 @@ router.put('/:id/status', toggleUserStatus);
 router.delete('/:id', deleteUser);
 
 // Password reset
-router.post('/reset-password', resetPassword);
+router.post('/admin-reset-password', resetPassword);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPasswordWithToken);
 

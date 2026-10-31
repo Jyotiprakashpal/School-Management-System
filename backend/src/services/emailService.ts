@@ -1,20 +1,20 @@
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 's101.cyberspace.in',
+  host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || '465'),
   secure: true, // true for 465, false for other ports
   auth: {
-    user: process.env.SMTP_USER || 'mdm@kbl.net.in',
-    pass: process.env.SMTP_PASS || '$OTr,@+}t3$)Ntz',
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
 export async function sendPasswordResetEmail(email: string, resetToken: string, userName: string): Promise<void> {
-  const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${encodeURIComponent(userName)}`;
+  const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${encodeURIComponent(resetToken)}`;
   
   const mailOptions = {
-    from: `"School Management System" <${process.env.SMTP_USER || 'mdm@kbl.net.in'}>`,
+    from: `"School Management System" <${process.env.SMTP_USER}>`,
     to: email,
     subject: 'Password Reset Request - School Management System',
     html: `
@@ -68,7 +68,7 @@ export async function sendPasswordResetEmail(email: string, resetToken: string, 
 
 export async function sendPasswordChangedNotification(email: string, userName: string): Promise<void> {
   const mailOptions = {
-    from: `"School Management System" <${process.env.SMTP_USER || 'mdm@kbl.net.in'}>`,
+    from: `"School Management System" <${process.env.SMTP_USER}>`,
     to: email,
     subject: 'Your Password Has Been Changed - School Management System',
     html: `

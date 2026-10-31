@@ -1,4 +1,5 @@
 import sql from '../config/postgres.js';
+import { randomBytes } from 'node:crypto';
 
 export interface User {
   id: number;
@@ -17,6 +18,7 @@ export interface CreateUserDto {
   username: string;
   name: string;
   password: string;
+  email?: string;
   role?: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant';
   status?: 'Active' | 'Suspended';
   createdBy?: string;
@@ -25,6 +27,7 @@ export interface CreateUserDto {
 export interface UpdateUserDto {
   username?: string;
   name?: string;
+  email?: string | null;
   role?: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant';
   status?: 'Active' | 'Suspended';
   password?: string;
@@ -80,6 +83,8 @@ export const userRepository = {
     // Add missing columns if they don't exist
     await sql`
       ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS id SERIAL,
+      ADD COLUMN IF NOT EXISTS userId TEXT,
       ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Suspended')),
       ADD COLUMN IF NOT EXISTS "lastLogin" TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255),
@@ -145,7 +150,7 @@ export const userRepository = {
 
   async findByEmail(email: string): Promise<User | null> {
     const [user] = await sql<any[]>`
-      SELECT ${selectUserColumns} FROM users WHERE email = ${email}
+      SELECT ${selectUserColumns} FROM users WHERE LOWER(email) = LOWER(${email.trim()})
     `;
     return user ? toUserResponse(user) : null;
   },
@@ -155,8 +160,8 @@ export const userRepository = {
       SELECT crypt(${data.password}, gen_salt('bf'))
     `;
     const [user] = await sql<any[]>`
-      INSERT INTO users (username, name, password_hash, role, status, "createdBy")
-      VALUES (${data.username.trim()}, ${data.name.trim()}, ${passwordHash.crypt}, ${data.role || 'Operator'}, ${data.status || 'Active'}, ${data.createdBy || null})
+      INSERT INTO users (username, name, email, password_hash, role, status, "createdBy")
+      VALUES (${data.username.trim()}, ${data.name.trim()}, ${data.email?.trim().toLowerCase() || null}, ${passwordHash.crypt}, ${data.role || 'Operator'}, ${data.status || 'Active'}, ${data.createdBy || null})
       RETURNING ${selectUserColumns}
     `;
     return toUserResponse(user);
@@ -171,6 +176,7 @@ export const userRepository = {
 
     if (data.username !== undefined) { updates.push('username = $' + (values.length + 1)); values.push(data.username.trim()); }
     if (data.name !== undefined) { updates.push('name = $' + (values.length + 1)); values.push(data.name.trim()); }
+    if (data.email !== undefined) { updates.push('email = $' + (values.length + 1)); values.push(data.email?.trim().toLowerCase() || null); }
     if (data.role !== undefined) { updates.push('role = $' + (values.length + 1)); values.push(data.role); }
     if (data.status !== undefined) { updates.push('status = $' + (values.length + 1)); values.push(data.status); }
     if (data.password !== undefined) {
@@ -201,13 +207,13 @@ export const userRepository = {
   },
 
   async generateResetToken(email: string): Promise<{ token: string; expiry: Date } | null> {
-    const token = require('crypto').randomBytes(32).toString('hex');
+    const token = randomBytes(32).toString('hex');
     const expiry = new Date(Date.now() + 3600000); // 1 hour expiry
     
     const result = await sql`
       UPDATE users 
       SET "resetToken" = ${token}, "resetTokenExpiry" = ${expiry.toISOString()}
-      WHERE email = ${email}
+      WHERE LOWER(email) = LOWER(${email.trim()})
       RETURNING id
     `;
     

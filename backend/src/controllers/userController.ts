@@ -46,6 +46,7 @@ const validateUserBody = (body: Partial<CreateUserDto>): string | null => {
   if (typeof body.username !== 'string' || !body.username.trim()) return 'Username is required';
   if (typeof body.name !== 'string' || !body.name.trim()) return 'Name is required';
   if (typeof body.password !== 'string' || body.password.length < 6) return 'Password must be at least 6 characters';
+  if (body.email !== undefined && (typeof body.email !== 'string' || !body.email.trim() || !body.email.includes('@'))) return 'Valid email address is required';
   if (body.role && !['Superadmin', 'Admin', 'Operator', 'Accountant'].includes(body.role)) return 'Invalid role';
   if (body.status && !['Active', 'Suspended'].includes(body.status)) return 'Invalid status';
   return null;
@@ -54,6 +55,7 @@ const validateUserBody = (body: Partial<CreateUserDto>): string | null => {
 const validateUpdateBody = (body: Partial<UpdateUserDto>): string | null => {
   if (body.username !== undefined && (typeof body.username !== 'string' || !body.username.trim())) return 'Username must be a non-empty string';
   if (body.name !== undefined && (typeof body.name !== 'string' || !body.name.trim())) return 'Name must be a non-empty string';
+  if (body.email !== undefined && body.email !== null && (typeof body.email !== 'string' || !body.email.trim() || !body.email.includes('@'))) return 'Valid email address is required';
   if (body.role && !['Superadmin', 'Admin', 'Operator', 'Accountant'].includes(body.role)) return 'Invalid role';
   if (body.status && !['Active', 'Suspended'].includes(body.status)) return 'Invalid status';
   if (body.password !== undefined && (typeof body.password !== 'string' || body.password.length < 6)) return 'Password must be at least 6 characters';
@@ -108,14 +110,21 @@ export const createUser = async (req: Request<{}, User | { error: string }, Crea
       return res.status(400).json({ error: validationError });
     }
 
-    const { username, name, password, role, status } = req.body;
+    const { username, name, password, email, role, status } = req.body;
 
     const existingUser = await userRepository.findByUsername(username);
     if (existingUser) {
       return res.status(409).json({ error: 'User with this username already exists' });
     }
 
-    const user = await userRepository.create({ username, name, password, role: role || 'Operator', status: status || 'Active' });
+    if (email) {
+      const existingEmail = await userRepository.findByEmail(email);
+      if (existingEmail) {
+        return res.status(409).json({ error: 'User with this email already exists' });
+      }
+    }
+
+    const user = await userRepository.create({ username, name, password, email, role: role || 'Operator', status: status || 'Active' });
 
     getIO(req).to('users').emit('user:created', user);
 
@@ -358,25 +367,25 @@ export const toggleUserStatus = async (req: Request<{ id: string }, User | { err
 
 export const forgotPassword = async (req: Request<{}, { message: string } | { error: string }, { email: string }>, res: Response<{ message: string } | { error: string }>) => {
   try {
-    const { email } = req.body;
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
 
-    if (!email || !email.includes('@')) {
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
       return res.status(400).json({ error: 'Valid email address is required' });
     }
 
-    // Generate reset token
-    const result = await userRepository.generateResetToken(email);
-    
-    if (!result) {
-      // Don't reveal if email exists or not for security
+    // Look up the account before generating a token. This prevents reset tokens
+    // from being created for email addresses that are not in the users table.
+    const user = await userRepository.findByEmail(email);
+    if (!user || !user.email) {
       return res.json({ message: 'If the email exists, a password reset link has been sent' });
     }
 
-    // Get user for email
-    const user = await userRepository.findByEmail(email);
-    if (user) {
-      await sendPasswordResetEmail(email, result.token, user.name);
+    const result = await userRepository.generateResetToken(email);
+    if (!result) {
+      return res.json({ message: 'If the email exists, a password reset link has been sent' });
     }
+
+    await sendPasswordResetEmail(user.email, result.token, user.name);
 
     res.json({ message: 'If the email exists, a password reset link has been sent' });
   } catch (error) {
