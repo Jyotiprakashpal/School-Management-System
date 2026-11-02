@@ -307,7 +307,21 @@
     @apply min-h-28 bg-blue-950 px-5 pt-7 text-center text-white;
     clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%);
   }
-  .login-screen { @apply bg-slate-50; }
+  .login-screen {
+    @apply bg-slate-50;
+    min-height: 100dvh;
+    background-color: var(--app-dark-end, #071c24);
+  }
+  html:has(.login-screen),
+  body:has(.login-screen),
+  #root:has(.login-screen) {
+    min-height: 100dvh;
+    background: var(--app-dark-end, #071c24);
+    overscroll-behavior: none;
+  }
+  .login-form-panel > footer {
+    padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
+  }
   .login-visual {
     background-image: url("./assets/school-campus.jpg");
     background-position: center;
