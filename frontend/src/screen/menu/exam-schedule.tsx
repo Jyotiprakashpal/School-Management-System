@@ -335,7 +335,7 @@ export default function ExamSchedule() {
                 {!roomUsage.length && <p className="text-xs text-slate-400">No rooms booked yet.</p>}
               </div>
             </section>
-            <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5"><div className="flex items-center gap-2 text-blue-600"><ScheduleIcon type="alert" className="size-5" /><h2 className="font-display text-sm font-bold text-blue-800">Conflict protection</h2></div><p className="mt-2 text-xs leading-5 text-blue-700">Room, invigilator and duplicate-subject clashes are checked before each paper is saved.</p></section>
+            <section className="exam-conflict-card rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5"><div className="flex items-center gap-2 text-blue-600"><ScheduleIcon type="alert" className="size-5" /><h2 className="font-display text-sm font-bold text-blue-800">Conflict protection</h2></div><p className="mt-2 text-xs leading-5 text-blue-700">Room, invigilator and duplicate-subject clashes are checked before each paper is saved.</p></section>
           </div>
         </aside>
       </div>

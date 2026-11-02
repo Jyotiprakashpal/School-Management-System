@@ -80,13 +80,13 @@ const defaulters = [
 ];
 
 function Panel({ title, subtitle, icon, action, actionClassName = "", actionIcon = true, actionIconName, onAction, children }: { title: string; subtitle?: string; icon: DashboardIconName; action?: string; actionClassName?: string; actionIcon?: boolean; actionIconName?: DashboardIconName; onAction?: () => void; children: ReactNode }) {
-  return <section className="panel w-full min-w-0">
+  return <section className="dashboard-panel panel w-full min-w-0">
     <div className="flex min-h-16 items-center justify-between gap-3 border-b border-slate-100 px-4 sm:px-5">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-600"><DashboardIcon name={icon} className="size-4" /></span>
+        <span className="dashboard-panel-icon grid size-9 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-600"><DashboardIcon name={icon} className="size-4" /></span>
         <div className="min-w-0"><div className="font-display text-sm font-bold text-slate-900">{title}</div>{subtitle && <p className="mt-0.5 truncate text-xs text-slate-400">{subtitle}</p>}</div>
       </div>
-      {action && <Button variant="outline" className={`shrink-0 px-3 py-2 shadow-none ${actionIconName ? actionClassName : "border-0 bg-transparent px-2"} `} onClick={onAction}>
+      {action && <Button variant="outline" className={`dashboard-panel-action shrink-0 px-3 py-2 shadow-none ${actionIconName ? actionClassName : "border-0 bg-transparent px-2"} `} onClick={onAction}>
         {actionIconName && <DashboardIcon name={actionIconName} className="size-3.5" />}{action}{actionIcon && !actionIconName && <DashboardIcon name="arrow" className="size-3" />}
       </Button>}
     </div>
@@ -112,7 +112,7 @@ export default function Dashboard({ onSelect }: DashboardProps) {
     month: "long",
     year: "numeric",
   }).format(today);
-  return <div className="min-h-screen">
+  return <div className="dashboard-screen min-h-screen">
     <Header title="Dashboard" subtitle={`${greeting}, Super Administrator — here is today's school overview`} />
 
     <main className="dashboard-bg space-y-5 p-3 pb-20 sm:p-6 sm:pb-20 xl:p-8">
@@ -146,7 +146,7 @@ export default function Dashboard({ onSelect }: DashboardProps) {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => <article key={stat.label} className={`metric metric-${stat.color} min-w-0 sm:gap-3 sm:px-4 sm:py-4`}>
-          <span className={`absolute right-3 top-3 z-10 rounded-full px-2 py-1 text-xs font-bold ${stat.trend.startsWith("+") ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"}`}>{stat.trend}</span>
+          <span className={`dashboard-metric-trend absolute right-3 top-3 z-10 rounded-full px-2 py-1 text-xs font-bold ${stat.trend.startsWith("+") ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"}`}>{stat.trend}</span>
           <div className={`metric-icon metric-icon-${stat.color} size-11 sm:size-12`}><DashboardIcon name={stat.icon} className="size-5 sm:size-6" /></div>
           <div className="min-w-0 flex-1 pr-1">
             <div className="pr-10 font-display text-xl font-bold leading-tight text-slate-950 sm:text-2xl xl:pr-8 xl:text-xl 2xl:text-2xl">{stat.value}</div>
@@ -158,8 +158,8 @@ export default function Dashboard({ onSelect }: DashboardProps) {
 
       <Panel title="Quick Actions" icon="zap">
         <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4 lg:grid-cols-8">
-          {actions.map((action) => <Button key={action.label} variant="outline" onClick={() => onSelect(action.destination)} className="flex min-h-24 flex-col items-center justify-center gap-2 border-slate-100 bg-white p-2 text-center shadow-none hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/50 hover:shadow-md">
-            <span className={`grid size-10 place-items-center rounded-xl ${action.color}`}><DashboardIcon name={action.icon} className="size-5" /></span>
+          {actions.map((action) => <Button key={action.label} variant="outline" onClick={() => onSelect(action.destination)} className="dashboard-quick-action flex min-h-24 flex-col items-center justify-center gap-2 border-slate-100 bg-white p-2 text-center shadow-none hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/50 hover:shadow-md">
+            <span className={`dashboard-tone-icon grid size-10 place-items-center rounded-xl ${action.color}`}><DashboardIcon name={action.icon} className="size-5" /></span>
             <span className="text-xs font-semibold text-slate-700">{action.label}</span>
           </Button>)}
         </div>
@@ -190,14 +190,14 @@ export default function Dashboard({ onSelect }: DashboardProps) {
         <Panel title="Attendance Health" subtitle="Today across all classes" icon="attendance" action="Details" actionIconName="attendance" actionClassName="border-teal-100 bg-teal-50 text-teal-700 hover:border-teal-200 hover:bg-teal-100" onAction={() => onSelect("Attendance Report")}>
           <div className="min-w-0 p-4 sm:p-5">
             <div className="dashboard-attendance-ring mx-auto grid size-32 place-items-center rounded-full p-2.5 shadow-xl sm:size-40 sm:p-3">
-              <div className="grid size-full place-items-center rounded-full bg-white text-center"><div><div className="font-display text-2xl font-extrabold leading-none text-slate-950 sm:text-3xl">92.4%</div><div className="mx-auto mt-1 w-20 text-center text-xs leading-4 text-slate-400">Overall attendance</div></div></div>
+              <div className="dashboard-attendance-center grid size-full place-items-center rounded-full bg-white text-center"><div><div className="font-display text-2xl font-extrabold leading-none text-slate-950 sm:text-3xl">92.4%</div><div className="mx-auto mt-1 w-20 text-center text-xs leading-4 text-slate-400">Overall attendance</div></div></div>
             </div>
             <div className="mt-5 grid grid-cols-3 gap-1.5 text-center sm:mt-6 sm:gap-2">
-              <div className="min-w-0 rounded-xl bg-emerald-50 px-1 py-3 sm:p-3"><div className="font-display text-sm font-bold text-emerald-600 sm:text-base">1,153</div><div className="mt-1 text-xs text-slate-500">Present</div></div>
-              <div className="min-w-0 rounded-xl bg-red-50 px-1 py-3 sm:p-3"><div className="font-display text-sm font-bold text-red-500 sm:text-base">71</div><div className="mt-1 text-xs text-slate-500">Absent</div></div>
-              <div className="min-w-0 rounded-xl bg-amber-50 px-1 py-3 sm:p-3"><div className="font-display text-sm font-bold text-amber-600 sm:text-base">24</div><div className="mt-1 text-xs text-slate-500">Leave</div></div>
+              <div className="dashboard-attendance-stat min-w-0 rounded-xl bg-emerald-50 px-1 py-3 sm:p-3"><div className="font-display text-sm font-bold text-emerald-600 sm:text-base">1,153</div><div className="mt-1 text-xs text-slate-500">Present</div></div>
+              <div className="dashboard-attendance-stat min-w-0 rounded-xl bg-red-50 px-1 py-3 sm:p-3"><div className="font-display text-sm font-bold text-red-500 sm:text-base">71</div><div className="mt-1 text-xs text-slate-500">Absent</div></div>
+              <div className="dashboard-attendance-stat min-w-0 rounded-xl bg-amber-50 px-1 py-3 sm:p-3"><div className="font-display text-sm font-bold text-amber-600 sm:text-base">24</div><div className="mt-1 text-xs text-slate-500">Leave</div></div>
             </div>
-            <div className="mt-4 flex flex-col gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs sm:flex-row sm:items-center sm:justify-between"><span className="text-amber-800">4 classes not submitted</span><Button variant="outline" className="w-full border-amber-200 bg-white px-2 py-1.5 text-amber-700 sm:w-auto" onClick={() => onSelect("Attendance")}>Review</Button></div>
+            <div className="dashboard-attendance-alert mt-4 flex flex-col gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs sm:flex-row sm:items-center sm:justify-between"><span className="text-amber-800">4 classes not submitted</span><Button variant="outline" className="dashboard-attendance-review w-full border-amber-200 bg-white px-2 py-1.5 text-amber-700 sm:w-auto" onClick={() => onSelect("Attendance")}>Review</Button></div>
           </div>
         </Panel>
       </div>
@@ -207,7 +207,7 @@ export default function Dashboard({ onSelect }: DashboardProps) {
           <div className="space-y-4 p-5">
             {classData.map((item) => <div key={item.name}>
               <div className="flex items-center justify-between gap-3 text-xs"><span className="font-semibold text-slate-700">{item.name}</span><span className="text-slate-500">{item.students} students</span></div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${item.share} ${item.color}`} /></div>
+              <div className="dashboard-level-track mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${item.share} ${item.color}`} /></div>
             </div>)}
             <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-4 text-center">
               <div><div className="font-display text-base font-bold text-slate-900">28</div><div className="text-xs text-slate-400">Sections</div></div>
@@ -219,26 +219,26 @@ export default function Dashboard({ onSelect }: DashboardProps) {
 
         <Panel title="Recent Payments" subtitle="Latest fee transactions received today" icon="wallet" action="View all" actionIconName="wallet" actionClassName="border-emerald-100 bg-emerald-50 text-emerald-700 hover:border-emerald-200 hover:bg-emerald-100" onAction={() => onSelect("Fee Collection")}>
           <div className="divide-y divide-slate-100">
-            {payments.map((payment) => <div key={payment.receipt} className="flex items-center gap-3 p-4 sm:px-5">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-teal-50 text-xs font-bold text-teal-700">{payment.initials}</span>
+            {payments.map((payment) => <div key={payment.receipt} className="dashboard-list-row flex items-center gap-3 p-4 sm:px-5">
+              <span className="dashboard-tone-icon grid size-10 shrink-0 place-items-center rounded-xl bg-teal-50 text-xs font-bold text-teal-700">{payment.initials}</span>
               <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-slate-800">{payment.name}</div><div className="mt-1 flex flex-wrap gap-x-2 text-xs text-slate-400"><span>{payment.className}</span><span>{payment.receipt}</span><span>{payment.mode}</span></div></div>
               <div className="text-right"><div className="text-sm font-bold text-emerald-600">{payment.amount}</div><div className="mt-1 text-xs text-slate-400">{payment.time}</div></div>
             </div>)}
           </div>
-          <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-5 py-3 text-xs"><span className="text-slate-500">Today's total · 46 payments</span><strong className="text-slate-800">₹2,84,600</strong></div>
+          <div className="dashboard-panel-footer flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-5 py-3 text-xs"><span className="text-slate-500">Today's total · 46 payments</span><strong className="text-slate-800">₹2,84,600</strong></div>
         </Panel>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
         <Panel title="Fee Follow-up" subtitle="Students with the highest outstanding balances" icon="alert" action="Manage dues" actionIconName="alert" actionClassName="border-amber-100 bg-amber-50 text-amber-700 hover:border-amber-200 hover:bg-amber-100" onAction={() => onSelect("WhatsApp Reminder")}>
           <div className="divide-y divide-slate-100">
-            {defaulters.map((student, index) => <div key={student.name} className="flex items-center gap-3 p-4 sm:px-5">
-              <span className={`grid size-10 shrink-0 place-items-center rounded-xl text-xs font-bold ${index === 0 ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700"}`}>{student.initials}</span>
+            {defaulters.map((student, index) => <div key={student.name} className="dashboard-list-row flex items-center gap-3 p-4 sm:px-5">
+              <span className={`dashboard-tone-icon grid size-10 shrink-0 place-items-center rounded-xl text-xs font-bold ${index === 0 ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700"}`}>{student.initials}</span>
               <div className="min-w-0 flex-1"><div className="text-sm font-semibold text-slate-800">{student.name}</div><div className="mt-1 text-xs text-slate-400">{student.className} · overdue {student.days}</div></div>
               <div className="text-right"><div className="text-sm font-bold text-red-500">{student.due}</div><Button variant="outline" className="mt-1 border-0 bg-transparent p-0 text-xs text-teal-600 shadow-none" onClick={() => onSelect("Quick Fee Collect")}>Collect now</Button></div>
             </div>)}
           </div>
-          <div className="border-t border-slate-100 bg-red-50/50 px-5 py-3 text-xs text-red-700">86 students have a combined outstanding balance of <strong>₹1,26,400</strong>.</div>
+          <div className="dashboard-dues-footer border-t border-slate-100 bg-red-50/50 px-5 py-3 text-xs text-red-700">86 students have a combined outstanding balance of <strong>₹1,26,400</strong>.</div>
         </Panel>
 
         <Panel title="Upcoming Schedule" subtitle="Next events and academic deadlines" icon="calendar" action="Calendar" actionIconName="calendar" actionClassName="border-blue-100 bg-blue-50 text-blue-700 hover:border-blue-200 hover:bg-blue-100" onAction={() => onSelect("Exam Schedule")}>
@@ -248,8 +248,8 @@ export default function Dashboard({ onSelect }: DashboardProps) {
               { date: "30", month: "NOV", title: "Fee payment deadline", copy: "Second term installment", color: "bg-red-50 text-red-600" },
               { date: "04", month: "DEC", title: "Unit Test II begins", copy: "Classes 6 to 10", color: "bg-blue-50 text-blue-600" },
               { date: "09", month: "DEC", title: "Parent–Teacher Meeting", copy: "All classes · 9:00 AM", color: "bg-emerald-50 text-emerald-600" },
-            ].map((event) => <div key={`${event.date}-${event.title}`} className="flex items-center gap-3 rounded-xl p-2.5 transition hover:bg-slate-50">
-              <span className={`grid size-11 shrink-0 place-items-center rounded-xl text-center ${event.color}`}><span><span className="block font-display text-sm font-bold leading-none">{event.date}</span><span className="mt-1 block text-xs font-bold">{event.month}</span></span></span>
+            ].map((event) => <div key={`${event.date}-${event.title}`} className="dashboard-schedule-row flex items-center gap-3 rounded-xl p-2.5 transition hover:bg-slate-50">
+              <span className={`dashboard-tone-icon grid size-11 shrink-0 place-items-center rounded-xl text-center ${event.color}`}><span><span className="block font-display text-sm font-bold leading-none">{event.date}</span><span className="mt-1 block text-xs font-bold">{event.month}</span></span></span>
               <div><div className="text-xs font-bold text-slate-800">{event.title}</div><div className="mt-1 text-xs text-slate-400">{event.copy}</div></div>
             </div>)}
           </div>
@@ -265,7 +265,7 @@ export default function Dashboard({ onSelect }: DashboardProps) {
               { title: "Salary report generated", user: "Administrator · November 2027", time: "1 hour ago", icon: "download" as DashboardIconName, color: "bg-violet-50 text-violet-600" },
               { title: "School holiday notice published", user: "Super Administrator · All users", time: "2 hours ago", icon: "notice" as DashboardIconName, color: "bg-amber-50 text-amber-600" },
             ].map((activity, index, list) => <div key={activity.title} className="flex gap-3">
-              <div className="flex flex-col items-center"><span className={`grid size-9 shrink-0 place-items-center rounded-xl ${activity.color}`}><DashboardIcon name={activity.icon} className="size-4" /></span>{index < list.length - 1 && <span className="my-1 h-8 w-px bg-slate-200" />}</div>
+              <div className="flex flex-col items-center"><span className={`dashboard-tone-icon grid size-9 shrink-0 place-items-center rounded-xl ${activity.color}`}><DashboardIcon name={activity.icon} className="size-4" /></span>{index < list.length - 1 && <span className="dashboard-activity-connector my-1 h-8 w-px bg-slate-200" />}</div>
               <div className="flex-1 pb-4"><div className="text-xs font-bold text-slate-800">{activity.title}</div><div className="mt-1 text-xs text-slate-400">{activity.user}</div></div>
               <span className="whitespace-nowrap text-xs text-slate-400">{activity.time}</span>
             </div>)}
@@ -279,7 +279,7 @@ export default function Dashboard({ onSelect }: DashboardProps) {
               { title: "School closed for Guru Nanak Jayanti", audience: "Everyone", date: "25 Nov", tone: "bg-amber-500" },
               { title: "Pre-board examination timetable", audience: "Classes 10-A & 10-B", date: "23 Nov", tone: "bg-violet-500" },
               { title: "December transport fee reminder", audience: "Transport students", date: "21 Nov", tone: "bg-emerald-500" },
-            ].map((notice) => <div key={notice.title} className="flex items-center gap-3 px-5 py-4">
+            ].map((notice) => <div key={notice.title} className="dashboard-list-row flex items-center gap-3 px-5 py-4">
               <span className={`size-2.5 shrink-0 rounded-full ${notice.tone}`} />
               <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-slate-800">{notice.title}</div><div className="mt-1 text-xs text-slate-400">{notice.audience}</div></div>
               <span className="text-xs text-slate-400">{notice.date}</span>

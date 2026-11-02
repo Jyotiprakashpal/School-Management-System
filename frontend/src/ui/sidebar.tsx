@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { navigation, type NavigationIconName } from "../models/navigation";
 import { ThemePicker } from "./theme";
 
@@ -27,41 +28,68 @@ function MenuIcon({ name, className = "size-5" }: { name: NavigationIconName; cl
   return <svg className={className} aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{iconPaths[name]}</svg>;
 }
 
+function SidebarToggleIcon() {
+  return <svg className="size-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
+    <path d="M9.5 4v16M6.5 8v8" />
+  </svg>;
+}
+
 type SidebarProps = {
   active: string;
+  collapsed: boolean;
   onClose: () => void;
   onSelect: (item: string) => void;
+  onToggleCollapse: () => void;
   open: boolean;
 };
 
-export default function Sidebar({ active, onClose, onSelect, open }: SidebarProps) {
+export default function Sidebar({ active, collapsed, onClose, onSelect, onToggleCollapse, open }: SidebarProps) {
+  const [tooltip, setTooltip] = useState<{ label: string; top: number } | null>(null);
+  const showTooltip = (label: string, target: HTMLElement) => {
+    if (!collapsed) return;
+    const bounds = target.getBoundingClientRect();
+    setTooltip({ label, top: bounds.top + bounds.height / 2 });
+  };
+
   return <>
     {open && <button className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" aria-label="Close navigation overlay" onClick={onClose} />}
-    <aside className={`sidebar fixed inset-y-0 left-0 z-40 flex w-72 flex-col text-white transition-transform duration-300 lg:w-64 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
-      <div className="flex h-20 items-center gap-3 border-b border-white/10 px-5">
-        <div className="grid size-11 place-items-center rounded-2xl bg-white text-emerald-700 shadow-xl shadow-black/10 ring-1 ring-white/60"><MenuIcon name="book" /></div>
-        <div className="min-w-0 flex-1"><div className="font-display truncate text-sm font-extrabold tracking-tight">PAL IT HUB</div><div className="mt-0.5 text-[0.65rem] font-medium truncate text-emerald-100/70">School Management System</div></div>
+    <aside className={`sidebar ${collapsed ? "sidebar-collapsed lg:w-20" : "lg:w-64"} fixed inset-y-0 left-0 z-40 flex w-72 flex-col text-white lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      <div className="sidebar-brand relative flex h-20 items-center gap-3 border-b border-white/10 px-5">
+        <div className="sidebar-brand-icon grid size-11 place-items-center rounded-2xl bg-white text-emerald-700 shadow-xl shadow-black/10 ring-1 ring-white/60"><MenuIcon name="book" /></div>
+        <div className={`min-w-0 flex-1 ${collapsed ? "lg:hidden" : ""}`}><div className="font-display truncate text-sm font-extrabold tracking-tight">PAL IT HUB</div><div className="mt-0.5 text-[0.65rem] font-medium truncate text-emerald-100/70">School Management System</div></div>
         <button onClick={onClose} aria-label="Close navigation" className="grid size-9 place-items-center rounded-lg bg-white/10 text-white lg:hidden"><MenuIcon name="arrow" className="size-4 rotate-180" /></button>
+        <button onClick={() => { setTooltip(null); onToggleCollapse(); }} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} aria-expanded={!collapsed} className="sidebar-collapse-toggle absolute -right-3 top-24 z-20 hidden size-7 place-items-center rounded-lg border lg:grid"><SidebarToggleIcon /></button>
       </div>
-      <nav className="nav-scroll mt-2 flex-1 overflow-y-auto pb-2">
+      <nav className="sidebar-nav nav-scroll mt-2 flex-1 overflow-y-auto pb-2">
         {navigation.map((section) => <section key={section.title}>
-          <div className="px-5 pb-1 pt-4 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-emerald-100/55">{section.title}</div>
+          <div className="sidebar-section-title px-5 pb-1 pt-4 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-emerald-100/55">{section.title}</div>
           {section.items.map((item) => <button
             key={item.label}
-            onClick={() => { onSelect(item.label); onClose(); }}
+            onClick={() => { setTooltip(null); onSelect(item.label); onClose(); }}
+            onMouseEnter={(event) => showTooltip(item.label, event.currentTarget)}
+            onMouseLeave={() => setTooltip(null)}
+            onFocus={(event) => showTooltip(item.label, event.currentTarget)}
+            onBlur={() => setTooltip(null)}
             className={`side-link ${active === item.label ? "side-link-active" : ""} ${item.accent ? `side-link-${item.accent}` : ""}`}
-          ><MenuIcon name={item.icon} className="size-[1.05rem] shrink-0" /><span>{item.label}</span></button>)}
+            aria-label={item.label}
+          >
+            <span className="side-link-icon"><MenuIcon name={item.icon} className="size-[1.05rem]" /></span>
+            <span className="side-link-label">{item.label}</span>
+            <MenuIcon name="arrow" className="side-link-arrow size-3.5" />
+          </button>)}
         </section>)}
         <div className="mx-3 mb-3 mt-2 border-t border-white/10 pt-3">
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/10 px-3 py-2.5">
-            <div>
+          <div className="sidebar-appearance flex flex-col gap-3 rounded-xl border border-white/10 bg-white/10 px-3 py-3">
+            <div className="flex items-center justify-between gap-3">
               <div className="text-xs font-semibold text-white">Appearance</div>
-              <div className="mt-0.5 text-xs text-emerald-100/65">Theme color</div>
+              <div className="text-[0.65rem] font-medium text-emerald-100/65">Theme color</div>
             </div>
             <ThemePicker />
           </div>
         </div>
       </nav>
     </aside>
+    {collapsed && tooltip && createPortal(<span className="sidebar-tooltip-portal" role="tooltip" style={{ top: tooltip.top }}>{tooltip.label}</span>, document.body)}
   </>;
 }

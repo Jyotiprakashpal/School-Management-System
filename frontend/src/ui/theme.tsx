@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-export type ThemeName = "violet" | "teal" | "blue";
+export type ThemeName = "violet" | "teal" | "blue" | "dark";
 export type DensityName = "comfortable" | "compact";
 
 type ThemeContextValue = {
@@ -20,7 +20,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeName>(() => {
     if (typeof window === "undefined") return "teal";
     const saved = window.localStorage.getItem("pal-theme");
-    return saved === "violet" || saved === "blue" || saved === "teal" ? saved : "teal";
+    return saved === "violet" || saved === "blue" || saved === "teal" || saved === "dark" ? saved : "teal";
   });
 
   const setDensity = (nextDensity: DensityName) => {
@@ -56,6 +56,7 @@ export function ThemePicker() {
     { name: "violet", label: "Violet theme", color: "bg-fuchsia-600" },
     { name: "teal", label: "Teal theme", color: "bg-teal-600" },
     { name: "blue", label: "Blue theme", color: "bg-blue-700" },
+    { name: "dark", label: "Dark mode", color: "theme-dot-dark" },
   ];
 
   return <div className="theme-picker" aria-label="Choose application color theme">
@@ -67,6 +68,8 @@ export function ThemePicker() {
       aria-pressed={theme === item.name}
       onClick={() => setTheme(item.name)}
       className={`theme-dot ${item.color} ${theme === item.name ? "theme-dot-active" : ""}`}
-    />)}
+    >
+      {item.name === "dark" && <svg aria-hidden="true" className="m-auto size-3.5 text-slate-100 sm:size-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 15.2A8.7 8.7 0 0 1 8.8 3.5 9 9 0 1 0 20.5 15.2Z" /></svg>}
+    </button>)}
   </div>;
 }

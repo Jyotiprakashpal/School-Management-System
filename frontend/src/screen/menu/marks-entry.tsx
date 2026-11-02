@@ -207,7 +207,7 @@ export default function MarksEntry() {
 
   const maxCount = Math.max(1, ...summary.distribution.map((item) => item.count));
 
-  return <div className="min-h-screen dashboard-bg pb-16">
+  return <div className="marks-entry-screen min-h-screen dashboard-bg pb-16">
     <Header title="Marks Entry" subtitle="Enter, validate, and review examination marks by subject" />
     <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_58%,var(--app-accent))] p-3 shadow-xl shadow-slate-900/10 sm:p-5">
@@ -263,7 +263,7 @@ export default function MarksEntry() {
             </div>
           } />
 
-          <div className="space-y-3 border-b border-slate-100 bg-[linear-gradient(135deg,var(--app-accent-faint),white_60%)] p-3.5 sm:p-4">
+          <div className="marks-register-toolbar space-y-3 border-b border-slate-100 bg-[linear-gradient(135deg,var(--app-accent-faint),white_60%)] p-3.5 sm:p-4">
             <div className="flex items-center gap-3">
               <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white shadow-inner ring-1 ring-slate-200/70"><div className="h-full rounded-full bg-[linear-gradient(90deg,var(--app-accent),var(--app-accent-dark))] transition-all duration-500" style={{ width: `${progress}%` }} /></div>
               <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[0.68rem] font-bold text-slate-600 shadow-sm ring-1 ring-slate-200">{progress}% complete</span>
@@ -277,7 +277,7 @@ export default function MarksEntry() {
                 })}
               </div>
             </div>
-            {stale && <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">You changed the class, section or subject. Press <strong>Load Students</strong> to refresh this register.</p>}
+            {stale && <p className="marks-stale-warning rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">You changed the class, section or subject. Press <strong>Load Students</strong> to refresh this register.</p>}
           </div>
 
           {visible.length ? <ul className="space-y-2.5 bg-slate-50/70 p-2.5 sm:p-3">
@@ -315,7 +315,7 @@ export default function MarksEntry() {
             <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-(--app-accent-soft) text-(--app-accent-dark)"><MarksIcon type="search" /></div>
             <h3 className="font-display mt-3 text-sm font-bold text-slate-700">No students match</h3>
             <p className="mt-1 text-xs text-slate-400">Try another search or filter.</p>
-            <Button variant="outline" className={`mt-3 ${resetClass}`} onClick={() => { setSearch(""); setFilter("all"); }} icon={<MarksIcon type="reset" className="size-4" />}>Reset</Button>
+            <Button variant="outline" className={`marks-entry-reset mt-3 ${resetClass}`} onClick={() => { setSearch(""); setFilter("all"); }} icon={<MarksIcon type="reset" className="size-4" />}>Reset</Button>
           </div></div>}
 
           <footer className="flex flex-col gap-3 border-t border-slate-100 bg-white px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
@@ -326,7 +326,7 @@ export default function MarksEntry() {
 
         <aside className="panel overflow-hidden xl:sticky xl:top-24">
           <PanelHead icon="average" title="Grade Distribution" subtitle="Live from entered marks" />
-          <div className="border-b border-slate-100 bg-[linear-gradient(135deg,var(--app-accent-faint),white)] p-4 sm:p-5">
+          <div className="marks-grade-summary border-b border-slate-100 bg-[linear-gradient(135deg,var(--app-accent-faint),white)] p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div><div className="text-[0.65rem] font-bold uppercase tracking-wider text-slate-400">Pass rate</div><div className="font-display mt-1 text-3xl font-extrabold text-slate-950">{summary.entered ? Math.round((summary.passed / summary.entered) * 100) : 0}%</div></div>
               <span className="grid size-12 place-items-center rounded-2xl bg-white text-(--app-accent-dark) shadow-sm ring-1 ring-(--app-accent)/15"><MarksIcon type="trophy" className="size-5" /></span>
@@ -355,7 +355,7 @@ export default function MarksEntry() {
       footer={<><Button variant="outline" onClick={() => setSummaryOpen(false)}>Close</Button><Button onClick={printSummary} icon={<MarksIcon type="print" className="size-4" />}>Print Summary</Button></>}
     >
       <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Entered", summary.entered, "text-teal-600 bg-teal-50"], ["Pending", summary.pending, "text-amber-600 bg-amber-50"], ["Average", `${((summary.average / maximum) * 100).toFixed(1)}%`, "text-blue-600 bg-blue-50"], ["Passed", summary.passed, "text-emerald-600 bg-emerald-50"]].map(([label, value, color]) => <div key={String(label)} className={`rounded-2xl p-4 text-center ${color}`}><div className="font-display text-xl font-bold">{value}</div><div className="mt-1 text-[0.6rem] font-bold uppercase tracking-wider">{label}</div></div>)}</div>
+        <div className="marks-summary-metrics grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Entered", summary.entered, "text-teal-600 bg-teal-50"], ["Pending", summary.pending, "text-amber-600 bg-amber-50"], ["Average", `${((summary.average / maximum) * 100).toFixed(1)}%`, "text-blue-600 bg-blue-50"], ["Passed", summary.passed, "text-emerald-600 bg-emerald-50"]].map(([label, value, color]) => <div key={String(label)} className={`rounded-2xl p-4 text-center ${color}`}><div className="font-display text-xl font-bold">{value}</div><div className="mt-1 text-[0.6rem] font-bold uppercase tracking-wider">{label}</div></div>)}</div>
         <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-100">{records.map((record) => <div key={record.admissionNo} className="flex items-center justify-between gap-3 px-4 py-3 text-xs"><div className="min-w-0"><strong className="block truncate text-slate-800">{record.name}</strong><div className="mt-0.5 text-slate-400">{record.admissionNo}</div></div><div className="shrink-0 text-right"><strong className="font-display text-sm text-slate-900">{record.marks || "—"} / {maximum}</strong><div className="mt-0.5 text-slate-400">{record.marks ? gradeFor(Number(record.marks), maximum) : "Pending"}</div></div></div>)}</div>
       </div>
     </Popup>

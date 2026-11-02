@@ -394,7 +394,7 @@ export default function Expenses() {
   }
 
   return (
-    <div className="min-h-screen dashboard-bg pb-16">
+    <div className="expenses-screen min-h-screen dashboard-bg pb-16">
       <Header
         title="Expenses"
         subtitle="Track school spending, approvals, budgets, and payment records"
@@ -468,12 +468,12 @@ export default function Expenses() {
           </div>
         </section>
 
-        <section className="grid auto-rows-fr grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
+        <section className="grid auto-rows-fr grid-cols-[repeat(2,minmax(0,1fr))] gap-2.5 sm:gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))] [&>article]:h-full">
           {[
             {
               label: "Expense Entries",
               value: String(septemberExpenses.length),
-              tone: "violet",
+              tone: "teal",
               copy: "Recorded this month",
               icon: "receipt" as ExpenseIconType,
             },
@@ -494,38 +494,38 @@ export default function Expenses() {
             {
               label: "Budget Remaining",
               value: formatCurrency(monthlyBudget - monthlySpend),
-              tone: "teal",
+              tone: "violet",
               copy: `From ${formatCurrency(monthlyBudget)}`,
               icon: "wallet" as ExpenseIconType,
             },
           ].map((stat) => (
             <article
               key={stat.label}
-              className={`admission-summary-card admission-summary-${stat.tone} group relative overflow-hidden rounded-2xl border border-white p-3 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:p-5`}
+              className={`admission-summary-card admission-summary-${stat.tone} relative overflow-hidden rounded-2xl p-3 shadow-sm sm:p-5`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="truncate text-[0.65rem] font-bold uppercase tracking-wider text-slate-400 sm:text-[0.7rem]">
+                  <div className="truncate text-[0.7rem] font-medium text-slate-500 sm:text-xs">
                     {stat.label}
                   </div>
-                  <div className="mt-1.5 truncate font-display text-xl font-extrabold text-slate-950 sm:text-2xl">
+                  <div className="mt-1 truncate font-display text-2xl font-bold text-slate-950 sm:text-3xl">
                     {stat.value}
                   </div>
                 </div>
-                <span className="admission-summary-icon grid size-9 shrink-0 place-items-center rounded-xl transition duration-300 group-hover:scale-105 sm:size-11">
+                <span className="admission-summary-icon grid size-8 shrink-0 place-items-center rounded-xl sm:size-10">
                   <ExpenseIcon type={stat.icon} className="size-4 sm:size-5" />
                 </span>
               </div>
-              <div className="mt-2.5 flex items-center gap-1.5 text-[0.68rem] font-medium text-slate-500 sm:mt-3 sm:text-xs">
-                <span className="size-1.5 shrink-0 rounded-full bg-current opacity-50" />
+              <div className="mt-2 flex items-center gap-1.5 text-[0.62rem] text-slate-500 sm:mt-3 sm:text-xs">
+                <span className="size-1.5 shrink-0 rounded-full bg-current opacity-60" />
                 <span className="truncate">{stat.copy}</span>
               </div>
             </article>
           ))}
         </section>
 
-        <section className="panel overflow-hidden ring-1 ring-slate-200/50">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-[linear-gradient(135deg,var(--app-accent-faint),white_65%)] px-4 py-3.5 sm:px-5">
+        <section className="expense-explorer panel overflow-hidden ring-1 ring-slate-200/50">
+          <div className="expense-explorer-header flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-[linear-gradient(135deg,var(--app-accent-faint),white_65%)] px-4 py-3.5 sm:px-5">
             <div className="flex min-w-0 items-center gap-3">
               <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-(--app-accent-dark) shadow-sm ring-1 ring-(--app-accent)/15">
                 <ExpenseIcon type="search" />
@@ -543,8 +543,8 @@ export default function Expenses() {
               {visibleExpenses.length} matches
             </span>
           </div>
-          <div className="grid gap-3 bg-gradient-to-b from-white to-slate-50/60 p-3 sm:p-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1.85fr)_auto] lg:items-end">
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-2.5 shadow-sm transition focus-within:border-(--app-accent)/40 focus-within:shadow-md">
+          <div className="expense-filter-body grid gap-3 bg-gradient-to-b from-white to-slate-50/60 p-3 sm:p-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1.85fr)_auto] lg:items-end">
+            <div className="expense-search-shell rounded-2xl border border-slate-200/80 bg-white p-2.5 shadow-sm transition focus-within:border-(--app-accent)/40 focus-within:shadow-md">
               <Input
                 className="border-0 bg-transparent shadow-none hover:border-0 focus:border-transparent! focus:ring-0!"
                 label="Search Expenses"
@@ -554,7 +554,7 @@ export default function Expenses() {
                 startIcon={<ExpenseIcon type="search" className="size-4" />}
               />
             </div>
-            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/80 bg-slate-100/70 p-2 shadow-inner sm:grid-cols-3 max-sm:[&>:last-child]:col-span-2">
+            <div className="expense-filter-group grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/80 bg-slate-100/70 p-2 shadow-inner sm:grid-cols-3 max-sm:[&>:last-child]:col-span-2">
               <Dropdown
                 className="h-10 border-white bg-white px-3 text-xs shadow-sm"
                 label="Period"
@@ -603,7 +603,7 @@ export default function Expenses() {
         </section>
 
         <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_18rem]">
-          <section className="panel overflow-hidden ring-1 ring-slate-200/50">
+          <section className="expense-ledger panel overflow-hidden ring-1 ring-slate-200/50">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-600 ring-1 ring-violet-100">
@@ -636,21 +636,21 @@ export default function Expenses() {
                 Export Report
               </Button>
             </div>
-            <div className="hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_8rem_9rem_auto] gap-4 border-b border-slate-100 bg-slate-50/80 px-5 py-2.5 text-[0.62rem] font-bold uppercase tracking-widest text-slate-400 xl:grid">
+            <div className="expense-ledger-columns hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_8rem_9rem_auto] gap-4 border-b border-slate-100 bg-slate-50/80 px-5 py-2.5 text-[0.62rem] font-bold uppercase tracking-widest text-slate-400 xl:grid">
               <span>Expense</span>
               <span>Vendor & payment</span>
               <span>Amount</span>
               <span>Status</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="space-y-2.5 bg-slate-50/60 p-2.5 sm:p-3">
+            <div className="expense-ledger-list space-y-2.5 bg-slate-50/60 p-2.5 sm:p-3">
               {visibleExpenses.map((expense) => (
                 <article
                   key={expense.id}
-                  className={`relative overflow-hidden rounded-2xl border bg-white p-3.5 shadow-sm transition duration-200 hover:-translate-y-px hover:shadow-md sm:p-4 ${
+                  className={`expense-ledger-row relative overflow-hidden rounded-2xl border bg-white p-3.5 shadow-sm transition duration-200 hover:-translate-y-px hover:shadow-md sm:p-4 ${
                     expense.status === "Approved"
-                      ? "border-slate-200/80"
-                      : "border-amber-200"
+                      ? "expense-ledger-row-approved border-slate-200/80"
+                      : "expense-ledger-row-pending border-amber-200"
                   }`}
                 >
                   <span
@@ -788,7 +788,7 @@ export default function Expenses() {
                 </div>
               )}
             </div>
-            <footer className="flex flex-col gap-2 border-t border-slate-100 bg-white px-4 py-3.5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <footer className="expense-ledger-footer flex flex-col gap-2 border-t border-slate-100 bg-white px-4 py-3.5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <span>
                 Showing {visibleExpenses.length} of {expenses.length} entries
               </span>
@@ -808,7 +808,7 @@ export default function Expenses() {
 
           <aside className="space-y-4 sm:space-y-5 2xl:sticky 2xl:top-24">
             <section className="panel overflow-hidden">
-              <div className="border-b border-slate-100 bg-[linear-gradient(135deg,var(--app-accent-faint),white)] p-4 sm:p-5">
+              <div className="expense-category-header border-b border-slate-100 bg-[linear-gradient(135deg,var(--app-accent-faint),white)] p-4 sm:p-5">
                 <div className="flex items-center gap-3">
                   <span className="grid size-10 place-items-center rounded-xl bg-white text-(--app-accent-dark) shadow-sm ring-1 ring-(--app-accent)/15">
                     <ExpenseIcon type="chart" />
@@ -846,7 +846,7 @@ export default function Expenses() {
                 ))}
               </div>
             </section>
-            <section className="relative overflow-hidden rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-5 shadow-sm">
+            <section className="expense-budget-health relative overflow-hidden rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-5 shadow-sm">
               <span className="absolute -right-8 -top-8 size-24 rounded-full bg-amber-200/30" />
               <div className="relative flex items-center gap-3 text-amber-700">
                 <span className="grid size-10 place-items-center rounded-xl bg-white/80 shadow-sm ring-1 ring-amber-200">

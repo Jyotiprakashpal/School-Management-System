@@ -5,7 +5,7 @@ import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
 const initialRows = [
-  ["ADM-26-1001", "Rahul Kumar", "Hari Prasad", "UKG", "9827142339", "Active", "View"],
+  ["ADM-26-1001", "Rahul Kumar", "Hari Prasad", "UKG", "7310095239", "Active", "View"],
   ["ADM-26-1023", "Ravi Kumar", "Rahul Kumar", "UKG", "8601XXXXXX", "Active", "View"],
   ["ADM-26-1024", "Ananya Sharma", "Vikas Sharma", "Class 2", "9876543210", "Active", "View"],
   ["ADM-26-1025", "Aarav Singh", "Rohit Singh", "Class 1", "9123456780", "Active", "View"],
@@ -203,7 +203,7 @@ function StudentIdCard({ initials, student }: { initials: string; student: strin
           <div className="font-bold uppercase tracking-widest text-(--app-accent-dark)">If found, please return to</div>
           <div className="mt-1 font-bold">PAL IT HUB</div>
           <div>Knowledge Park · School Office</div>
-          <div>Ph: 9827142339 · help@palithub.edu</div>
+          <div>Ph: 7310095239 · help@palithub.edu</div>
         </div>
 
         <p className="mt-auto pt-5 text-[0.52rem] leading-3 text-slate-500"><strong className="text-slate-700">Note:</strong> This card must be carried daily and shown on demand. It is not transferable. Loss of the card must be reported to the school office.</p>
@@ -714,7 +714,7 @@ export default function AllStudents() {
         </article>)}
       </section>
 
-      <section className="panel overflow-visible">
+      <section className="all-students-directory panel overflow-visible">
         <div className="panel-title flex-nowrap gap-2 py-3 sm:gap-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-(--app-accent-soft) text-(--app-accent-dark) ring-1 ring-(--app-accent)/20 sm:size-11"><svg className="size-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M19 8v6M16 11h6" /></svg></div>
@@ -723,11 +723,11 @@ export default function AllStudents() {
           <Button className="shrink-0 px-3" onClick={openCreate} icon={<svg className="size-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>}>Add Student</Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-[1fr_9rem_9rem_auto] sm:gap-3 sm:p-4 xl:grid-cols-[1fr_12rem_12rem_auto]">
+        <div className="all-students-filters grid grid-cols-2 gap-2.5 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-[1fr_9rem_9rem_auto] sm:gap-3 sm:p-4 xl:grid-cols-[1fr_12rem_12rem_auto]">
           <Input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} placeholder="Search name, admission no., father or phone..." aria-label="Search students" />
           <Dropdown value={classFilter} onChange={(event) => { setClassFilter(event.target.value); setCurrentPage(1); }} placeholder="All Classes" aria-label="Class filter" options={["UKG", "LKG", "Class 1", "Class 2"].map((value) => ({ label: value, value }))} />
           <Dropdown value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setCurrentPage(1); }} placeholder="All Status" aria-label="Status filter" options={[{ label: "Active", value: "active" }, { label: "Inactive", value: "inactive" }]} />
-          <Button variant="outline" className="border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! hover:border-rose-300! active:scale-95" onClick={() => { setSearch(""); setClassFilter(""); setStatusFilter(""); setCurrentPage(1); }} icon={<svg className="size-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" /></svg>}>Reset</Button>
+          <Button variant="outline" className="all-students-reset border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! hover:border-rose-300! active:scale-95" onClick={() => { setSearch(""); setClassFilter(""); setStatusFilter(""); setCurrentPage(1); }} icon={<svg className="size-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" /></svg>}>Reset</Button>
         </div>
 
         <div className="overflow-x-auto">
@@ -743,7 +743,7 @@ export default function AllStudents() {
           </table>
           {!filteredRows.length && <div className="grid min-h-56 place-items-center p-6 text-center"><div><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-slate-100 text-slate-400"><svg className="size-6" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg></div><h3 className="mt-4 font-display text-sm font-bold text-slate-700">No students found</h3><p className="mt-1 text-xs text-slate-400">Try changing your search or filters.</p></div></div>}
         </div>
-        <footer className="border-t border-slate-100 px-4 py-4 sm:px-5">
+        <footer className="all-students-pagination border-t border-slate-100 px-4 py-4 sm:px-5">
           <PremiumPagination
             currentPage={safePage}
             totalPages={totalPages}

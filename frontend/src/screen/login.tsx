@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react"
 import { Button, Input, useToast } from "../components"
 
-type LoginIconName = "arrow" | "book" | "check" | "eye" | "eyeOff" | "key" | "lock" | "people" | "person" | "shield" | "spark"
+type LoginIconName = "arrow" | "book" | "check" | "eye" | "eyeOff" | "lock" | "mail" | "people" | "person" | "shield" | "spark"
 
 const iconPaths: Record<LoginIconName, ReactNode> = {
   arrow: <path d="M5 12h14m-5-5 5 5-5 5" />,
@@ -23,16 +23,16 @@ const iconPaths: Record<LoginIconName, ReactNode> = {
       <path d="m3 3 18 18M10.6 10.6A2 2 0 0 0 13.4 13.4M9.9 5.2A11 11 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-2.1 3M6.6 6.6C3.5 8.4 2 12 2 12s3.5 7 10 7a10 10 0 0 0 4.1-.8" />
     </>
   ),
-  key: (
-    <>
-      <circle cx="8" cy="15" r="4" />
-      <path d="m11 12 8-8m-3 3 2 2m-5 1 2 2" />
-    </>
-  ),
   lock: (
     <>
       <rect x="4" y="10" width="16" height="11" rx="2" />
       <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
     </>
   ),
   people: (
@@ -92,6 +92,9 @@ export default function Login({ onLogin }: LoginProps) {
   const [rememberMe, setRememberMe] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
+  const [recoveryEmail, setRecoveryEmail] = useState("")
+  const [sendingRecoveryLink, setSendingRecoveryLink] = useState(false)
   const { showToast } = useToast()
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -101,15 +104,28 @@ export default function Login({ onLogin }: LoginProps) {
     onLogin()
   }
 
+  const sendRecoveryLink = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSendingRecoveryLink(true)
+    await new Promise((resolve) => window.setTimeout(resolve, 700))
+    setSendingRecoveryLink(false)
+    setForgotPasswordOpen(false)
+    setRecoveryEmail("")
+    showToast(
+      "If an account is registered with this email, a password reset link will arrive shortly.",
+      { title: "Check your inbox" },
+    )
+  }
+
   return (
     <div className="login-screen h-dvh overflow-hidden">
-      <main className="grid h-dvh grid-rows-[5.5rem_minmax(0,1fr)] overflow-hidden lg:grid-rows-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(28rem,.9fr)]">
-        <section className="login-visual relative flex h-full min-h-0 flex-col justify-center overflow-hidden lg:justify-between">
+      <main className="grid h-dvh overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(28rem,.9fr)]">
+        <section className="login-visual relative hidden h-full overflow-hidden lg:flex lg:flex-col lg:justify-between">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-teal-950/65 to-cyan-900/25" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/20" />
 
-          <div className="relative z-10 flex items-center gap-3 p-4 lg:p-8 xl:p-10">
-            <div className="grid size-10 place-items-center rounded-2xl border border-white/20 bg-white/15 text-white shadow-xl backdrop-blur-md lg:size-12">
+          <div className="relative z-10 flex items-center gap-3 p-8 xl:p-10">
+            <div className="grid size-12 place-items-center rounded-2xl border border-white/20 bg-white/15 text-white backdrop-blur-md">
               <LoginIcon name="book" className="size-6" />
             </div>
             <div>
@@ -122,7 +138,7 @@ export default function Login({ onLogin }: LoginProps) {
             </div>
           </div>
 
-          <div className="login-story relative z-10 hidden max-w-2xl p-6 xl:p-8 lg:block">
+          <div className="login-story relative z-10 max-w-2xl p-6 xl:p-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-cyan-50 backdrop-blur-md">
               <LoginIcon name="spark" className="size-3.5 text-cyan-300" />A
               smarter way to manage education
@@ -177,136 +193,199 @@ export default function Login({ onLogin }: LoginProps) {
           </div>
         </section>
 
-        <section className="login-form-panel relative flex h-full min-h-0 flex-col overflow-hidden lg:h-dvh">
+        <section className="login-form-panel relative flex h-dvh min-h-0 flex-col overflow-hidden">
           <div className="login-accent-bar absolute inset-x-0 top-0 z-20 h-1" />
           <span className="login-theme-orb absolute -right-16 top-24 size-44 rounded-full" />
           <span className="login-theme-orb absolute -left-20 bottom-20 size-52 rounded-full opacity-60" />
           <span className="login-theme-orb absolute bottom-6 right-16 size-20 rounded-full opacity-45" />
 
           <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center px-4 py-3 sm:px-8 sm:py-4 lg:px-10 xl:px-14">
-            <div className="login-form-card w-full max-w-md rounded-3xl border p-5 backdrop-blur-2xl sm:p-6">
-              <div className="login-shield-tile grid size-10 place-items-center rounded-xl text-white shadow-lg">
-                <LoginIcon name="shield" className="size-5" />
-              </div>
-              <div className="mt-3 font-display text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                Welcome back
-              </div>
-              <p className="mt-1 text-xs leading-5 text-white/65 sm:text-sm">
-                Sign in to continue to your PAL IT HUB administration workspace.
-              </p>
+            <div className="login-form-card w-full max-w-md rounded-3xl border p-5 backdrop-blur-md sm:p-6">
+              {forgotPasswordOpen ? (
+                <>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="login-shield-tile grid size-12 place-items-center rounded-2xl text-white shadow-lg">
+                      <LoginIcon name="mail" className="size-6" />
+                    </div>
+                    <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white/60">
+                      Account recovery
+                    </div>
+                  </div>
+                  <div className="mt-4 font-display text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+                    Forgot your password?
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-white/65 sm:text-sm">
+                    Enter the email linked to your administrator account. We’ll
+                    send you a secure link to create a new password.
+                  </p>
 
-              <form onSubmit={submit} className="mt-5 space-y-3">
-                <Input
-                  id="login-username"
-                  label="Username"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  placeholder="Enter your username"
-                  autoComplete="username"
-                  startIcon={<LoginIcon name="person" className="size-4" />}
-                  className="login-theme-input h-11"
-                  required
-                />
-
-                <div>
-                  <div className="relative">
+                  <form
+                    onSubmit={sendRecoveryLink}
+                    className="mt-5 space-y-4"
+                  >
                     <Input
-                      id="login-password"
-                      type={showPassword ? "text" : "password"}
-                      label="Password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      placeholder="Enter your password"
-                      autoComplete="current-password"
-                      startIcon={<LoginIcon name="lock" className="size-4" />}
-                      className="login-theme-input h-11 pr-11"
+                      id="recovery-email"
+                      type="email"
+                      label="Registered email address"
+                      value={recoveryEmail}
+                      onChange={(event) => setRecoveryEmail(event.target.value)}
+                      placeholder="name@school.com"
+                      autoComplete="email"
+                      startIcon={<LoginIcon name="mail" className="size-4" />}
+                      className="login-theme-input h-11"
                       required
                     />
+
+                    <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/10 p-3.5">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-white/10 text-white/80">
+                        <LoginIcon name="shield" className="size-4" />
+                      </span>
+                      <div>
+                        <div className="text-xs font-bold text-white/90">
+                          Secure recovery
+                        </div>
+                        <p className="mt-0.5 text-xs leading-5 text-white/55">
+                          We’ll only send instructions when the email matches an
+                          active account.
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      fullWidth
+                      className="min-h-11 text-sm"
+                      isLoading={sendingRecoveryLink}
+                      loadingText="Sending secure link..."
+                      icon={<LoginIcon name="mail" className="size-4" />}
+                    >
+                      Send Reset Link
+                    </Button>
+
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setShowPassword((visible) => !visible)}
-                      className="login-input-action absolute bottom-1 right-1 !grid !size-9 !min-h-9 !place-items-center !rounded-lg !border-0 !bg-transparent !p-0 text-white/60 !shadow-none"
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
+                      fullWidth
+                      onClick={() => {
+                        setForgotPasswordOpen(false)
+                        setRecoveryEmail("")
+                      }}
+                      disabled={sendingRecoveryLink}
+                      className="!min-h-10 !border-white/15 !bg-white/5 text-sm text-white/80 !shadow-none hover:!bg-white/10 hover:text-white"
+                      icon={
+                        <LoginIcon
+                          name="arrow"
+                          className="size-4 rotate-180"
+                        />
                       }
                     >
-                      <LoginIcon
-                        name={showPassword ? "eyeOff" : "eye"}
-                        className="size-4"
-                      />
+                      Back to Sign In
                     </Button>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <div className="login-shield-tile grid size-10 place-items-center rounded-xl text-white shadow-lg">
+                    <LoginIcon name="shield" className="size-5" />
                   </div>
-                </div>
+                  <div className="mt-3 font-display text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+                    Welcome back
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-white/65 sm:text-sm">
+                    Sign in to continue to your PAL IT HUB administration workspace.
+                  </p>
 
-                <div className="flex min-h-7 items-center justify-between gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    aria-pressed={rememberMe}
-                    onClick={() => setRememberMe((remember) => !remember)}
-                    className="!flex !min-h-0 shrink-0 items-center gap-2 !border-0 !bg-transparent !p-0 text-xs font-medium text-white/75 !shadow-none hover:!bg-transparent hover:text-white"
-                  >
-                    <span
-                      className={`grid size-4 place-items-center rounded border transition ${
-                        rememberMe
-                          ? "login-check-active text-white"
-                          : "border-white/30 bg-white/10 text-transparent"
-                      }`}
-                    >
-                      <LoginIcon name="check" className="size-3" />
-                    </span>
-                    Remember this device
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      showToast(
-                        "Contact your administrator to reset your account password.",
-                        { title: "Password help", tone: "info" },
-                      )
-                    }
-                    className="login-link !min-h-0 shrink-0 whitespace-nowrap !border-0 !bg-transparent !p-0 text-xs font-semibold !shadow-none hover:!bg-transparent"
-                  >
-                    Forgot password?
-                  </Button>
-                </div>
+                  <form onSubmit={submit} className="mt-5 space-y-3">
+                    <Input
+                      id="login-username"
+                      label="Username"
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      placeholder="Enter your username"
+                      autoComplete="username"
+                      startIcon={<LoginIcon name="person" className="size-4" />}
+                      className="login-theme-input h-11"
+                      required
+                    />
 
-                <Button
-                  type="submit"
-                  fullWidth
-                  className="min-h-11 text-sm"
-                  isLoading={submitting}
-                  loadingText="Signing in..."
-                  icon={<LoginIcon name="arrow" className="size-4" />}
-                >
-                  Sign In Securely
-                </Button>
-              </form>
-
-              <div className="login-demo-card mt-4 rounded-xl border border-white/10 bg-white/10 p-3">
-                <div className="flex items-start gap-3">
-                  <span className="login-demo-icon grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 shadow-sm">
-                    <LoginIcon name="key" className="size-4" />
-                  </span>
-                  <div>
-                    <div className="text-xs font-bold text-white">
-                      Demo administrator access
+                    <div>
+                      <div className="relative">
+                        <Input
+                          id="login-password"
+                          type={showPassword ? "text" : "password"}
+                          label="Password"
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          placeholder="Enter your password"
+                          autoComplete="current-password"
+                          startIcon={<LoginIcon name="lock" className="size-4" />}
+                          className="login-theme-input h-11 pr-11"
+                          required
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowPassword((visible) => !visible)}
+                          className="login-input-action absolute bottom-1 right-1 !grid !size-9 !min-h-9 !place-items-center !rounded-lg !border-0 !bg-transparent !p-0 text-white/60 !shadow-none"
+                          aria-label={
+                            showPassword ? "Hide password" : "Show password"
+                          }
+                        >
+                          <LoginIcon
+                            name={showPassword ? "eyeOff" : "eye"}
+                            className="size-4"
+                          />
+                        </Button>
+                      </div>
                     </div>
-                    <p className="mt-1 text-xs leading-5 text-white/60">
-                      Username: <strong className="text-white/90">admin</strong>{" "}
-                      · Password:{" "}
-                      <strong className="text-white/90">admin123</strong>
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              <div className="login-secure-note mt-3 hidden items-center justify-center gap-2 text-xs text-white/45 sm:flex">
-                <LoginIcon name="lock" className="size-3.5" />
-                Your connection is encrypted and secure
-              </div>
+                    <div className="flex min-h-7 items-center justify-between gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        aria-pressed={rememberMe}
+                        onClick={() => setRememberMe((remember) => !remember)}
+                        className="!flex !min-h-0 shrink-0 items-center gap-2 !border-0 !bg-transparent !p-0 text-xs font-medium text-white/75 !shadow-none hover:!bg-transparent hover:text-white"
+                      >
+                        <span
+                          className={`grid size-4 place-items-center rounded border transition ${
+                            rememberMe
+                              ? "login-check-active text-white"
+                              : "border-white/30 bg-white/10 text-transparent"
+                          }`}
+                        >
+                          <LoginIcon name="check" className="size-3" />
+                        </span>
+                        Remember this device
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setForgotPasswordOpen(true)}
+                        className="login-link !min-h-0 shrink-0 whitespace-nowrap !border-0 !bg-transparent !p-0 text-xs font-semibold !shadow-none hover:!bg-transparent"
+                      >
+                        Forgot password?
+                      </Button>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      fullWidth
+                      className="min-h-11 text-sm"
+                      isLoading={submitting}
+                      loadingText="Signing in..."
+                      icon={<LoginIcon name="arrow" className="size-4" />}
+                    >
+                      Sign In Securely
+                    </Button>
+                  </form>
+
+                  <div className="login-secure-note mt-3 hidden items-center justify-center gap-2 text-xs text-white/45 sm:flex">
+                    <LoginIcon name="lock" className="size-3.5" />
+                    Your connection is encrypted and secure
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

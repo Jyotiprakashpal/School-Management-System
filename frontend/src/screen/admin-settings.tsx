@@ -61,7 +61,7 @@ export default function AdminSettings() {
 
   return <div className="min-h-screen dashboard-bg pb-20">
     <Header title="Admin Settings" subtitle="Backup, restore, and recovery" />
-    <main className="mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+    <main className="admin-settings-main mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="panel overflow-hidden">
         <div className="admin-backup-hero grid gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex items-start gap-4">
@@ -91,14 +91,14 @@ export default function AdminSettings() {
       </section>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="flex flex-col rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 shadow-sm">
+        <section className="admin-download-card flex flex-col rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 shadow-sm">
           <div className="flex items-start gap-4">
             <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white shadow-sm"><Icon name="download" /></span>
             <div className="min-w-0"><div className="font-display text-base font-bold text-slate-900">Download Full Backup</div><p className="mt-1 text-xs leading-5 text-slate-500">Download the database, documents, users, and configuration.</p></div>
           </div>
           <Button className="mt-5 w-full sm:w-fit" onClick={() => showToast("Your encrypted backup download has started.", { title: "Download started" })} icon={<Icon name="download" />}>Download Full Backup</Button>
         </section>
-        <section className="flex flex-col rounded-2xl border border-amber-100 bg-amber-50/70 p-5 shadow-sm">
+        <section className="admin-manual-card flex flex-col rounded-2xl border border-amber-100 bg-amber-50/70 p-5 shadow-sm">
           <div className="flex items-start gap-4">
             <span className={`grid size-11 shrink-0 place-items-center rounded-xl bg-amber-500 text-white shadow-sm ${creating ? "animate-pulse" : ""}`}><Icon name="backup" /></span>
             <div className="min-w-0"><div className="font-display text-base font-bold text-slate-900">Create Manual Backup</div><p className="mt-1 text-xs leading-5 text-slate-500">Create a restore point before making important changes.</p></div>
@@ -111,8 +111,8 @@ export default function AdminSettings() {
         </section>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-red-100 bg-red-50/60 shadow-sm">
-        <div className="flex items-start gap-4 border-b border-red-100 p-5 sm:p-6">
+      <section className="admin-restore-card overflow-hidden rounded-2xl border border-red-100 bg-red-50/60 shadow-sm">
+        <div className="admin-restore-header flex items-start gap-4 border-b border-red-100 p-5 sm:p-6">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-red-500 text-white"><Icon name="refresh" /></span>
           <div className="flex-1"><div className="flex flex-wrap items-center gap-2"><div className="font-display text-base font-bold text-slate-900">Restore Backup</div><span className="status-danger">Replaces current data</span></div><p className="mt-1 text-xs leading-5 text-slate-500">Upload a trusted backup archive. A safety backup is created before restoration begins.</p></div>
         </div>
@@ -123,13 +123,13 @@ export default function AdminSettings() {
             <Input id="restore-confirmation" label='Type "RESTORE" to confirm' placeholder="RESTORE" value={restoreConfirmation} onChange={(event) => setRestoreConfirmation(event.target.value)} />
           </div>
         </div>
-        <div className="flex flex-col gap-3 border-t border-red-100 bg-white/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="admin-restore-footer flex flex-col gap-3 border-t border-red-100 bg-white/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p className="text-xs text-red-700">Only restore backups from a trusted source.</p>
           <Button variant="danger" className="w-full sm:w-auto" disabled={!restoreFile || restoreConfirmation !== "RESTORE"} onClick={restore} icon={<Icon name="refresh" />}>Restore Now</Button>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-amber-100 bg-amber-50/60 p-5 shadow-sm sm:p-6">
+      <section className="admin-recovery-card rounded-2xl border border-amber-100 bg-amber-50/60 p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-amber-400 text-amber-950"><Icon name="key" /></span>
           <div className="flex-1"><div className="font-display text-base font-bold text-slate-900">Backup Recovery Key</div><p className="mt-1 text-xs leading-5 text-slate-500">Keep an offline copy. Encrypted backups cannot be restored on another device without this key.</p></div>
@@ -137,7 +137,7 @@ export default function AdminSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5 shadow-sm sm:p-6">
+      <section className="admin-cloud-card rounded-2xl border border-blue-100 bg-blue-50/60 p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-600 text-white"><Icon name="cloud" /></span>
           <div className="flex-1"><div className="flex flex-wrap items-center gap-2"><div className="font-display text-base font-bold text-slate-900">Google Drive Cloud Backup</div><span className={cloudConnected ? "status-success" : "status-neutral"}>{cloudConnected ? "Connected" : "Not connected"}</span></div><p className="mt-1 text-xs leading-5 text-slate-500">Store an additional encrypted copy securely in Google Drive.</p></div>
@@ -164,10 +164,37 @@ export default function AdminSettings() {
 
       <section className="panel">
         <div className="panel-title">
-          <div className="flex items-center gap-2"><Icon name="backup" className="size-5 text-teal-600" /><div className="font-display text-sm font-bold text-slate-900">Saved Backups</div></div>
+          <div className="flex items-center gap-2"><span className="settings-icon grid size-8 place-items-center rounded-lg"><Icon name="backup" className="size-4" /></span><div><div className="font-display text-sm font-bold text-slate-900">Saved Backups</div><div className="mt-0.5 text-xs text-slate-400">Encrypted recovery points</div></div></div>
           <span className="status-info">{savedBackups.length} available</span>
         </div>
-        <div className="overflow-hidden sm:overflow-x-auto">
+        <div className="grid gap-3 p-3 sm:hidden">
+          {savedBackups.map((backup, index) => <article key={backup.id} className="admin-saved-backup-card relative overflow-hidden rounded-2xl border p-4">
+            <div className="flex items-start justify-between gap-3">
+              <span className="admin-saved-backup-icon grid size-11 shrink-0 place-items-center rounded-2xl"><Icon name="database" className="size-5" /></span>
+              <span className="status-success inline-flex items-center gap-1.5"><Icon name="check" className="size-3" />Verified</span>
+            </div>
+            <div className="mt-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">Recovery point {String(savedBackups.length - index).padStart(2, "0")}</span>
+                {index === 0 && <span className="admin-latest-backup rounded-full px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wide">Latest</span>}
+              </div>
+              <div className="mt-1.5 break-all font-display text-sm font-bold leading-5 text-slate-900">{backup.name}</div>
+              <p className="mt-1 text-xs text-slate-400">Full system backup</p>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-slate-100 bg-white/80 p-3">
+                <div className="flex items-center gap-1.5 text-[0.6rem] font-bold uppercase tracking-wider text-slate-400"><Icon name="calendar" className="size-3.5" />Created</div>
+                <div className="mt-1.5 text-xs font-semibold leading-5 text-slate-700">{backup.date}</div>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-white/80 p-3">
+                <div className="flex items-center gap-1.5 text-[0.6rem] font-bold uppercase tracking-wider text-slate-400"><Icon name="database" className="size-3.5" />File size</div>
+                <div className="mt-1.5 text-xs font-semibold leading-5 text-slate-700">{backup.size}</div>
+              </div>
+            </div>
+            <Button fullWidth className="mt-3" onClick={() => showToast(`${backup.name} is downloading.`, { title: "Download started" })} icon={<Icon name="download" className="size-4" />}>Download Backup</Button>
+          </article>)}
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
           <table className="module-table">
             <thead><tr><th>File name</th><th>Date</th><th>Size</th><th>Security</th><th>Action</th></tr></thead>
             <tbody>{savedBackups.map((backup) => <tr key={backup.id}>

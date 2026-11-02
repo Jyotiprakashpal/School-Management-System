@@ -171,7 +171,7 @@ export default function NewAdmission() {
           <Input label="PIN Code" inputMode="numeric" maxLength={6} value={form.pinCode ?? ""} onChange={(event) => changePinCode(event.target.value)} placeholder="6-digit PIN code" />
           <Input label="District" value={form.district ?? ""} onChange={(event) => update("district", event.target.value)} />
           <Input label="State" value={form.state ?? ""} onChange={(event) => update("state", event.target.value)} />
-          {pinLookup.status !== "idle" && <div className="col-span-full flex flex-col gap-2 rounded-xl border border-teal-100 bg-linear-to-r from-teal-50 to-cyan-50 p-3 text-xs sm:flex-row sm:items-center sm:justify-between" role="status">
+          {pinLookup.status !== "idle" && <div className="new-admission-pin-status col-span-full flex flex-col gap-2 rounded-xl border border-teal-100 bg-linear-to-r from-teal-50 to-cyan-50 p-3 text-xs sm:flex-row sm:items-center sm:justify-between" role="status">
             {pinLookup.status === "loading" && <span className="font-medium text-teal-700">Looking up PIN {form.pinCode}...</span>}
             {pinLookup.status === "error" && <span className="font-medium text-rose-600">No location found for PIN {form.pinCode}. Enter district and state manually.</span>}
             {pinLookup.status === "found" && <>
@@ -193,9 +193,9 @@ export default function NewAdmission() {
         </section>
       </div>
 
-      <section className="grid grid-cols-2 gap-2.5 rounded-2xl border border-white bg-white/90 p-3 shadow-lg shadow-slate-900/5 sm:flex sm:justify-end sm:gap-3 sm:p-4">
-        <Button variant="outline" className="min-h-11 border-rose-200! text-rose-600! hover:bg-rose-50! sm:min-h-10" onClick={() => setForm(initialForm)} disabled={Boolean(savingMode)}>Cancel</Button>
-        <Button variant="secondary" className="min-h-11 sm:min-h-10" onClick={() => save("print")} isLoading={savingMode === "print"} loadingText="Preparing print...">Save & Print</Button>
+      <section className="new-admission-actions grid grid-cols-2 gap-2.5 rounded-2xl border border-white bg-white/90 p-3 shadow-lg shadow-slate-900/5 sm:flex sm:justify-end sm:gap-3 sm:p-4">
+        <Button variant="outline" className="new-admission-cancel min-h-11 border-rose-200! text-rose-600! hover:bg-rose-50! sm:min-h-10" onClick={() => setForm(initialForm)} disabled={Boolean(savingMode)}>Cancel</Button>
+        <Button variant="secondary" className="new-admission-print min-h-11 sm:min-h-10" onClick={() => save("print")} isLoading={savingMode === "print"} loadingText="Preparing print...">Save & Print</Button>
         <Button className="col-span-2 -order-1 min-h-12 text-sm shadow-md shadow-teal-600/20 sm:order-none sm:col-span-1 sm:min-h-10 sm:text-xs sm:shadow-none" onClick={() => save("save")} isLoading={savingMode === "save"} loadingText="Saving admission...">Save Admission</Button>
       </section>
     </main>

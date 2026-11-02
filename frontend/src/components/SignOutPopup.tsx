@@ -41,10 +41,10 @@ export default function SignOutPopup({ onCancel, onClose, onConfirm, open }: Sig
     </>}
   >
     <div className="space-y-3">
-      <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-slate-50 to-white p-4">
+      <div className="signout-account flex items-center gap-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-slate-50 to-white p-4">
         <div className="relative shrink-0">
           <div className="profile-avatar grid size-14 place-items-center rounded-2xl border font-display text-lg font-extrabold shadow-lg">SA</div>
-          <span className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full border-2 border-white bg-emerald-500 text-white"><Icon name="shield" className="size-2.5" /></span>
+          <span className="signout-status absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full border-2 border-white bg-emerald-500 text-white"><Icon name="shield" className="size-2.5" /></span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-display text-sm font-bold text-slate-900">Super Administrator</div>
@@ -52,13 +52,13 @@ export default function SignOutPopup({ onCancel, onClose, onConfirm, open }: Sig
         </div>
       </div>
 
-      <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white text-blue-600 shadow-sm"><Icon name="device" className="size-4" /></span>
+      <div className="signout-device flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
+        <span className="signout-device-icon grid size-9 shrink-0 place-items-center rounded-lg bg-white text-blue-600 shadow-sm"><Icon name="device" className="size-4" /></span>
         <div className="min-w-0 flex-1"><div className="text-xs font-bold text-blue-800">Current device</div><p className="mt-1 truncate text-xs text-blue-700">{device.label} · {device.deviceType}</p></div>
         <div className="hidden text-right sm:block"><div className="text-xs text-blue-600/70">Signed in</div><div className="mt-0.5 text-xs font-semibold text-blue-800">{loginTime}</div></div>
       </div>
 
-      <div className="flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800"><Icon name="lock" className="size-4 shrink-0" />Sign out on shared or public devices.</div>
+      <div className="signout-warning flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800"><Icon name="lock" className="size-4 shrink-0" />Sign out on shared or public devices.</div>
     </div>
   </Popup>;
 }

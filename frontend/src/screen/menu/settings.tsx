@@ -42,12 +42,17 @@ function SectionHeader({ icon, title, copy }: { icon: IconName; title: string; c
 }
 
 function ToggleRow({ checked, copy, icon, label, onChange }: { checked: boolean; copy: string; icon: IconName; label: string; onChange: () => void }) {
-  return <Button variant="outline" aria-pressed={checked} onClick={onChange} className={`flex min-h-16 w-full items-center justify-between gap-2 p-3 text-left sm:min-h-20 sm:gap-4 sm:p-4 ${checked ? "settings-selected" : ""}`}>
-    <span className="flex min-w-0 items-center gap-2.5 sm:gap-3">
-      <span className={`grid size-9 shrink-0 place-items-center rounded-xl sm:size-10 ${checked ? "settings-icon-solid" : "settings-icon"}`}><Icon name={icon} /></span>
-      <span className="min-w-0"><span className="block text-xs font-semibold text-slate-800 sm:text-sm">{label}</span><span className="mt-1 hidden text-xs font-normal leading-5 text-slate-500 sm:block">{copy}</span></span>
+  return <Button variant="outline" aria-pressed={checked} onClick={onChange} className={`settings-toggle-row group !grid min-h-20 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 !rounded-2xl !p-3.5 text-left sm:min-h-24 sm:gap-4 sm:!p-4 ${checked ? "settings-toggle-row-on" : ""}`}>
+    <span className={`settings-toggle-icon grid size-11 shrink-0 place-items-center rounded-2xl ${checked ? "settings-icon-solid" : "settings-icon"}`}><Icon name={icon} className="size-5" /></span>
+    <span className="min-w-0">
+      <span className="block text-xs font-bold text-slate-800 sm:text-sm">{label}</span>
+      <span className="mt-1 block text-[0.68rem] font-normal leading-4 text-slate-500 sm:text-xs sm:leading-5">{copy}</span>
     </span>
-    <span className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? "settings-switch-on" : "bg-slate-200"}`}><span className={`absolute top-1 size-4 rounded-full bg-white shadow-sm transition ${checked ? "left-6" : "left-1"}`} /></span>
+    <span className={`settings-toggle-switch relative h-7 w-12 shrink-0 rounded-full ${checked ? "settings-switch-on" : "bg-slate-200"}`}>
+      <span className={`settings-toggle-knob absolute top-1 grid size-5 place-items-center rounded-full bg-white text-transparent shadow-sm ${checked ? "left-6" : "left-1"}`}>
+        <Icon name="check" className="size-3" />
+      </span>
+    </span>
   </Button>;
 }
 
@@ -74,6 +79,7 @@ export default function Settings() {
   };
 
   const toggleNotification = (key: keyof typeof notifications) => setNotifications((current) => ({ ...current, [key]: !current[key] }));
+  const enabledNotificationCount = Object.values(notifications).filter(Boolean).length;
 
   return <div className="min-h-screen dashboard-bg pb-20">
     <Header title="Settings" subtitle="Personalize your institution and application preferences" />
@@ -130,6 +136,14 @@ export default function Settings() {
           {activeSection === "notifications" && <section className="panel">
             <SectionHeader icon="bell" title="Notification Preferences" copy="Control which updates administrators receive and how they are delivered." />
             <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6">
+              <div className="settings-notification-summary flex items-center gap-3 rounded-2xl border p-3.5 sm:col-span-2 sm:p-4">
+                <span className="settings-icon-solid grid size-10 shrink-0 place-items-center rounded-xl"><Icon name="bell" className="size-5" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-slate-800 sm:text-sm">Administrator delivery preferences</span>
+                  <span className="mt-0.5 block text-[0.68rem] leading-4 text-slate-500 sm:text-xs">Choose the alerts that should reach your administration team.</span>
+                </span>
+                <span className="settings-notification-count shrink-0 rounded-full px-2.5 py-1 text-[0.65rem] font-bold">{enabledNotificationCount} of 6 on</span>
+              </div>
               <ToggleRow checked={notifications.email} onChange={() => toggleNotification("email")} icon="mail" label="Email notifications" copy="Deliver important updates to the official email." />
               <ToggleRow checked={notifications.sms} onChange={() => toggleNotification("sms")} icon="phone" label="SMS notifications" copy="Send urgent alerts to the registered mobile number." />
               <ToggleRow checked={notifications.fee} onChange={() => toggleNotification("fee")} icon="bell" label="Fee collection summary" copy="Receive a daily collection and dues overview." />
@@ -142,16 +156,17 @@ export default function Settings() {
           {activeSection === "appearance" && <section className="panel">
             <SectionHeader icon="palette" title="Appearance" copy="Select an accent theme that is applied instantly throughout the application." />
             <div className="p-4 sm:p-6">
-              <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
                 {([
                   { id: "teal", label: "Teal", copy: "Calm and professional", preview: "from-teal-700 via-teal-600 to-cyan-400", soft: "bg-teal-50", accent: "text-teal-600" },
                   { id: "violet", label: "Violet", copy: "Modern and expressive", preview: "from-violet-700 via-violet-600 to-fuchsia-400", soft: "bg-violet-50", accent: "text-violet-600" },
                   { id: "blue", label: "Blue", copy: "Classic and focused", preview: "from-blue-800 via-blue-700 to-sky-400", soft: "bg-blue-50", accent: "text-blue-600" },
-                ] as { id: ThemeName; label: string; copy: string; preview: string; soft: string; accent: string }[]).map((item) => <Button key={item.id} variant="outline" aria-pressed={theme === item.id} onClick={() => setTheme(item.id)} className={`group relative min-h-44 w-full flex-col items-stretch justify-start overflow-hidden rounded-2xl border-slate-200 bg-white !p-2 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg ${theme === item.id ? "settings-theme-selected" : ""}`}>
+                  { id: "dark", label: "Dark", copy: "Comfortable in low light", preview: "from-slate-950 via-slate-900 to-slate-700", soft: "bg-slate-800", accent: "text-slate-200" },
+                ] as { id: ThemeName; label: string; copy: string; preview: string; soft: string; accent: string }[]).map((item) => <Button key={item.id} variant="outline" aria-pressed={theme === item.id} onClick={() => setTheme(item.id)} className={`settings-theme-card group relative min-h-44 w-full flex-col items-stretch justify-start overflow-hidden rounded-2xl border-slate-200 bg-white !p-2 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg ${theme === item.id ? "settings-theme-selected" : ""}`}>
                   <span className={`relative block h-24 overflow-hidden rounded-xl bg-gradient-to-br ${item.preview}`}>
                     <span className="absolute -right-5 -top-7 size-20 rounded-full bg-white/15" />
                     <span className="absolute -bottom-8 right-7 size-16 rounded-full bg-white/10" />
-                    <span className="absolute inset-3 flex overflow-hidden rounded-lg border border-white/25 bg-white/95 shadow-lg">
+                    <span className={`absolute inset-3 flex overflow-hidden rounded-lg border border-white/25 shadow-lg ${item.id === "dark" ? "bg-slate-950" : "bg-white/95"}`}>
                       <span className={`w-6 shrink-0 bg-gradient-to-b ${item.preview}`}>
                         <span className="mx-auto mt-2 block size-2 rounded-full bg-white/90" />
                         <span className="mx-auto mt-3 block h-1 w-3 rounded-full bg-white/45" />

@@ -198,20 +198,20 @@ export default function FeeStructure() {
           <span aria-hidden="true" className="absolute inset-x-6 top-0 h-0.5 rounded-b-full bg-[linear-gradient(90deg,transparent,var(--app-accent),transparent)]" />
           <PanelHead icon="add" title="Add Fee Type" subtitle="Create a new fee head for a class" action={<span className="status-info shrink-0">New fee head</span>} />
           <form className="flex flex-1 flex-col" noValidate onSubmit={(event) => { event.preventDefault(); void addFee(); }}>
-          <div className="flex items-center gap-2.5 bg-slate-50/60 px-4 pt-4 sm:px-6 sm:pt-5">
+          <div className="fee-structure-form-step flex items-center gap-2.5 bg-slate-50/60 px-4 pt-4 sm:px-6 sm:pt-5">
             <span className="grid size-6 place-items-center rounded-full bg-(--app-accent) text-[0.7rem] font-bold text-white shadow-sm">1</span>
             <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Fee details</span>
             <span className="h-px flex-1 bg-linear-to-r from-slate-200 to-transparent" />
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-4 bg-linear-to-b from-slate-50/60 to-transparent px-4 pb-4 pt-3 max-sm:[&>:nth-child(-n+2)]:col-span-2 [&>*]:min-w-0 [&_label]:min-w-0 [&_select]:w-full [&_select]:min-w-0 [&_select]:max-w-full [&_input]:min-w-0 [&_input]:max-w-full [&_select]:truncate [&_select]:pr-8 sm:grid-cols-6 sm:gap-x-4 sm:gap-y-5 sm:px-6 sm:pb-6 sm:pt-4 sm:[&>:nth-child(-n+2)]:col-span-3 sm:[&>:nth-child(n+3)]:col-span-2">
+          <div className="fee-structure-form-fields grid grid-cols-2 gap-x-3 gap-y-4 bg-linear-to-b from-slate-50/60 to-transparent px-4 pb-4 pt-3 max-sm:[&>:nth-child(-n+2)]:col-span-2 [&>*]:min-w-0 [&_label]:min-w-0 [&_select]:w-full [&_select]:min-w-0 [&_select]:max-w-full [&_input]:min-w-0 [&_input]:max-w-full [&_select]:truncate [&_select]:pr-8 sm:grid-cols-6 sm:gap-x-4 sm:gap-y-5 sm:px-6 sm:pb-6 sm:pt-4 sm:[&>:nth-child(-n+2)]:col-span-3 sm:[&>:nth-child(n+3)]:col-span-2">
             <Dropdown label="Class *" value={feeForm.className} onChange={(event) => setFeeForm((current) => ({ ...current, className: event.target.value }))} placeholder="Select class" options={classOptions} />
             <Input label="Fee Type *" value={feeForm.name} onChange={(event) => setFeeForm((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. Tuition Fee" />
             <Input label="Amount (₹) *" type="number" min="0" value={feeForm.amount} onChange={(event) => setFeeForm((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" />
             <Dropdown label="Academic Year" value={feeForm.year} onChange={(event) => setFeeForm((current) => ({ ...current, year: event.target.value }))} options={yearOptions} />
             <div className="col-span-2"><Dropdown label="Frequency" value={feeForm.frequency} onChange={(event) => setFeeForm((current) => ({ ...current, frequency: event.target.value }))} options={frequencyOptions} /></div>
           </div>
-          <div className="flex flex-1 flex-col justify-between gap-4 bg-slate-50/60 px-4 pb-4 sm:px-6 sm:pb-6">
-            <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+          <div className="fee-structure-form-support flex flex-1 flex-col justify-between gap-4 bg-slate-50/60 px-4 pb-4 sm:px-6 sm:pb-6">
+            <div className="fee-structure-existing rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
               {(() => {
                 const existing = fees.filter((fee) => fee.className === feeForm.className && fee.year === feeForm.year);
                 const total = existing.reduce((sum, fee) => sum + Number(fee.amount), 0);
@@ -242,7 +242,7 @@ export default function FeeStructure() {
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-3 rounded-b-[inherit] border-t border-slate-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="fee-structure-form-footer flex flex-col gap-3 rounded-b-[inherit] border-t border-slate-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <p className="min-w-0 text-xs text-slate-500">Fields marked * are required.</p>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
               <Button variant="outline" onClick={() => setFeeForm({ ...emptyForm, year: feeForm.year })} disabled={saving === "fee"}>Clear</Button>
@@ -255,21 +255,21 @@ export default function FeeStructure() {
         <section className="panel overflow-visible">
           <PanelHead icon="assign" title="Assign Fees to Students" subtitle="Apply fee heads to a whole class" />
           <div className="p-4 sm:p-5">
-            <div className="rounded-2xl border border-(--app-accent)/20 bg-(--app-accent-faint) p-4 text-xs leading-5 text-(--app-accent-dark)">Assign every configured fee head to all active students in a class. Existing fee assignments will be skipped safely.</div>
+            <div className="fee-structure-assign-note rounded-2xl border border-(--app-accent)/20 bg-(--app-accent-faint) p-4 text-xs leading-5 text-(--app-accent-dark)">Assign every configured fee head to all active students in a class. Existing fee assignments will be skipped safely.</div>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-1 2xl:grid-cols-2">
               <Dropdown label="Select Class" value={assignClass} onChange={(event) => setAssignClass(event.target.value)} placeholder="Select class" options={classOptions} />
               <Dropdown label="Academic Year" value={assignYear} onChange={(event) => setAssignYear(event.target.value)} options={yearOptions} />
             </div>
-            {assignClass && <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-500"><span>{fees.filter((fee) => fee.className === assignClass && fee.year === assignYear).length} fee heads · {activeStudents[assignClass]} active students</span><strong className="text-slate-800">{money(fees.filter((fee) => fee.className === assignClass && fee.year === assignYear).reduce((sum, fee) => sum + Number(fee.amount), 0))} / student</strong></div>}
+            {assignClass && <div className="fee-structure-assign-summary mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-500"><span>{fees.filter((fee) => fee.className === assignClass && fee.year === assignYear).length} fee heads · {activeStudents[assignClass]} active students</span><strong className="text-slate-800">{money(fees.filter((fee) => fee.className === assignClass && fee.year === assignYear).reduce((sum, fee) => sum + Number(fee.amount), 0))} / student</strong></div>}
             <Button className="mt-4" fullWidth onClick={assignFees} isLoading={saving === "assign"} loadingText="Assigning fees...">Assign to All Students</Button>
-            {assignments.length > 0 && <ul className="mt-4 space-y-2">{assignments.slice(0, 2).map((entry) => <li key={entry.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2 text-xs"><span className="min-w-0 truncate font-semibold text-slate-700">{entry.className} · {entry.year}</span><span className="shrink-0 text-slate-400">{entry.students} students · {entry.time}</span></li>)}</ul>}
+            {assignments.length > 0 && <ul className="mt-4 space-y-2">{assignments.slice(0, 2).map((entry) => <li key={entry.id} className="fee-structure-assignment-row flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2 text-xs"><span className="min-w-0 truncate font-semibold text-slate-700">{entry.className} · {entry.year}</span><span className="shrink-0 text-slate-400">{entry.students} students · {entry.time}</span></li>)}</ul>}
           </div>
         </section>
       </div>
 
       <section className="panel overflow-visible">
         <PanelHead icon="copy" title="Copy Structure to Next Year" subtitle="Existing destination entries will be skipped" />
-        <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:gap-4 sm:p-5 xl:grid-cols-[16rem_auto_16rem_1fr]">
+        <div className="fee-structure-copy-body grid grid-cols-2 gap-3 p-4 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:gap-4 sm:p-5 xl:grid-cols-[16rem_auto_16rem_1fr]">
           <Dropdown label="From Year" value={fromYear} onChange={(event) => setFromYear(event.target.value)} options={yearOptions} />
           <div className="hidden pb-3 text-slate-300 sm:block">→</div>
           <Dropdown label="To Year" value={toYear} onChange={(event) => setToYear(event.target.value)} options={yearOptions} />
@@ -279,11 +279,11 @@ export default function FeeStructure() {
 
       <section className="panel overflow-visible">
         <PanelHead icon="table" title="Current Fee Structure" subtitle={`${filteredFees.length} fee entries`} action={<Button variant="outline" className="shrink-0 px-3" onClick={exportFees} disabled={!filteredFees.length} icon={<FeeIcon type="download" className="size-4" />}>Export</Button>} />
-        <div className="grid grid-cols-2 gap-2.5 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-[1fr_9rem_9rem_auto] sm:gap-3 sm:p-4 xl:grid-cols-[1fr_12rem_12rem_auto]">
+        <div className="fee-structure-filters grid grid-cols-2 gap-2.5 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-[1fr_9rem_9rem_auto] sm:gap-3 sm:p-4 xl:grid-cols-[1fr_12rem_12rem_auto]">
           <Input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} placeholder="Search fee type or class..." aria-label="Search fee structure" />
           <Dropdown value={classFilter} onChange={(event) => { setClassFilter(event.target.value); setCurrentPage(1); }} placeholder="All Classes" aria-label="Class filter" options={classOptions} />
           <Dropdown value={yearFilter} onChange={(event) => { setYearFilter(event.target.value); setCurrentPage(1); }} placeholder="All Years" aria-label="Year filter" options={yearOptions} />
-          <Button variant="outline" className="border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! hover:border-rose-300! active:scale-95" onClick={resetFilters} icon={<FeeIcon type="reset" className="size-3.5" />}>Reset</Button>
+          <Button variant="outline" className="fee-structure-reset border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! hover:border-rose-300! active:scale-95" onClick={resetFilters} icon={<FeeIcon type="reset" className="size-3.5" />}>Reset</Button>
         </div>
         <div className="overflow-x-auto">
           <table className="module-table student-directory-table student-premium-cards">
@@ -298,9 +298,9 @@ export default function FeeStructure() {
               <td data-label="Actions"><div className="flex gap-2"><Button variant="secondary" className="student-edit-action min-h-8 px-3 py-1.5 text-xs" onClick={() => openEdit(fee)}>Edit</Button><Button variant="danger" className="min-h-8 px-3 py-1.5 text-xs" onClick={() => setDeleteItem(fee)}>Delete</Button></div></td>
             </tr>)}</tbody>
           </table>
-          {!filteredFees.length && <div className="grid min-h-60 place-items-center p-6 text-center"><div><div className="mx-auto grid size-16 place-items-center rounded-2xl bg-(--app-accent-soft) text-(--app-accent-dark)"><FeeIcon type="table" /></div><h3 className="mt-4 font-display text-sm font-bold text-slate-700">No fee structure found</h3><p className="mt-1 text-xs text-slate-400">Add a fee type or change your filters.</p></div></div>}
+          {!filteredFees.length && <div className="fee-structure-empty grid min-h-60 place-items-center p-6 text-center"><div><div className="mx-auto grid size-16 place-items-center rounded-2xl bg-(--app-accent-soft) text-(--app-accent-dark)"><FeeIcon type="table" /></div><h3 className="mt-4 font-display text-sm font-bold text-slate-700">No fee structure found</h3><p className="mt-1 text-xs text-slate-400">Add a fee type or change your filters.</p></div></div>}
         </div>
-        <footer className="border-t border-slate-100 px-4 py-4 sm:px-5">
+        <footer className="fee-structure-table-footer border-t border-slate-100 px-4 py-4 sm:px-5">
           <PremiumPagination currentPage={safePage} totalPages={totalPages} totalRecords={filteredFees.length} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} wideLayout />
         </footer>
       </section>
@@ -329,7 +329,7 @@ export default function FeeStructure() {
       description="This action removes the fee head from the current structure."
       footer={<><Button variant="outline" onClick={() => setDeleteItem(null)}>Cancel</Button><Button variant="danger" onClick={confirmDelete}>Delete Fee Type</Button></>}
     >
-      {deleteItem && <div className="rounded-2xl border border-red-100 bg-red-50 p-4"><div className="text-sm font-bold text-red-700">{deleteItem.name} · {deleteItem.className} · {deleteItem.year}</div><p className="mt-1 text-xs leading-5 text-red-600">Existing student payment records will not be deleted, but this fee type will no longer be available for new assignments.</p></div>}
+      {deleteItem && <div className="fee-structure-delete-card rounded-2xl border border-red-100 bg-red-50 p-4"><div className="text-sm font-bold text-red-700">{deleteItem.name} · {deleteItem.className} · {deleteItem.year}</div><p className="mt-1 text-xs leading-5 text-red-600">Existing student payment records will not be deleted, but this fee type will no longer be available for new assignments.</p></div>}
     </Popup>
   </div>;
 }

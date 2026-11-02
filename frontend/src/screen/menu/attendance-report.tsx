@@ -149,7 +149,7 @@ export default function AttendanceReport() {
   ];
   const chips: { key: "all" | Tone; label: string; count: number }[] = [{ key: "all", label: "All", count: records.length }, { key: "good", label: "Good", count: counts.good }, { key: "low", label: "Low", count: counts.low }, { key: "critical", label: "Critical", count: counts.critical }];
 
-  return <div className="min-h-screen dashboard-bg pb-16">
+  return <div className="attendance-report-screen min-h-screen dashboard-bg pb-16">
     <Header title="Attendance Report" subtitle="Review monthly attendance, trends, and at-risk students" />
     <main className="space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-5 text-white shadow-xl sm:p-7">
@@ -176,14 +176,14 @@ export default function AttendanceReport() {
 
       <section className="panel overflow-visible">
         <PanelHead icon="calendar" title="Report Filters" subtitle="The report updates instantly when you change a filter" />
-        <div className="grid grid-cols-2 gap-2.5 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 sm:grid-cols-3 sm:gap-3 sm:p-4">
+        <div className="attendance-report-filters grid grid-cols-2 gap-2.5 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 sm:grid-cols-3 sm:gap-3 sm:p-4">
           <Dropdown label="Class" value={className} onChange={(event) => { setClassName(event.target.value); setCurrentPage(1); }} options={classes.map((value) => ({ label: value, value }))} />
           <Dropdown label="Month" value={month} onChange={(event) => { setMonth(event.target.value); setCurrentPage(1); }} options={months.map((value) => ({ label: value, value }))} />
           <Dropdown label="Academic Session" value={session} onChange={(event) => { setSession(event.target.value); setCurrentPage(1); }} options={sessions.map((value) => ({ label: value, value }))} />
         </div>
       </section>
 
-      {below > 0 && <section className="flex flex-col gap-3 rounded-2xl border border-red-100 bg-linear-to-r from-red-50 via-white to-orange-50 p-4 shadow-sm sm:flex-row sm:items-center sm:p-5">
+      {below > 0 && <section className="attendance-risk-alert flex flex-col gap-3 rounded-2xl border border-red-100 bg-linear-to-r from-red-50 via-white to-orange-50 p-4 shadow-sm sm:flex-row sm:items-center sm:p-5">
         <div className="flex min-w-0 flex-1 items-start gap-3"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-red-100 text-red-600"><ReportIcon type="warning" /></div><div className="min-w-0"><h2 className="font-display text-sm font-bold text-red-700">{below} student{below > 1 ? "s" : ""} below the 75% standard</h2><p className="mt-1 text-xs leading-5 text-slate-600">Review absences and contact guardians when required.</p></div></div>
         <Button variant={focusStep === "all" ? "outline" : focusStep === "low" ? "warning" : "danger"} className="shrink-0 max-sm:w-full" onClick={toggleFocus} icon={<ReportIcon type={focusStep === "all" ? "reset" : "eye"} className="size-4" />}>{focusLabel}</Button>
       </section>}
@@ -191,11 +191,11 @@ export default function AttendanceReport() {
       <div className="grid items-start gap-4 sm:gap-5 xl:grid-cols-[1.5fr_.5fr]">
         <section ref={registerRef} className="panel scroll-mt-4 overflow-visible">
           <PanelHead icon="chart" title={`${className} Attendance Register`} subtitle={`${rows.length} of ${records.length} students`} action={<div className="flex flex-wrap gap-2"><Button variant="outline" className="min-h-9 px-3 py-2" onClick={() => printReport(rows, "Attendance Register")} disabled={!rows.length} icon={<ReportIcon type="print" className="size-4" />}>Print</Button><Button variant="outline" className="min-h-9 px-3 py-2" onClick={exportCsv} disabled={!rows.length} icon={<ReportIcon type="download" className="size-4" />}>Export</Button></div>} />
-          <div className="space-y-3 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 sm:p-4">
+          <div className="attendance-register-filters space-y-3 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 sm:p-4">
             <div className="grid grid-cols-2 gap-2.5 max-sm:[&>:first-child]:col-span-2 sm:grid-cols-[1fr_11rem_auto] sm:gap-3">
               <Input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} placeholder="Search student or admission no..." aria-label="Search students" />
               <Dropdown value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort by" options={[{ label: "Roll number", value: "roll" }, { label: "Name (A–Z)", value: "name" }, { label: "Highest attendance", value: "high" }, { label: "Lowest attendance", value: "low" }]} />
-              <Button variant="outline" className="border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! active:scale-95" onClick={resetFilters} icon={<ReportIcon type="reset" className="size-3.5" />}>Reset</Button>
+              <Button variant="outline" className="attendance-report-reset border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! active:scale-95" onClick={resetFilters} icon={<ReportIcon type="reset" className="size-3.5" />}>Reset</Button>
             </div>
             <div className="flex gap-1.5 overflow-x-auto pb-0.5">{chips.map((chip) => <button key={chip.key} type="button" aria-pressed={filter === chip.key} onClick={() => { setFilter(chip.key); setCurrentPage(1); }} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${filter === chip.key ? "border-transparent bg-[linear-gradient(135deg,var(--app-accent-dark),var(--app-accent))] text-white shadow-md" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}>{chip.label}<span className={`rounded-full px-1.5 text-[0.65rem] ${filter === chip.key ? "bg-white/25" : "bg-slate-100 text-slate-500"}`}>{chip.count}</span></button>)}</div>
           </div>
@@ -205,7 +205,7 @@ export default function AttendanceReport() {
               const value = percentage(record);
               const tone = toneOf(value);
               const meta = toneMeta[tone];
-              return <li key={record.admissionNo} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:shadow-md sm:p-4">
+              return <li key={record.admissionNo} className="attendance-report-row rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:shadow-md sm:p-4">
                 <div className="flex items-center gap-3">
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-(--app-accent-soft) text-xs font-bold text-(--app-accent-dark)">{initials(record.name)}</span>
                   <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-slate-900">{record.name}</div><div className="truncate text-xs text-slate-500">Roll {record.rollNo} · {record.admissionNo}</div></div>
@@ -254,8 +254,8 @@ export default function AttendanceReport() {
         const meta = toneMeta[toneOf(value)];
         return <div className="space-y-5">
           <div className="flex items-center gap-4 rounded-2xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-4 text-white"><div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white/20 font-display text-lg font-bold">{initials(selected.name)}</div><div className="min-w-0"><h3 className="truncate font-display text-lg font-bold">{selected.name}</h3><p className="mt-1 truncate text-xs text-white/75">{selected.admissionNo} · {className}</p></div><div className="ml-auto text-right"><div className="font-display text-2xl font-bold">{value}%</div><div className="text-[0.62rem] text-white/75">{meta.label}</div></div></div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Present", selected.present, "text-emerald-600 bg-emerald-50"], ["Absent", selected.absent, "text-red-500 bg-red-50"], ["Leave", selected.leave, "text-amber-600 bg-amber-50"], ["Total Days", selected.totalDays, "text-blue-600 bg-blue-50"]].map(([label, count, color]) => <div key={String(label)} className={`rounded-2xl p-4 text-center ${color}`}><div className="font-display text-xl font-bold">{count}</div><div className="mt-1 text-[0.6rem] font-bold uppercase tracking-wider">{label}</div></div>)}</div>
-          {value < 75 && <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-xs leading-5 text-red-600">This student is below the minimum attendance standard. A guardian follow-up is recommended.</div>}
+          <div className="attendance-detail-metrics grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Present", selected.present, "text-emerald-600 bg-emerald-50"], ["Absent", selected.absent, "text-red-500 bg-red-50"], ["Leave", selected.leave, "text-amber-600 bg-amber-50"], ["Total Days", selected.totalDays, "text-blue-600 bg-blue-50"]].map(([label, count, color]) => <div key={String(label)} className={`rounded-2xl p-4 text-center ${color}`}><div className="font-display text-xl font-bold">{count}</div><div className="mt-1 text-[0.6rem] font-bold uppercase tracking-wider">{label}</div></div>)}</div>
+          {value < 75 && <div className="attendance-detail-warning rounded-xl border border-red-100 bg-red-50 p-4 text-xs leading-5 text-red-600">This student is below the minimum attendance standard. A guardian follow-up is recommended.</div>}
         </div>;
       })()}
     </Popup>

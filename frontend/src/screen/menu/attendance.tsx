@@ -148,7 +148,7 @@ export default function Attendance() {
   ];
   const pct = (n: number) => (roster.length ? (n / roster.length) * 100 : 0);
 
-  return <div className="min-h-screen dashboard-bg pb-28 sm:pb-16">
+  return <div className="daily-attendance-screen min-h-screen dashboard-bg pb-28 sm:pb-16">
     <Header title="Daily Attendance" subtitle="Mark and manage class attendance for the selected date" />
     <main className="space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-5 text-white shadow-xl sm:p-7">
@@ -181,7 +181,7 @@ export default function Attendance() {
 
       <section className="panel overflow-visible">
         <PanelHead icon="users" title="Select Class" subtitle="Roster loads automatically for the chosen class and date" action={<Button variant="outline" className="shrink-0 px-3" onClick={() => setReportOpen(true)} icon={<AttendanceIcon type="report" className="size-4" />}>Summary</Button>} />
-        <div className="grid grid-cols-2 gap-2.5 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-3 sm:gap-3 sm:p-4">
+        <div className="daily-attendance-selector grid grid-cols-2 gap-2.5 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-3 sm:gap-3 sm:p-4">
           <Dropdown label="Class" value={className} onChange={(event) => setClassName(event.target.value)} options={classes.map((value) => ({ label: value, value }))} />
           <Dropdown label="Section" value={section} onChange={(event) => setSection(event.target.value)} options={sections.map((value) => ({ label: `Section ${value}`, value }))} />
           <Input label="Attendance Date" type="date" value={date} max={todayIso()} onChange={(event) => event.target.value && setDate(event.target.value)} />
@@ -189,8 +189,8 @@ export default function Attendance() {
       </section>
 
       <section className="panel overflow-visible">
-        <PanelHead icon="check" title="Mark Attendance" subtitle={locked ? "Attendance saved · tap Update Attendance to make changes" : `${visible.length} of ${roster.length} students shown`} action={<div className="flex flex-wrap gap-2"><Button variant="success" className="min-h-9 px-3 py-2" onClick={() => setAll("present")} disabled={locked}>All Present</Button><Button variant="outline" className="min-h-9 px-3 py-2" onClick={markRemaining} disabled={locked || !totals.pending}>Rest Present</Button><Button variant="outline" className="border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! active:scale-95 min-h-9 px-3 py-2" onClick={() => setAll("")} disabled={locked} icon={<AttendanceIcon type="reset" className="size-3.5" />}>Clear</Button></div>} />
-        <div className="space-y-3 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 sm:p-4">
+        <PanelHead icon="check" title="Mark Attendance" subtitle={locked ? "Attendance saved · tap Update Attendance to make changes" : `${visible.length} of ${roster.length} students shown`} action={<div className="flex flex-wrap gap-2"><Button variant="success" className="min-h-9 px-3 py-2" onClick={() => setAll("present")} disabled={locked}>All Present</Button><Button variant="outline" className="min-h-9 px-3 py-2" onClick={markRemaining} disabled={locked || !totals.pending}>Rest Present</Button><Button variant="outline" className="daily-attendance-clear border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! active:scale-95 min-h-9 px-3 py-2" onClick={() => setAll("")} disabled={locked} icon={<AttendanceIcon type="reset" className="size-3.5" />}>Clear</Button></div>} />
+        <div className="daily-attendance-filters space-y-3 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 sm:p-4">
           <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by name, roll no. or admission no..." aria-label="Search students" />
           <div className="flex gap-1.5 overflow-x-auto pb-0.5">{filters.map((item) => <button key={item.key} type="button" onClick={() => setFilter(item.key)} aria-pressed={filter === item.key} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${filter === item.key ? "border-transparent bg-[linear-gradient(135deg,var(--app-accent-dark),var(--app-accent))] text-white shadow-md" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}>{item.label}<span className={`rounded-full px-1.5 text-[0.65rem] ${filter === item.key ? "bg-white/25" : "bg-slate-100 text-slate-500"}`}>{item.count}</span></button>)}</div>
         </div>
@@ -199,7 +199,7 @@ export default function Attendance() {
           {visible.map((learner) => {
             const status = statusOf(learner);
             const edge = status === "present" ? "border-l-emerald-500" : status === "absent" ? "border-l-red-500" : status === "leave" ? "border-l-amber-500" : "border-l-slate-200";
-            return <li key={learner.admissionNo} className={`flex flex-col gap-3 rounded-2xl border border-l-4 border-slate-200 bg-white p-3 shadow-sm transition hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-4 ${edge}`}>
+            return <li key={learner.admissionNo} className={`daily-attendance-row flex flex-col gap-3 rounded-2xl border border-l-4 border-slate-200 bg-white p-3 shadow-sm transition hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-4 ${edge}`}>
               <div className="flex min-w-0 items-center gap-3">
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-(--app-accent-soft) text-xs font-bold text-(--app-accent-dark)">{initials(learner.name)}</span>
                 <div className="min-w-0"><div className="truncate text-sm font-semibold text-slate-900">{learner.name}</div><div className="truncate text-xs text-slate-500">Roll {learner.rollNo} · {learner.admissionNo}</div></div>
@@ -207,7 +207,7 @@ export default function Attendance() {
               </div>
               <div className="flex items-center gap-3">
                 <span className={`hidden sm:inline-flex ${status === "present" ? "status-success" : status === "absent" ? "status-danger" : status === "leave" ? "status-warning" : "status-neutral"}`}>{status ? status[0].toUpperCase() + status.slice(1) : "Pending"}</span>
-                <div className="grid flex-1 grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 sm:flex-none" role="group" aria-label={`Attendance for ${learner.name}`}>
+                <div className="daily-attendance-status-controls grid flex-1 grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 sm:flex-none" role="group" aria-label={`Attendance for ${learner.name}`}>
                   {statusMeta.map((meta) => <button key={meta.key} type="button" aria-pressed={status === meta.key} disabled={locked} onClick={() => setStatus(learner.admissionNo, meta.key)} className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-bold transition active:scale-95 disabled:cursor-not-allowed ${locked && status !== meta.key ? "opacity-40" : ""} ${status === meta.key ? meta.on : meta.off}`}><AttendanceIcon type={meta.icon} className="size-3.5" /><span>{meta.label}</span></button>)}
                 </div>
               </div>
@@ -218,7 +218,7 @@ export default function Attendance() {
       </section>
     </main>
 
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:z-auto sm:mx-6 sm:mt-0 sm:rounded-2xl sm:border sm:shadow-sm xl:mx-8">
+    <div className="daily-attendance-action-bar fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:z-auto sm:mx-6 sm:mt-0 sm:rounded-2xl sm:border sm:shadow-sm xl:mx-8">
       <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-3">
         <div className="min-w-0 text-xs text-slate-500"><strong className="text-slate-900">{marked}/{roster.length}</strong> marked{totals.pending > 0 && <span className="hidden sm:inline"> · {totals.pending} pending</span>}</div>
         <div className="flex shrink-0 gap-2"><Button variant="outline" onClick={exportCsv} icon={<AttendanceIcon type="download" className="size-4" />}><span className="max-sm:hidden">Export</span></Button>{editing && <Button variant="outline" onClick={cancelEdit} disabled={saving}>Cancel</Button>}{locked ? <Button onClick={() => setEditing(true)} icon={<AttendanceIcon type="reset" className="size-4" />}>Update Attendance</Button> : <Button onClick={saveAttendance} isLoading={saving} loadingText="Saving..." disabled={!dirty} icon={<AttendanceIcon type="save" className="size-4" />}>{isSaved ? "Save Changes" : "Save Attendance"}</Button>}</div>
@@ -233,7 +233,7 @@ export default function Attendance() {
       footer={<><Button variant="outline" onClick={() => setReportOpen(false)}>Close</Button><Button onClick={exportCsv} icon={<AttendanceIcon type="download" className="size-4" />}>Export CSV</Button></>}
     >
       <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Present", totals.present, "text-emerald-600 bg-emerald-50"], ["Absent", totals.absent, "text-red-500 bg-red-50"], ["Leave", totals.leave, "text-amber-600 bg-amber-50"], ["Pending", totals.pending, "text-slate-600 bg-slate-100"]].map(([label, value, color]) => <div key={String(label)} className={`rounded-2xl p-4 text-center ${color}`}><div className="font-display text-2xl font-bold">{value}</div><div className="mt-1 text-[0.62rem] font-bold uppercase tracking-wider">{label}</div></div>)}</div>
+        <div className="daily-attendance-summary-metrics grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Present", totals.present, "text-emerald-600 bg-emerald-50"], ["Absent", totals.absent, "text-red-500 bg-red-50"], ["Leave", totals.leave, "text-amber-600 bg-amber-50"], ["Pending", totals.pending, "text-slate-600 bg-slate-100"]].map(([label, value, color]) => <div key={String(label)} className={`rounded-2xl p-4 text-center ${color}`}><div className="font-display text-2xl font-bold">{value}</div><div className="mt-1 text-[0.62rem] font-bold uppercase tracking-wider">{label}</div></div>)}</div>
         <div className="rounded-2xl border border-slate-100 p-4"><div className="flex items-center justify-between text-sm"><span className="font-semibold text-slate-700">Attendance percentage</span><strong className="font-display text-lg text-emerald-600">{percent}%</strong></div><div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${percent}%` }} /></div></div>
         {totals.absent > 0 && <div><div className="form-label">Absent students</div><div className="divide-y divide-slate-100 rounded-xl border border-slate-100">{roster.filter((l) => statusOf(l) === "absent").map((l) => <div key={l.admissionNo} className="flex justify-between px-3 py-2.5 text-xs"><strong className="text-slate-800">{l.name}</strong><span className="text-slate-500">Roll {l.rollNo}</span></div>)}</div></div>}
       </div>

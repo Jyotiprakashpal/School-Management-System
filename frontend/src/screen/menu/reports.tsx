@@ -70,6 +70,88 @@ function iconTone(category: ReportCategory) {
   return "bg-cyan-50 text-cyan-600";
 }
 
+function csvCell(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function reportFileName(report: GeneratedReport) {
+  const title = report.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `${title || "school-report"}-${report.id}`;
+}
+
+async function saveReportFile(report: GeneratedReport) {
+  const fileName = reportFileName(report);
+
+  if (report.format === "CSV") {
+    const rows = [
+      ["School Report"],
+      [],
+      ["Report Name", report.title],
+      ["Reporting Period", report.period],
+      ["Generated", report.created],
+      ["Status", report.status],
+      ["Format", report.format],
+      ["Reference ID", String(report.id)],
+    ];
+    const content = `\uFEFF${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}`;
+    const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${fileName}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  doc.setFillColor(15, 118, 110);
+  doc.rect(0, 0, pageWidth, 42, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(20);
+  doc.text(report.title, 16, 20, { maxWidth: pageWidth - 32 });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text("School Reports & Insights", 16, 32);
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Report details", 16, 58);
+
+  const details = [
+    ["Reporting period", report.period],
+    ["Generated", report.created],
+    ["Status", report.status],
+    ["Format", report.format],
+    ["Reference ID", String(report.id)],
+  ];
+  details.forEach(([label, value], index) => {
+    const y = 72 + index * 18;
+    doc.setFillColor(index % 2 ? 248 : 241, index % 2 ? 250 : 245, index % 2 ? 252 : 249);
+    doc.roundedRect(16, y - 9, pageWidth - 32, 14, 2, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text(label, 21, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(15, 23, 42);
+    doc.text(value, 75, y, { maxWidth: pageWidth - 96 });
+  });
+
+  doc.setDrawColor(226, 232, 240);
+  doc.line(16, 174, pageWidth - 16, 174);
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text("Generated from the Reports workspace.", 16, 183);
+  doc.save(`${fileName}.pdf`);
+}
+
 export default function Reports() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All Categories");
@@ -119,9 +201,22 @@ export default function Reports() {
       status: scheduled ? "Scheduled" : "Ready",
     };
     setGeneratedReports((current) => [generated, ...current]);
-    setGenerating(false);
-    setSelectedTemplate(null);
-    showToast(scheduled ? `${configuration.reportName} has been scheduled.` : `${configuration.reportName} is ready to download.`, { title: scheduled ? "Report scheduled" : "Report generated" });
+    if (scheduled) {
+      setGenerating(false);
+      setSelectedTemplate(null);
+      showToast(`${configuration.reportName} has been scheduled.`, { title: "Report scheduled" });
+      return;
+    }
+
+    try {
+      await saveReportFile(generated);
+      showToast(`${configuration.reportName} was generated and downloaded.`, { title: "Report ready" });
+    } catch {
+      showToast("The report was generated, but the file could not be downloaded. Use Download in report history to try again.", { title: "Download failed", tone: "error" });
+    } finally {
+      setGenerating(false);
+      setSelectedTemplate(null);
+    }
   };
 
   const downloadReport = async (report: GeneratedReport) => {
@@ -130,9 +225,15 @@ export default function Reports() {
       return;
     }
     setDownloadingId(report.id);
-    await new Promise((resolve) => window.setTimeout(resolve, 750));
-    setDownloadingId(null);
-    showToast(`${report.title}.${report.format.toLowerCase()} is ready.`, { title: "Download prepared", tone: "info" });
+
+    try {
+      await saveReportFile(report);
+      showToast(`${report.title}.${report.format.toLowerCase()} downloaded.`, { title: "Download complete" });
+    } catch {
+      showToast("The report could not be downloaded. Please try again.", { title: "Download failed", tone: "error" });
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const deleteGeneratedReport = () => {
@@ -144,19 +245,40 @@ export default function Reports() {
 
   return <div className="min-h-screen dashboard-bg pb-16">
     <Header title="Reports" subtitle="Generate, schedule, and download financial and academic insights" />
-    <main className="space-y-5 p-4 sm:p-6 xl:p-8">
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        {[
-          { label: "Report Templates", value: String(templates.length), tone: "teal", copy: "Across four categories" },
-          { label: "Generated", value: String(readyReports), tone: "green", copy: "Ready to download" },
-          { label: "Scheduled", value: String(scheduledReports), tone: "amber", copy: "Automated reports" },
-          { label: "This Month", value: "12", tone: "teal", copy: "Reports generated" },
-        ].map((stat) => <article key={stat.label} className={`module-stat module-stat-${stat.tone}`}><div className="text-xs font-medium text-slate-500">{stat.label}</div><div className="mt-1 font-display text-2xl font-bold text-slate-950">{stat.value}</div><div className="mt-1 text-xs text-slate-400">{stat.copy}</div></article>)}
+    <main className="mx-auto max-w-7xl space-y-5 p-3 sm:p-6 xl:p-8">
+      <section className="reports-studio-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
+        <span className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full border border-white/10 bg-white/10" />
+        <span className="pointer-events-none absolute -bottom-28 left-1/3 size-60 rounded-full bg-white/5" />
+        <div className="relative grid gap-6 lg:grid-cols-[1fr_21rem] lg:items-center">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-white/80"><ReportIcon type="chart" />Insights studio</div>
+            <div className="mt-4 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Turn school data into clear decisions.</div>
+            <p className="mt-2 max-w-xl text-xs leading-5 text-white/70 sm:text-sm sm:leading-6">Build financial, academic, attendance, and student reports with flexible date ranges, formats, and recurring schedules.</p>
+            <div className="mt-4 flex flex-wrap gap-2 text-[0.68rem] font-semibold text-white/75">
+              <span className="rounded-full bg-white/10 px-3 py-1.5 ring-1 ring-white/10">{templates.length} templates</span>
+              <span className="rounded-full bg-white/10 px-3 py-1.5 ring-1 ring-white/10">{readyReports} ready files</span>
+              <span className="rounded-full bg-white/10 px-3 py-1.5 ring-1 ring-white/10">{scheduledReports} scheduled</span>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-xl sm:p-5">
+            <div className="flex items-start justify-between gap-4"><div><div className="text-xs font-semibold text-white/65">Reporting activity</div><div className="mt-1 font-display text-3xl font-extrabold">12</div><div className="mt-0.5 text-xs text-white/60">Reports this month</div></div><span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/15"><ReportIcon type="download" /></span></div>
+            <div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl bg-emerald-300/10 p-3 ring-1 ring-emerald-200/10"><div className="text-[0.6rem] font-bold uppercase tracking-wider text-emerald-100/70">Available</div><div className="mt-1 text-lg font-bold text-emerald-100">{readyReports}</div></div><div className="rounded-xl bg-amber-300/10 p-3 ring-1 ring-amber-200/10"><div className="text-[0.6rem] font-bold uppercase tracking-wider text-amber-100/70">Scheduled</div><div className="mt-1 text-lg font-bold text-amber-100">{scheduledReports}</div></div></div>
+          </div>
+        </div>
       </section>
 
-      <section className="panel">
-        <div className="panel-title"><div className="flex items-center gap-2 text-teal-600"><ReportIcon type="search" /><div>Report Library</div></div><span className="status-info">{filteredTemplates.length} available</span></div>
-        <div className="grid gap-4 p-5 sm:grid-cols-[1fr_15rem]">
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {[
+          { label: "Report Templates", value: String(templates.length), tone: "teal", copy: "Across four categories", icon: "chart" as const, iconStyle: "metric-icon-teal" },
+          { label: "Generated", value: String(readyReports), tone: "green", copy: "Ready to download", icon: "download" as const, iconStyle: "bg-emerald-100 text-emerald-600" },
+          { label: "Scheduled", value: String(scheduledReports), tone: "amber", copy: "Automated reports", icon: "attendance" as const, iconStyle: "bg-amber-100 text-amber-600" },
+          { label: "This Month", value: "12", tone: "teal", copy: "Reports generated", icon: "people" as const, iconStyle: "bg-violet-100 text-violet-600" },
+        ].map((stat) => <article key={stat.label} className={`reports-stat-card module-stat-${stat.tone} relative overflow-hidden rounded-2xl border bg-white p-3.5 shadow-sm sm:p-5`}><span className="absolute -right-8 -top-9 size-24 rounded-full bg-slate-50" /><div className="relative flex items-start justify-between gap-2"><div><div className="text-[0.65rem] font-bold uppercase tracking-wider text-slate-500 sm:text-xs sm:normal-case sm:tracking-normal">{stat.label}</div><div className="mt-1 font-display text-2xl font-extrabold text-slate-950">{stat.value}</div></div><span className={`grid size-9 shrink-0 place-items-center rounded-xl shadow-sm sm:size-10 ${stat.iconStyle}`}><ReportIcon type={stat.icon} /></span></div><div className="relative mt-2 text-[0.65rem] text-slate-400 sm:text-xs">{stat.copy}</div></article>)}
+      </section>
+
+      <section className="panel reports-library-filter">
+        <div className="panel-title"><div className="flex items-center gap-3"><span className="settings-icon grid size-9 place-items-center rounded-xl"><ReportIcon type="search" /></span><div><div className="font-display text-sm font-bold text-slate-900">Report Library</div><div className="mt-0.5 text-xs text-slate-400">Find the right template for your analysis</div></div></div><span className="status-info">{filteredTemplates.length} available</span></div>
+        <div className="grid gap-3 p-4 sm:grid-cols-[1fr_15rem] sm:p-5">
           <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search report templates..." aria-label="Search report templates" startIcon={<ReportIcon type="search" />} />
           <Dropdown value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Filter report category" options={["All Categories", "Finance", "Academic", "Attendance", "Students"].map((value) => ({ label: value, value }))} />
         </div>
@@ -164,23 +286,41 @@ export default function Reports() {
 
       <section>
         <div className="mb-3 flex items-center justify-between gap-3"><div><div className="font-display text-lg font-bold text-slate-950">Choose a Report</div><p className="mt-1 text-xs text-slate-400">Select a template to configure its date range and output.</p></div></div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{filteredTemplates.map((report) => <Button key={report.id} variant="outline" onClick={() => openConfiguration(report)} className="group flex min-h-52 flex-col items-stretch justify-between rounded-2xl border-white p-5 text-left shadow-lg shadow-slate-900/5 hover:-translate-y-1 hover:border-teal-200 hover:bg-white hover:shadow-xl">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">{filteredTemplates.map((report) => <Button key={report.id} variant="outline" onClick={() => openConfiguration(report)} className={`report-template-card report-template-${report.category.toLowerCase()} group relative flex min-h-48 flex-col items-stretch justify-between overflow-hidden !rounded-2xl !p-4 text-left shadow-sm sm:min-h-52 sm:!p-5`}>
+          <span className="absolute inset-x-0 top-0 h-1 report-template-accent" />
           <span>
-            <span className={`grid size-12 place-items-center rounded-xl ${iconTone(report.category)}`}><ReportIcon type={report.type} /></span>
-            <span className="mt-5 block font-display text-sm font-bold text-slate-900">{report.title}</span>
+            <span className="flex items-start justify-between gap-3"><span className={`grid size-11 place-items-center rounded-xl shadow-sm sm:size-12 ${iconTone(report.category)}`}><ReportIcon type={report.type} /></span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[0.6rem] font-bold text-slate-500">{report.format}</span></span>
+            <span className="mt-4 block font-display text-sm font-bold text-slate-900 sm:mt-5">{report.title}</span>
             <span className="mt-2 block text-xs font-normal leading-5 text-slate-500">{report.description}</span>
           </span>
-          <span className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4"><span className="status-neutral">{report.category}</span><span className="text-xs font-semibold text-teal-600">{report.format}</span></span>
+          <span className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 sm:mt-5 sm:pt-4"><span className="status-neutral">{report.category}</span><span className="report-template-action text-xs font-bold">Configure <span aria-hidden="true">→</span></span></span>
         </Button>)}</div>
         {!filteredTemplates.length && <div className="panel grid min-h-60 place-items-center text-center"><div><div className="mx-auto grid size-16 place-items-center rounded-2xl bg-slate-100 text-slate-400"><ReportIcon type="search" /></div><div className="mt-4 font-display text-sm font-bold text-slate-700">No report templates found</div><p className="mt-1 text-xs text-slate-400">Try a different search or category.</p><Button variant="outline" className="mt-4" onClick={() => { setQuery(""); setCategory("All Categories"); }}>Clear Filters</Button></div></div>}
       </section>
 
-      <section className="panel">
-        <div className="panel-title flex-wrap gap-3 py-3">
-          <div className="flex items-center gap-2 text-violet-600"><ReportIcon type="download" /><div><div className="font-display font-bold text-slate-900">Recent Reports</div><div className="mt-0.5 text-xs text-slate-400">Generated files and recurring schedules</div></div></div>
-          <Dropdown className="min-w-40" value={historyFilter} onChange={(event) => setHistoryFilter(event.target.value)} aria-label="Filter report history" options={["All Reports", "Ready", "Scheduled"].map((value) => ({ label: value, value }))} />
+      <section className="panel overflow-hidden">
+        <div className="panel-title !block !px-4 !py-4 sm:!flex sm:gap-3 sm:!px-5 sm:!py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="settings-icon grid size-10 shrink-0 place-items-center rounded-xl"><ReportIcon type="download" /></span>
+            <div className="min-w-0 flex-1"><div className="truncate font-display text-base font-bold text-slate-900">Recent Reports</div><div className="mt-0.5 truncate text-xs text-slate-400">Generated files and recurring schedules</div></div>
+            <span className="status-info sm:hidden">{filteredHistory.length}</span>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 sm:hidden">
+            {["All Reports", "Ready", "Scheduled"].map((value) => <Button key={value} variant={historyFilter === value ? "primary" : "outline"} className={`!min-h-9 !rounded-lg !px-2 !py-1.5 !shadow-none ${historyFilter === value ? "" : "!border-transparent !bg-transparent"}`} onClick={() => setHistoryFilter(value)} aria-pressed={historyFilter === value}>{value === "All Reports" ? "All" : value}</Button>)}
+          </div>
+          <div className="hidden sm:block"><Dropdown className="min-w-40" value={historyFilter} onChange={(event) => setHistoryFilter(event.target.value)} aria-label="Filter report history" options={["All Reports", "Ready", "Scheduled"].map((value) => ({ label: value, value }))} /></div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="grid gap-3 p-3 lg:hidden">
+          {filteredHistory.map((report) => <article key={report.id} className={`report-history-card relative overflow-hidden rounded-2xl border p-4 ${report.status === "Scheduled" ? "report-history-scheduled" : ""}`}>
+            <div className="flex items-start gap-3">
+              <span className={`grid size-11 shrink-0 place-items-center rounded-2xl ${report.status === "Ready" ? "report-history-ready-icon" : "bg-amber-100 text-amber-600"}`}><ReportIcon type={report.status === "Ready" ? "download" : "attendance"} /></span>
+              <div className="min-w-0 flex-1"><div className="truncate font-display text-sm font-bold text-slate-900">{report.title}</div><div className="mt-0.5 truncate text-[0.65rem] text-slate-400">{report.created}</div><div className="mt-2 flex flex-wrap gap-1.5"><span className={report.status === "Ready" ? "status-success" : "status-warning"}>{report.status}</span><span className="status-neutral">{report.format}</span><span className="status-neutral">{report.size}</span></div></div>
+            </div>
+            <div className="report-history-period mt-4 rounded-xl p-3"><div className="text-[0.58rem] font-bold uppercase tracking-wider text-slate-400">Reporting period</div><div className="mt-1 text-xs font-semibold leading-5 text-slate-700">{report.period}</div></div>
+            <div className="mt-3 grid grid-cols-2 gap-2"><Button className="min-w-0 !px-2" onClick={() => downloadReport(report)} isLoading={downloadingId === report.id} loadingText="Preparing..." disabled={report.status === "Scheduled"}>{report.status === "Ready" ? "Download" : "Not Ready"}</Button><Button variant="danger" className="min-w-0 !px-2 text-xs" onClick={() => setDeletingReport(report)}>Delete</Button></div>
+          </article>)}
+        </div>
+        <div className="hidden overflow-x-auto lg:block">
           <table className="module-table">
             <thead><tr><th>Report</th><th>Period</th><th>Generated</th><th>Format</th><th>File Size</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>{filteredHistory.map((report) => <tr key={report.id}>
@@ -199,7 +339,8 @@ export default function Reports() {
       onClose={() => !generating && setSelectedTemplate(null)}
       title="Configure Report"
       description={selectedTemplate?.description}
-      footer={<><Button variant="outline" onClick={() => setSelectedTemplate(null)} disabled={generating}>Cancel</Button><Button onClick={generateReport} isLoading={generating} loadingText="Generating report...">{configuration.period === "Run Once" ? "Generate Report" : "Schedule Report"}</Button></>}
+      footerClassName="!grid grid-cols-2 items-stretch gap-2 [&>button]:w-full sm:!flex sm:[&>button]:w-auto"
+      footer={<><Button variant="outline" className="!px-2 sm:!px-4" onClick={() => setSelectedTemplate(null)} disabled={generating}>Cancel</Button><Button className="!px-2 sm:!px-4" onClick={generateReport} isLoading={generating} loadingText="Generating...">{configuration.period === "Run Once" ? "Generate Report" : "Schedule Report"}</Button></>}
     >
       {selectedTemplate && <div className="space-y-5">
         <div className="flex items-center gap-4 rounded-2xl border border-violet-100 bg-violet-50 p-4"><div className="grid size-12 shrink-0 place-items-center rounded-xl bg-white text-violet-600 shadow-sm"><ReportIcon type={selectedTemplate.type} /></div><div><div className="font-display text-sm font-bold text-slate-900">{selectedTemplate.title}</div><div className="mt-1 text-xs text-slate-500">{selectedTemplate.category} · Supports {selectedTemplate.format}</div></div></div>
@@ -219,7 +360,8 @@ export default function Reports() {
       onClose={() => setDeletingReport(null)}
       title="Remove Report"
       description="This removes the generated file or schedule from report history."
-      footer={<><Button variant="outline" onClick={() => setDeletingReport(null)}>Cancel</Button><Button variant="danger" onClick={deleteGeneratedReport}>Remove Report</Button></>}
+      footerClassName="!grid grid-cols-2 items-stretch gap-2 [&>button]:w-full sm:!flex sm:[&>button]:w-auto"
+      footer={<><Button variant="outline" className="!px-2 sm:!px-4" onClick={() => setDeletingReport(null)}>Cancel</Button><Button variant="danger" className="!px-2 sm:!px-4" onClick={deleteGeneratedReport}>Remove Report</Button></>}
     >
       {deletingReport && <div className="rounded-2xl border border-red-100 bg-red-50 p-4"><div className="font-display text-lg font-bold text-red-700">{deletingReport.title}</div><div className="mt-1 text-xs text-red-600">{deletingReport.period} · {deletingReport.status}</div></div>}
     </Popup>

@@ -158,10 +158,10 @@ export default function FeeDeletionLog() {
         </article>)}
       </section>
 
-      <section className="relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-r from-red-50 via-white to-orange-50 p-4 shadow-sm sm:p-5">
+      <section className="fee-deletion-audit-banner relative overflow-hidden rounded-2xl border border-red-100 bg-linear-to-r from-red-50 via-white to-orange-50 p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-red-100 text-red-600"><AuditIcon type="shield" /></div>
+            <div className="fee-deletion-shield grid size-11 shrink-0 place-items-center rounded-xl bg-red-100 text-red-600"><AuditIcon type="shield" /></div>
             <div className="min-w-0"><h2 className="font-display text-sm font-bold text-red-700">Protected audit trail</h2><p className="mt-1 text-xs leading-5 text-slate-600">Deletion records are permanent and cannot be edited. Each entry captures the responsible user, timestamp, reason and network address. Deleting a receipt returns its amount to the student's pending dues.</p></div>
           </div>
           <Button variant="danger" className="shrink-0 max-sm:w-full" onClick={() => setDeleteOpen(true)} disabled={!transactions.length} icon={<AuditIcon type="delete" className="size-4" />}>Delete a Receipt</Button>
@@ -170,28 +170,28 @@ export default function FeeDeletionLog() {
 
       <section className="panel overflow-visible">
         <PanelHead icon="delete" title="Deleted Fee Transactions" subtitle={`${rows.length} matching audit records`} action={<Button variant="outline" className="shrink-0 px-3" onClick={exportLog} disabled={!rows.length} icon={<AuditIcon type="download" className="size-4" />}>Export</Button>} />
-        <div className="grid grid-cols-2 gap-2.5 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-[1fr_10rem_10rem_auto] sm:gap-3 sm:p-4 xl:grid-cols-[1fr_12rem_12rem_auto]">
+        <div className="fee-deletion-filters grid grid-cols-2 gap-2.5 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-[1fr_10rem_10rem_auto] sm:gap-3 sm:p-4 xl:grid-cols-[1fr_12rem_12rem_auto]">
           <Input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} placeholder="Search receipt, student, fee or reason..." aria-label="Search deletion log" />
           <Dropdown value={userFilter} onChange={(event) => { setUserFilter(event.target.value); setCurrentPage(1); }} placeholder="Deleted By" aria-label="Deleted by" options={userOptions} />
           <Dropdown value={monthFilter} onChange={(event) => { setMonthFilter(event.target.value); setCurrentPage(1); }} placeholder="All Months" aria-label="Month filter" options={monthOptions} />
-          <Button variant="outline" className="border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! hover:border-rose-300! active:scale-95" onClick={resetFilters} icon={<AuditIcon type="reset" className="size-3.5" />}>Reset</Button>
+          <Button variant="outline" className="fee-deletion-reset border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! hover:border-rose-300! active:scale-95" onClick={resetFilters} icon={<AuditIcon type="reset" className="size-3.5" />}>Reset</Button>
         </div>
 
         <div className="overflow-x-auto">
           <table className="module-table student-directory-table student-premium-cards">
             <thead><tr><th>Student</th><th>Receipt</th><th>Fee Type</th><th>Amount</th><th>Deleted By</th><th>Date & Time</th><th>Reason</th><th>Action</th></tr></thead>
             <tbody>{paged.map((record) => <tr key={`${record.receipt}-${record.date}`}>
-              <td data-label="Student"><div className="flex min-w-0 items-center gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-red-50 text-xs font-bold text-red-500 max-sm:bg-white/20 max-sm:text-white max-sm:ring-1 max-sm:ring-white/30">{initials(record.student)}</span><div className="min-w-0"><div className="truncate font-semibold text-slate-900 max-sm:text-white">{record.student}</div><div className="text-[0.7rem] font-medium text-slate-600 max-sm:text-white/80">{record.studentId}</div></div></div></td>
+              <td data-label="Student"><div className="flex min-w-0 items-center gap-3"><span className="fee-deletion-avatar grid size-9 shrink-0 place-items-center rounded-xl bg-red-50 text-xs font-bold text-red-500 max-sm:bg-white/20 max-sm:text-white max-sm:ring-1 max-sm:ring-white/30">{initials(record.student)}</span><div className="min-w-0"><div className="truncate font-semibold text-slate-900 max-sm:text-white">{record.student}</div><div className="text-[0.7rem] font-medium text-slate-600 max-sm:text-white/80">{record.studentId}</div></div></div></td>
               <td data-label="Receipt"><span className="font-semibold text-red-500">{record.receipt}</span></td>
               <td data-label="Fee Type">{record.feeType}</td>
               <td data-label="Amount"><span className="font-display font-bold text-red-500">{money(record.amount)}</span></td>
-              <td data-label="Deleted By"><span className="status-neutral">{record.deletedBy}</span></td>
+              <td data-label="Deleted By"><span className="fee-deletion-user status-neutral">{record.deletedBy}</span></td>
               <td data-label="Date & Time">{formatDate(record.date)}</td>
               <td data-label="Reason"><span className="line-clamp-2 max-w-52 text-xs">{record.reason}</span></td>
               <td data-label="Action"><Button variant="outline" className="min-h-8 px-3 py-1.5" icon={<AuditIcon type="view" className="size-4" />} onClick={() => setSelectedRecord(record)}>View</Button></td>
             </tr>)}</tbody>
           </table>
-          {!rows.length && <div className="grid min-h-60 place-items-center p-6 text-center"><div><div className="mx-auto grid size-16 place-items-center rounded-2xl bg-slate-100 text-slate-400"><AuditIcon type="view" className="size-7" /></div><h3 className="mt-4 font-display text-sm font-bold text-slate-700">No deletion records found</h3><p className="mt-1 text-xs text-slate-400">Try changing the audit filters.</p></div></div>}
+          {!rows.length && <div className="fee-deletion-empty grid min-h-60 place-items-center p-6 text-center"><div><div className="mx-auto grid size-16 place-items-center rounded-2xl bg-slate-100 text-slate-400"><AuditIcon type="view" className="size-7" /></div><h3 className="mt-4 font-display text-sm font-bold text-slate-700">No deletion records found</h3><p className="mt-1 text-xs text-slate-400">Try changing the audit filters.</p></div></div>}
         </div>
         <PremiumPagination currentPage={safePage} totalPages={totalPages} totalRecords={rows.length} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }} wideLayout />
       </section>
@@ -206,7 +206,7 @@ export default function FeeDeletionLog() {
     >
       {selectedRecord && <div className="space-y-5">
         <div className="rounded-2xl bg-[linear-gradient(135deg,#7f1d1d,#dc2626_70%,#f97316)] p-5 text-white"><div className="text-xs text-white/70">Deleted transaction</div><div className="mt-1 font-display text-3xl font-bold">{money(selectedRecord.amount)}</div><div className="mt-4 flex justify-between gap-3 text-xs"><span className="text-white/70">Receipt No.</span><strong>{selectedRecord.receipt}</strong></div></div>
-        <dl className="grid gap-3 sm:grid-cols-2">{[
+        <dl className="fee-deletion-details grid gap-3 sm:grid-cols-2">{[
           ["Student", selectedRecord.student],
           ["Admission No.", selectedRecord.studentId],
           ["Fee Type", selectedRecord.feeType],
@@ -216,7 +216,7 @@ export default function FeeDeletionLog() {
           ["IP Address", selectedRecord.ipAddress],
           ["Record Status", "Permanently deleted"],
         ].map(([label, value]) => <div key={label} className="min-w-0 rounded-xl border border-slate-100 p-3"><dt className="text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-1 break-words text-sm font-semibold text-slate-800">{value}</dd></div>)}</dl>
-        <div><div className="form-label">Deletion Reason</div><div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm leading-6 text-slate-600">{selectedRecord.reason}</div></div>
+        <div><div className="form-label">Deletion Reason</div><div className="fee-deletion-reason rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm leading-6 text-slate-600">{selectedRecord.reason}</div></div>
       </div>}
     </Popup>
 
@@ -229,7 +229,7 @@ export default function FeeDeletionLog() {
     >
       <div className="space-y-4">
         <div><label className="form-label">Receipt *</label><Dropdown value={pickReceipt} onChange={(event) => setPickReceipt(event.target.value)} placeholder="Select a receipt" aria-label="Receipt to delete" options={receiptOptions} /></div>
-        {target && <div className="flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-red-700"><AuditIcon type="alert" className="mt-0.5 size-5 shrink-0" /><div className="min-w-0 text-xs leading-5"><div className="font-display text-base font-bold">{money(target.amount)} · {target.mode}</div><div className="break-words">{targetOwner?.name} ({targetOwner?.adm}) — {target.heads}</div><div className="mt-1 text-red-500">Student's dues will increase by {money(target.amount)}.</div></div></div>}
+        {target && <div className="fee-deletion-warning flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-red-700"><AuditIcon type="alert" className="mt-0.5 size-5 shrink-0" /><div className="min-w-0 text-xs leading-5"><div className="font-display text-base font-bold">{money(target.amount)} · {target.mode}</div><div className="break-words">{targetOwner?.name} ({targetOwner?.adm}) — {target.heads}</div><div className="mt-1 text-red-500">Student's dues will increase by {money(target.amount)}.</div></div></div>}
         <div><label className="form-label">Reason *</label><Dropdown value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Select a reason" aria-label="Deletion reason" options={reasons.map((value) => ({ label: value, value }))} /></div>
         <div><label htmlFor="delete-notes" className="form-label">Notes{reason === "Other" ? " *" : ""}</label><textarea id="delete-notes" value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={200} className="form-input h-20 resize-none py-3" placeholder="Add details for the audit trail..." /></div>
         <div><label htmlFor="delete-confirm" className="form-label">Type DELETE to confirm *</label><Input id="delete-confirm" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="DELETE" /></div>

@@ -19,12 +19,13 @@ type LoginSession = {
   location: string;
   user: string;
 };
-type IconName = "activity" | "calendar" | "check" | "key" | "lock" | "plus" | "settings" | "shield" | "users";
+type IconName = "activity" | "calendar" | "check" | "close" | "key" | "lock" | "plus" | "settings" | "shield" | "users";
 
 const iconPaths: Record<IconName, ReactNode> = {
   activity: <><path d="M3 12h4l2-6 4 12 2-6h6" /><circle cx="12" cy="12" r="9" /></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></>,
   check: <path d="m5 12 4 4L19 6" />,
+  close: <path d="M6 6l12 12M18 6 6 18" />,
   key: <><circle cx="8" cy="15" r="4" /><path d="m11 12 8-8m-3 3 2 2m-5 1 2 2" /></>,
   lock: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
   plus: <path d="M12 5v14M5 12h14" />,
@@ -108,8 +109,8 @@ export default function UserManagement() {
 
   return <div className="min-h-screen dashboard-bg pb-20">
     <Header title="User Management" subtitle="Manage staff accounts and permissions" />
-    <main className="mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
-      <nav className="panel grid grid-cols-3 gap-1.5 p-2 sm:max-w-xl" aria-label="User management sections">
+    <main className="user-management-main mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+      <nav className="user-management-tabs panel grid grid-cols-3 gap-1.5 p-2 sm:max-w-xl" aria-label="User management sections">
         {tabs.map((tab) => <Button key={tab.id} variant={activeTab === tab.id ? "primary" : "outline"} className="!inline-flex min-h-11 items-center justify-center gap-2 px-2 sm:px-4" onClick={() => setActiveTab(tab.id)} icon={<Icon name={tab.icon} />}>{tab.label}</Button>)}
       </nav>
 
@@ -162,11 +163,18 @@ function UsersAndPermissions({
     "Notices": true,
     "System Settings": false,
   });
+  const enabledPermissionCount = Object.values(permissions).filter(Boolean).length;
+  const permissionTotal = Object.keys(permissions).length;
+  const permissionCoverage = Math.round((enabledPermissionCount / permissionTotal) * 100);
 
   const savePermissions = () => {
     if (!permissionUser) return;
     setPermissionUser(null);
     onNotify("Permissions updated", `${permissionUser.name}'s module access has been saved.`);
+  };
+
+  const setAllPermissions = (enabled: boolean) => {
+    setPermissions((current) => Object.fromEntries(Object.keys(current).map((module) => [module, enabled])));
   };
 
   return <div className="space-y-5">
@@ -185,7 +193,7 @@ function UsersAndPermissions({
                 { label: "Accountant — finance permissions", value: "Accountant" },
               ]} /></div>
           </div>
-          <div className="border-t border-slate-100 bg-slate-50/60 p-4 sm:flex sm:justify-end sm:px-5"><Button type="submit" className="w-full sm:w-auto" isLoading={creatingUser} loadingText="Creating user..." icon={<Icon name="plus" />}>Create User</Button></div>
+          <div className="user-form-footer border-t border-slate-100 bg-slate-50/60 p-4 sm:flex sm:justify-end sm:px-5"><Button type="submit" className="w-full sm:w-auto" isLoading={creatingUser} loadingText="Creating user..." icon={<Icon name="plus" />}>Create User</Button></div>
         </form>
       </section>
 
@@ -196,7 +204,7 @@ function UsersAndPermissions({
             <Dropdown id="reset-user" label="Select user" value={selectedResetUser} onChange={(event) => onSelectResetUser(event.target.value)} options={users.map((user) => ({ label: `${user.name} (${user.username})`, value: String(user.id) }))} />
             <Input id="new-password" type="password" label="New password" placeholder="Minimum 6 characters" minLength={6} required />
           </div>
-          <div className="border-t border-slate-100 bg-slate-50/60 p-4 sm:flex sm:justify-end sm:px-5"><Button type="submit" className="w-full sm:w-auto" isLoading={resettingPassword} loadingText="Resetting..." icon={<Icon name="key" />}>Reset Password</Button></div>
+          <div className="user-form-footer border-t border-slate-100 bg-slate-50/60 p-4 sm:flex sm:justify-end sm:px-5"><Button type="submit" className="w-full sm:w-auto" isLoading={resettingPassword} loadingText="Resetting..." icon={<Icon name="key" />}>Reset Password</Button></div>
         </form>
       </section>
     </div>
@@ -207,7 +215,7 @@ function UsersAndPermissions({
         <span className="status-info">{users.length} users</span>
       </div>
       <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3 sm:p-5">
-        {users.map((user) => <article key={user.id} className={`relative flex h-full flex-col overflow-hidden rounded-2xl border bg-gradient-to-br from-white via-white to-emerald-50/60 shadow-lg shadow-slate-900/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:bg-white sm:shadow-none ${user.role === "Superadmin" ? "user-account-owner" : "border-slate-200"}`}>
+        {users.map((user) => <article key={user.id} className={`user-account-card relative flex h-full flex-col overflow-hidden rounded-2xl border bg-gradient-to-br from-white via-white to-emerald-50/60 shadow-lg shadow-slate-900/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:bg-white sm:shadow-none ${user.role === "Superadmin" ? "user-account-owner" : "border-slate-200"}`}>
           <span className="absolute inset-y-0 left-0 w-1 bg-(--app-accent) sm:hidden" />
           <div className="flex-1 p-3.5 pl-4 sm:p-5">
             <div className="flex items-start gap-3">
@@ -227,7 +235,7 @@ function UsersAndPermissions({
               <div className="text-right text-xs font-semibold text-slate-600 sm:mt-1 sm:text-left">{user.lastLogin}</div>
             </div>
           </div>
-          <div className="border-t border-slate-100 bg-white/80 p-3 sm:bg-slate-50/60">
+          <div className="user-account-footer border-t border-slate-100 bg-white/80 p-3 sm:bg-slate-50/60">
             {user.role === "Superadmin"
               ? <div className="flex items-center justify-center gap-2 py-2 text-xs font-semibold text-slate-500"><Icon name="shield" className="size-4 text-teal-600" />Full system access</div>
               : <Button variant="outline" fullWidth className="!inline-flex min-h-10 items-center justify-center gap-2" onClick={() => setPermissionUser(user)} icon={<Icon name="shield" className="size-4 text-teal-600" />}>Manage Permissions</Button>}
@@ -236,46 +244,61 @@ function UsersAndPermissions({
       </div>
     </section>
 
-    {permissionUser && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" role="presentation" onMouseDown={() => setPermissionUser(null)}>
-      <section className="premium-modal w-full max-w-2xl overflow-hidden rounded-3xl bg-white" role="dialog" aria-modal="true" aria-labelledby="permission-title" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="popup-header flex items-start justify-between p-6 text-white">
-          <div className="flex items-start gap-3">
-            <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/15"><Icon name="shield" className="size-5" /></div>
-            <div>
-              <div id="permission-title" className="font-display text-xl font-bold">Manage Permissions</div>
-              <p className="mt-1 text-sm text-white/75">{permissionUser.name} · {permissionUser.role}</p>
+    {permissionUser && <div className="fixed inset-0 z-50 grid items-end bg-slate-950/55 backdrop-blur-sm sm:place-items-center sm:p-5" role="presentation" onMouseDown={() => setPermissionUser(null)}>
+      <section className="premium-modal flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white sm:max-h-[92dvh] sm:rounded-3xl" role="dialog" aria-modal="true" aria-labelledby="permission-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="popup-header relative flex shrink-0 items-center justify-between overflow-hidden p-4 text-white sm:p-5">
+          <span className="pointer-events-none absolute -right-12 -top-16 size-40 rounded-full border border-white/10 bg-white/10" />
+          <div className="relative flex min-w-0 items-center gap-3">
+            <div className="relative isolate grid size-12 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/20 bg-white/20 font-display text-base font-extrabold shadow-lg">{permissionUser.name.charAt(0)}</div>
+            <div className="min-w-0">
+              <div id="permission-title" className="truncate font-display text-lg font-bold sm:text-xl">Manage Permissions</div>
+              <p className="mt-0.5 truncate text-xs text-white/75 sm:text-sm">{permissionUser.name} · {permissionUser.role}</p>
             </div>
           </div>
-          <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/20" onClick={() => setPermissionUser(null)}>Close</Button>
+          <Button variant="outline" aria-label="Close permissions" className="relative !grid !size-10 !min-h-10 shrink-0 !place-items-center !rounded-xl !border-white/15 !bg-white/10 !p-0 text-white !shadow-none hover:!bg-white/20" onClick={() => setPermissionUser(null)}><Icon name="close" className="size-4" /></Button>
         </div>
 
-        <div className="bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-6">
-          <div className="relative overflow-hidden rounded-2xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_65%,var(--app-accent))] p-3.5 text-white shadow-lg sm:p-5">
-            <span className="pointer-events-none absolute -right-8 -top-10 size-28 rounded-full bg-white/10" />
-            <div className="relative flex items-start gap-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/20 sm:size-10"><Icon name="shield" className="size-4 sm:size-5" /></span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><div className="font-display text-sm font-bold">Module access</div><span className="shrink-0 whitespace-nowrap rounded-full bg-white/15 px-2.5 py-1 text-[0.62rem] font-bold ring-1 ring-white/20 sm:text-[0.65rem]">{Object.values(permissions).filter(Boolean).length} of {Object.keys(permissions).length} enabled</span></div>
-                <p className="mt-2 text-[0.68rem] leading-5 text-white/75 sm:mt-1.5 sm:text-xs">Enabled modules appear in this user's sidebar after their next sign in.</p>
+        <div className="permission-dialog-body min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-slate-50/90 to-white p-3 sm:p-5">
+          <div className="permission-overview relative overflow-hidden rounded-2xl p-4 text-white shadow-lg sm:p-5">
+            <span className="pointer-events-none absolute -right-10 -top-12 size-32 rounded-full border border-white/10 bg-white/10" />
+            <span className="pointer-events-none absolute -bottom-16 left-1/3 size-28 rounded-full bg-white/5" />
+            <div className="relative grid grid-cols-[1fr_auto] items-center gap-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/20"><Icon name="shield" className="size-5" /></span>
+                <div className="min-w-0">
+                  <div className="font-display text-sm font-bold sm:text-base">Access coverage</div>
+                  <p className="mt-1 text-[0.68rem] leading-5 text-white/70 sm:text-xs">Changes apply to this user’s sidebar at their next sign in.</p>
+                </div>
+              </div>
+              <div className="grid size-14 shrink-0 place-items-center rounded-2xl border border-white/15 bg-white/10 text-center sm:size-16">
+                <span><span className="block font-display text-lg font-extrabold sm:text-xl">{permissionCoverage}%</span><span className="block text-[0.55rem] font-bold uppercase tracking-wider text-white/60">Enabled</span></span>
               </div>
             </div>
-            <div className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-white/15 sm:mt-4"><div className="h-full rounded-full bg-white transition-all duration-300" style={{ width: `${(Object.values(permissions).filter(Boolean).length / Object.keys(permissions).length) * 100}%` }} /></div>
+            <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-white shadow-sm transition-all duration-300" style={{ width: `${permissionCoverage}%` }} /></div>
+            <div className="relative mt-2 flex items-center justify-between text-[0.62rem] font-semibold text-white/65"><span>{enabledPermissionCount} modules enabled</span><span>{permissionTotal - enabledPermissionCount} restricted</span></div>
           </div>
-          <div className="mb-2 mt-4 flex items-center justify-between gap-3 px-1 sm:mt-5"><div className="min-w-0"><div className="text-[0.68rem] font-bold uppercase tracking-wider text-slate-500 sm:text-xs">Available modules</div><div className="mt-0.5 truncate text-[0.62rem] text-slate-400 sm:text-[0.68rem]">Tap a module to grant or revoke access</div></div><span className="settings-icon grid size-8 shrink-0 place-items-center rounded-lg sm:size-9 sm:rounded-xl"><Icon name="settings" className="size-3.5 sm:size-4" /></span></div>
+          <div className="mb-3 mt-4 flex items-end justify-between gap-3 px-1 sm:mt-5">
+            <div className="min-w-0"><div className="text-[0.68rem] font-bold uppercase tracking-wider text-slate-600 sm:text-xs">Module permissions</div><div className="mt-0.5 text-[0.62rem] text-slate-400 sm:text-[0.68rem]">Select the areas this user can access.</div></div>
+            <div className="flex shrink-0 gap-1.5">
+              <Button variant="outline" className="!min-h-8 !rounded-lg !px-2.5 !py-1 text-[0.62rem] shadow-none" onClick={() => setAllPermissions(false)}>Clear</Button>
+              <Button variant="outline" className="!min-h-8 !rounded-lg !px-2.5 !py-1 text-[0.62rem] shadow-none" onClick={() => setAllPermissions(true)}>Enable all</Button>
+            </div>
+          </div>
           <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3">
-            {Object.entries(permissions).map(([module, enabled]) => <Button key={module} variant="outline" aria-pressed={enabled} onClick={() => setPermissions((current) => ({ ...current, [module]: !enabled }))} className={`group flex min-h-14 w-full items-center justify-between gap-2.5 rounded-xl p-2.5 text-left shadow-sm transition duration-200 hover:-translate-y-px hover:shadow-md sm:min-h-16 sm:gap-3 sm:rounded-2xl sm:p-4 ${enabled ? "border-(--app-accent)/30 bg-(--app-accent-faint) hover:bg-(--app-accent-faint)" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
+            {Object.entries(permissions).map(([module, enabled]) => <Button key={module} variant="outline" aria-pressed={enabled} onClick={() => setPermissions((current) => ({ ...current, [module]: !enabled }))} className={`permission-module-card group !grid min-h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 !rounded-2xl !p-3 text-left sm:min-h-20 sm:!p-4 ${enabled ? "permission-module-enabled" : ""}`}>
               <span className="flex min-w-0 items-center gap-3">
-                <span className={`grid size-8 shrink-0 place-items-center rounded-lg transition duration-200 sm:size-9 sm:rounded-xl ${enabled ? "bg-(--app-accent) text-white shadow-md shadow-slate-900/10" : "bg-slate-100 text-slate-400"}`}><Icon name={enabled ? "check" : "lock"} className="size-3.5 sm:size-4" /></span>
-                <span className="min-w-0"><span className="block truncate text-xs font-bold text-slate-800 sm:text-sm">{module}</span><span className={`mt-0.5 block text-[0.62rem] font-medium ${enabled ? "text-(--app-accent-dark)" : "text-slate-400"}`}>{enabled ? "Access enabled" : "No access"}</span></span>
+                <span className={`permission-module-icon grid size-9 shrink-0 place-items-center rounded-xl sm:size-10 ${enabled ? "permission-module-icon-enabled" : ""}`}><Icon name={enabled ? "check" : "lock"} className="size-4" /></span>
               </span>
-              <span className={`relative h-5 w-9 shrink-0 rounded-full ring-1 transition sm:h-6 sm:w-11 ${enabled ? "bg-(--app-accent) ring-(--app-accent)/30" : "bg-slate-200 ring-slate-300"}`}><span className={`absolute top-1 size-3 rounded-full bg-white shadow-sm transition sm:size-4 ${enabled ? "left-5 sm:left-6" : "left-1"}`} /></span>
+              <span className="min-w-0"><span className="block truncate text-xs font-bold text-slate-800 sm:text-sm">{module}</span><span className={`mt-0.5 block text-[0.62rem] font-medium ${enabled ? "permission-module-status" : "text-slate-400"}`}>{enabled ? "Full module access" : "Access restricted"}</span></span>
+              <span className={`permission-switch relative h-6 w-11 shrink-0 rounded-full ${enabled ? "permission-switch-on" : "bg-slate-200"}`}><span className={`absolute top-1 size-4 rounded-full bg-white shadow-sm transition-all duration-200 ${enabled ? "left-6" : "left-1"}`} /></span>
             </Button>)}
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50 p-5 sm:flex-row sm:justify-end">
-          <Button variant="secondary" onClick={() => setPermissionUser(null)}>Cancel</Button>
-          <Button onClick={savePermissions} icon={<Icon name="shield" />}>Save Permissions</Button>
+        <div className="permission-dialog-footer grid shrink-0 grid-cols-2 items-center gap-2 border-t border-slate-100 bg-white p-3.5 sm:grid-cols-[1fr_auto_auto] sm:p-4 sm:px-5">
+          <div className="hidden text-xs text-slate-400 sm:block"><span className="font-bold text-slate-700">{enabledPermissionCount}</span> of {permissionTotal} modules will be available</div>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => setPermissionUser(null)}>Cancel</Button>
+          <Button className="w-full sm:w-auto" onClick={savePermissions} icon={<Icon name="shield" />}>Save Access</Button>
         </div>
       </section>
     </div>}
@@ -289,12 +312,12 @@ function ActivityLog() {
     ["Super Administrator", "Changed an administrator role", "Meera Joshi", "Yesterday, 18:30"],
     ["Raj Kumar", "Signed in from a new device", "Chrome · Windows", "20 Sep 2026, 21:15"],
   ];
-  return <section className="panel">
+  return <section className="user-activity-panel panel">
     <PanelTitle title="Account Activity Log" icon="activity" />
-    <div className="divide-y divide-slate-100">{activities.map(([user, action, target, date]) => <div key={`${user}-${date}`} className="relative m-3 flex flex-col gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/60 p-4 shadow-lg shadow-slate-900/5 sm:m-0 sm:flex-row sm:items-center sm:rounded-none sm:border-0 sm:bg-white sm:p-5 sm:shadow-none">
+    <div className="divide-y divide-slate-100">{activities.map(([user, action, target, date]) => <div key={`${user}-${date}`} className="user-activity-row relative m-3 flex flex-col gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/60 p-4 shadow-lg shadow-slate-900/5 sm:m-0 sm:flex-row sm:items-center sm:rounded-none sm:border-0 sm:bg-white sm:p-5 sm:shadow-none">
       <span className="absolute inset-y-0 left-0 w-1 bg-(--app-accent) sm:hidden" />
       <div className="flex items-center gap-3 sm:contents">
-        <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,var(--app-accent),var(--app-accent-dark))] font-display text-sm font-bold text-white shadow-md shadow-slate-900/10 ring-2 ring-white sm:size-10 sm:rounded-xl sm:bg-teal-50 sm:text-teal-700 sm:shadow-none sm:ring-0">{user.charAt(0)}</div>
+        <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,var(--app-accent),var(--app-accent-dark))] font-display text-sm font-extrabold text-white shadow-md shadow-slate-900/10 ring-2 ring-white sm:size-10 sm:rounded-xl sm:shadow-sm sm:ring-0">{user.charAt(0)}</div>
         <div className="min-w-0 flex-1"><div className="truncate font-display text-sm font-bold text-slate-900 sm:font-semibold sm:text-slate-800">{user}</div><div className="mt-0.5 inline-flex items-center gap-1.5 text-[0.65rem] font-semibold text-(--app-accent-dark) sm:hidden"><Icon name="activity" className="size-3.5" />Account activity</div><p className="mt-1 hidden text-xs text-slate-500 sm:block">{action} · <span className="font-medium">{target}</span></p></div>
       </div>
       <div className="rounded-xl border border-slate-100 bg-white/80 p-3 shadow-sm sm:hidden"><div className="text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">{action}</div><div className="mt-1.5 text-xs font-semibold text-slate-700">{target}</div></div>
@@ -312,9 +335,9 @@ function Sessions({ sessions, onTerminate }: { sessions: LoginSession[]; onTermi
   };
 
   return <>
-  <section className="panel">
+  <section className="user-sessions-panel panel">
     <PanelTitle title={`Active Sessions (${sessions.length})`} icon="calendar" />
-    <div className="divide-y divide-slate-100">{sessions.map((session, index) => <div key={session.id} className="relative m-3 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/60 p-4 shadow-lg shadow-slate-900/5 sm:m-0 sm:grid sm:grid-cols-4 sm:items-center sm:gap-4 sm:rounded-none sm:border-0 sm:bg-white sm:p-5 sm:shadow-none">
+    <div className="divide-y divide-slate-100">{sessions.map((session, index) => <div key={session.id} className="user-session-row relative m-3 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/60 p-4 shadow-lg shadow-slate-900/5 sm:m-0 sm:grid sm:grid-cols-4 sm:items-center sm:gap-4 sm:rounded-none sm:border-0 sm:bg-white sm:p-5 sm:shadow-none">
       <span className="absolute inset-y-0 left-0 w-1 bg-(--app-accent) sm:hidden" />
       <div className="sm:hidden">
         <div className="flex items-center gap-3">

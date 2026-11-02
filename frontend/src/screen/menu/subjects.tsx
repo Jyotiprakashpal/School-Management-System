@@ -152,7 +152,7 @@ export default function Subjects() {
     { label: "Active Subjects", value: activeCount, copy: "Available for mapping", tone: "violet", icon: "check" },
   ];
 
-  return <div className="min-h-screen dashboard-bg pb-16">
+  return <div className="subjects-screen min-h-screen dashboard-bg pb-16">
     <Header title="Subjects" subtitle="Build the academic catalog and manage class coverage" />
     <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="grid auto-rows-fr grid-cols-[repeat(2,minmax(0,1fr))] gap-2.5 sm:gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))] [&>article]:h-full">
@@ -188,7 +188,7 @@ export default function Subjects() {
           <div className="grid grid-cols-2 items-stretch gap-2.5 max-sm:[&>:first-child]:col-span-2 sm:grid-cols-[1fr_11rem_auto] sm:gap-3">
             <Input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} placeholder="Search subject, code or class coverage..." aria-label="Search subjects" startIcon={<SubjectIcon type="search" className="size-4" />} />
             <Dropdown value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setCurrentPage(1); }} placeholder="All Status" aria-label="Subject status" options={["Active", "Inactive"].map((value) => ({ label: value, value }))} />
-            <Button variant="outline" onClick={resetFilters} disabled={!hasFilters} icon={<SubjectIcon type="reset" className="size-4" />} className={resetClass}>Reset</Button>
+            <Button variant="outline" onClick={resetFilters} disabled={!hasFilters} icon={<SubjectIcon type="reset" className="size-4" />} className={`subjects-reset ${resetClass}`}>Reset</Button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-0.5">
             {([["", "All", subjects.length], ...types.map((t) => [t, t, typeCounts[t]])] as [string, string, number][]).map(([value, label, count]) => {
@@ -202,7 +202,7 @@ export default function Subjects() {
           {paged.map((subject) => {
             const meta = typeMeta[subject.type];
             const active = subject.status === "Active";
-            return <article key={subject.id} className={`flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${active ? "" : "opacity-80"}`}>
+            return <article key={subject.id} className={`subject-card flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${active ? "" : "opacity-80"}`}>
               <div className={`h-1.5 bg-linear-to-r ${meta.strip}`} />
               <div className="flex flex-1 flex-col gap-3.5 p-4">
                 <div className="flex items-start gap-3">
@@ -216,12 +216,12 @@ export default function Subjects() {
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2">
                   <span className="text-xs font-semibold text-slate-600">{active ? "Active" : "Inactive"}<span className="ml-1.5 font-normal text-slate-400">{active ? "· available for mapping" : "· hidden from mapping"}</span></span>
-                  <button type="button" role="switch" aria-checked={active} aria-label={`Toggle ${subject.name}`} onClick={() => toggleStatus(subject)} className={`relative h-6 w-11 shrink-0 rounded-full transition ${active ? "bg-(--app-accent-dark)" : "bg-slate-300"}`}><span className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${active ? "translate-x-5" : ""}`} /></button>
+                  <button type="button" role="switch" aria-checked={active} aria-label={`Toggle ${subject.name}`} onClick={() => toggleStatus(subject)} className={`subject-status-switch relative h-6 w-11 shrink-0 rounded-full transition ${active ? "bg-(--app-accent-dark)" : "bg-slate-300"}`}><span className={`subject-status-knob absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${active ? "translate-x-5" : ""}`} /></button>
                 </div>
                 <div className="mt-auto flex items-center gap-2 border-t border-slate-100 pt-3">
                   <Button variant="secondary" className="min-h-8 flex-1 px-3 py-1.5 text-xs" onClick={() => openEdit(subject)} icon={<SubjectIcon type="edit" className="size-3.5" />}>Edit</Button>
-                  <button type="button" onClick={() => duplicateSubject(subject)} aria-label={`Duplicate ${subject.name}`} title="Duplicate" className="grid size-8 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-(--app-accent-dark) active:scale-95"><SubjectIcon type="copy" className="size-4" /></button>
-                  <button type="button" onClick={() => setDeleteSubject(subject)} aria-label={`Delete ${subject.name}`} title="Delete" className="grid size-8 shrink-0 place-items-center rounded-lg border border-rose-200 text-rose-500 transition hover:bg-rose-50 active:scale-95"><SubjectIcon type="trash" className="size-4" /></button>
+                  <button type="button" onClick={() => duplicateSubject(subject)} aria-label={`Duplicate ${subject.name}`} title="Duplicate" className="subject-card-action grid size-8 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-(--app-accent-dark) active:scale-95"><SubjectIcon type="copy" className="size-4" /></button>
+                  <button type="button" onClick={() => setDeleteSubject(subject)} aria-label={`Delete ${subject.name}`} title="Delete" className="subject-card-delete grid size-8 shrink-0 place-items-center rounded-lg border border-rose-200 text-rose-500 transition hover:bg-rose-50 active:scale-95"><SubjectIcon type="trash" className="size-4" /></button>
                 </div>
               </div>
             </article>;
@@ -233,7 +233,7 @@ export default function Subjects() {
           <div className="mt-4 flex justify-center gap-2">{hasFilters && <Button variant="outline" onClick={resetFilters}>Clear Filters</Button>}<Button onClick={openCreate} icon={<SubjectIcon type="plus" className="size-4" />}>Add Subject</Button></div>
         </div></div>}
 
-        {filtered.length > 0 && <div className="border-t border-slate-100 bg-slate-50/60 px-3.5 py-3 sm:px-5">
+        {filtered.length > 0 && <div className="subject-catalog-footer border-t border-slate-100 bg-slate-50/60 px-3.5 py-3 sm:px-5">
           <PremiumPagination currentPage={safePage} totalPages={totalPages} totalRecords={filtered.length} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={(size: number) => { setPageSize(size); setCurrentPage(1); }} wideLayout />
         </div>}
       </section>
@@ -265,7 +265,7 @@ export default function Subjects() {
       description="Review the impact before removing this subject."
       footer={<><Button variant="outline" onClick={() => setDeleteSubject(null)}>Cancel</Button><Button variant="danger" onClick={confirmDelete} icon={<SubjectIcon type="trash" className="size-4" />}>Delete Subject</Button></>}
     >
-      {deleteSubject && <div className="space-y-4"><div className="rounded-2xl border border-red-100 bg-red-50 p-4"><div className="font-display text-lg font-bold text-red-700">{deleteSubject.name}</div><div className="mt-1 text-xs text-red-600">{deleteSubject.code} · {deleteSubject.classes}</div></div><p className="text-xs leading-5 text-slate-500">Removing this subject may affect class-subject mappings and future exam schedules. Existing marks and historical records will be preserved.</p></div>}
+      {deleteSubject && <div className="space-y-4"><div className="subject-delete-card rounded-2xl border border-red-100 bg-red-50 p-4"><div className="font-display text-lg font-bold text-red-700">{deleteSubject.name}</div><div className="mt-1 text-xs text-red-600">{deleteSubject.code} · {deleteSubject.classes}</div></div><p className="text-xs leading-5 text-slate-500">Removing this subject may affect class-subject mappings and future exam schedules. Existing marks and historical records will be preserved.</p></div>}
     </Popup>
   </div>;
 }

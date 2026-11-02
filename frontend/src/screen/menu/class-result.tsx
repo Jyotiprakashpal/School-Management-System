@@ -179,7 +179,7 @@ export default function ClassResult() {
     { label: "Highest Score", value: `${topper.percentage}%`, tone: "violet", copy: topper.name, icon: "trophy" },
   ];
 
-  return <div className="min-h-screen dashboard-bg pb-16">
+  return <div className="class-result-screen min-h-screen dashboard-bg pb-16">
     <Header title="Class Result" subtitle="Analyze performance, review rankings, and publish examination results" />
     <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="panel overflow-hidden">
@@ -258,7 +258,7 @@ export default function ClassResult() {
         <div className="space-y-3 border-b border-slate-100 p-3.5 sm:p-4">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2.5 sm:gap-3">
             <Input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} placeholder="Search student or admission no..." aria-label="Search students" startIcon={<ResultIcon type="search" className="size-4" />} />
-            <Button variant="outline" onClick={() => { setSearch(""); setFilter("all"); setCurrentPage(1); }} disabled={!search && filter === "all"} icon={<ResultIcon type="reset" className="size-4" />} className={resetClass}>Reset</Button>
+            <Button variant="outline" onClick={() => { setSearch(""); setFilter("all"); setCurrentPage(1); }} disabled={!search && filter === "all"} icon={<ResultIcon type="reset" className="size-4" />} className={`class-result-reset ${resetClass}`}>Reset</Button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-0.5">
             {([["all", "All"], ["pass", "Passed"], ["fail", "Failed"]] as [Filter, string][]).map(([value, label]) => {
@@ -269,7 +269,7 @@ export default function ClassResult() {
         </div>
 
         {paged.length ? <ul className="divide-y divide-slate-100">
-          {paged.map((r) => <li key={r.admissionNo} className="grid gap-3 p-3.5 transition hover:bg-slate-50/60 sm:p-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] lg:items-center lg:gap-5">
+          {paged.map((r) => <li key={r.admissionNo} className="class-result-row grid gap-3 p-3.5 transition hover:bg-slate-50/60 sm:p-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] lg:items-center lg:gap-5">
             <div className="flex min-w-0 items-center gap-3">
               <span className={`grid size-10 shrink-0 place-items-center rounded-xl font-display text-xs font-bold ${r.rank <= 3 ? `bg-linear-to-br text-slate-900 shadow-sm ${medal[r.rank - 1]}` : "bg-slate-100 text-slate-500"}`}>#{r.rank}</span>
               <div className="min-w-0 flex-1"><h3 className="font-display truncate text-sm font-bold text-slate-900">{r.name}</h3><p className="truncate text-xs text-slate-500">{r.admissionNo}</p></div>
@@ -286,7 +286,7 @@ export default function ClassResult() {
           </li>)}
         </ul> : <div className="grid min-h-48 place-items-center p-6 text-center"><div><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-(--app-accent-soft) text-(--app-accent-dark)"><ResultIcon type="search" /></div><h3 className="font-display mt-3 text-sm font-bold text-slate-700">No students match</h3><p className="mt-1 text-xs text-slate-400">Try another search or filter.</p></div></div>}
 
-        <div className="border-t border-slate-100 bg-slate-50/60 px-3.5 py-3 sm:px-5">
+        <div className="class-result-footer border-t border-slate-100 bg-slate-50/60 px-3.5 py-3 sm:px-5">
           <PremiumPagination currentPage={safePage} totalPages={totalPages} totalRecords={rows.length} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={(size: number) => { setPageSize(size); setCurrentPage(1); }} wideLayout />
           <p className="mt-2 text-center text-[0.7rem] text-slate-400 sm:text-left">Pass requirement: 35% in every subject</p>
         </div>
@@ -301,7 +301,7 @@ export default function ClassResult() {
       footer={<><Button variant="outline" onClick={() => setPublishOpen(false)} disabled={publishing}>Cancel</Button><Button onClick={publishResult} isLoading={publishing} loadingText="Publishing result..." icon={<ResultIcon type="publish" className="size-4" />}>Confirm & Publish</Button></>}
     >
       <div className="space-y-4">
-        <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4"><div className="font-display text-lg font-bold text-violet-800">{loaded.exam}</div><div className="mt-1 text-xs text-violet-600">{loaded.className}-{loaded.section} · {results.length} student results · {summary.passRate}% pass rate</div></div>
+        <div className="class-result-publish-summary rounded-2xl border border-violet-100 bg-violet-50 p-4"><div className="font-display text-lg font-bold text-violet-800">{loaded.exam}</div><div className="mt-1 text-xs text-violet-600">{loaded.className}-{loaded.section} · {results.length} student results · {summary.passRate}% pass rate</div></div>
         <p className="text-xs leading-5 text-slate-500">Once published, students and guardians can view report cards. You can update marks and republish later if corrections are required.</p>
       </div>
     </Popup>

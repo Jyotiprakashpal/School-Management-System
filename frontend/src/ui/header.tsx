@@ -87,6 +87,39 @@ function BellIcon() {
   )
 }
 
+function CloseIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="size-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="size-3.5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  )
+}
+
 function NotificationIcon({ kind }: { kind: NotificationKind }) {
   const paths = {
     attendance: (
@@ -123,7 +156,7 @@ function NotificationIcon({ kind }: { kind: NotificationKind }) {
 
   return (
     <span
-      className={`grid size-10 shrink-0 place-items-center rounded-xl ${tones[kind]}`}
+      className={`notification-kind-icon grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ring-inset ${tones[kind]}`}
     >
       <svg
         aria-hidden="true"
@@ -198,7 +231,7 @@ export default function Header({
 
   return (
     <header
-      className={`app-header sticky top-0 z-20 flex min-h-16 w-full min-w-0 max-w-full border-b border-slate-200/70 bg-white/90 py-2.5 pl-20 pr-3 backdrop-blur-xl sm:min-h-20 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pb-4 sm:pl-20 sm:pr-5 sm:pt-4 lg:px-6 ${
+      className={`app-header sticky top-0 z-20 flex min-h-16 w-full min-w-0 max-w-full border-b border-slate-200 bg-white py-2.5 pl-20 pr-3 sm:min-h-20 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pb-4 sm:pl-20 sm:pr-5 sm:pt-4 lg:px-6 ${
         action ? "flex-row items-start gap-2" : "flex-row items-start gap-2"
       }`}
     >
@@ -234,9 +267,9 @@ export default function Header({
         >
           <Button
             variant="outline"
-            className={`group relative size-11 min-h-11 rounded-2xl !p-0 shadow-sm hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 hover:shadow-md ${
+            className={`group relative size-11 min-h-11 rounded-2xl !p-0 !shadow-none hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 ${
               notificationsOpen
-                ? "border-teal-200 bg-teal-50 text-teal-700 ring-4 ring-teal-50"
+                ? "border-teal-200 bg-teal-50 text-teal-700"
                 : "border-slate-200/80 bg-white text-slate-600"
             }`}
             aria-label={`${unreadCount} unread notifications`}
@@ -261,42 +294,61 @@ export default function Header({
           {notificationsOpen && (
             <div
               id="notification-center"
-              className="absolute right-0 top-full z-50 mt-3 w-80 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/15 max-sm:left-3 max-sm:right-3 max-sm:w-auto max-sm:max-w-none sm:w-96"
+              className="notification-center absolute right-0 top-full z-50 mt-3 flex w-[27rem] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white max-sm:left-3 max-sm:right-3 max-sm:w-auto max-sm:max-w-none"
               role="region"
               aria-label="Notification center"
             >
-              <div className="border-b border-slate-100 bg-gradient-to-br from-teal-50 to-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-display text-base font-bold text-slate-900">
+              <div className="notification-center-header relative overflow-hidden px-4 pb-4 pt-5 text-white sm:px-5">
+                <span className="notification-header-orb notification-header-orb-one" />
+                <span className="notification-header-orb notification-header-orb-two" />
+                <div className="relative flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/15 bg-white/10 shadow-sm backdrop-blur-sm">
+                        <BellIcon />
+                      </span>
+                      <div className="font-display text-base font-bold tracking-tight sm:text-lg">
                       Notifications
+                      </div>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-2 text-xs leading-5 text-white/70">
                       {unreadCount
-                        ? `${unreadCount} unread message${
+                        ? `${unreadCount} update${
                             unreadCount === 1 ? "" : "s"
-                          }`
-                        : "You're all caught up"}
+                          } waiting for your attention`
+                        : "You're all caught up for now"}
                     </p>
                   </div>
-                  {unreadCount > 0 && (
-                    <Button
-                      variant="outline"
-                      className="min-h-8 border-0 bg-white/80 px-2.5 py-1.5 text-teal-700 shadow-sm hover:bg-white"
-                      onClick={readAllNotifications}
-                    >
-                      Mark all read
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    className="size-9 min-h-9 shrink-0 rounded-xl border-white/15 bg-white/10 !p-0 text-white shadow-none backdrop-blur-sm hover:border-white/30 hover:bg-white/20 sm:hidden"
+                    onClick={() => setNotificationsOpen(false)}
+                    aria-label="Close notifications"
+                  >
+                    <CloseIcon />
+                  </Button>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-slate-100/80 p-1">
+                <div className="relative mt-4 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[0.65rem] font-semibold text-white/85 backdrop-blur-sm">
+                    <span className="size-1.5 rounded-full bg-emerald-300 shadow-[0_0_0_3px_rgb(110_231_183_/_0.14)]" />
+                    Live updates
+                  </span>
+                  <span className="text-[0.65rem] font-medium text-white/55">
+                    PAL IT HUB
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-b border-slate-100 bg-white/90 px-3 py-3 sm:px-4">
+                <div className="flex items-center gap-2">
+                  <div className="grid min-w-0 flex-1 grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
                   {(["unread", "all"] as const).map((filter) => (
                     <Button
                       key={filter}
                       variant="outline"
-                      className={`min-h-8 rounded-lg border-0 px-3 py-1.5 capitalize shadow-none ${
+                        className={`min-h-9 rounded-lg border-0 px-3 py-1.5 capitalize shadow-none ${
                         notificationFilter === filter
-                          ? "bg-white text-slate-900 shadow-sm"
+                            ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/70"
                           : "bg-transparent text-slate-500 hover:bg-white/60"
                       }`}
                       onClick={() => setNotificationFilter(filter)}
@@ -309,49 +361,69 @@ export default function Header({
                       )}
                     </Button>
                   ))}
+                  </div>
+                  {unreadCount > 0 && (
+                    <Button
+                      variant="outline"
+                      className="min-h-9 shrink-0 rounded-xl border-slate-200 bg-white px-2.5 text-teal-700 shadow-sm hover:border-teal-200 hover:bg-teal-50 sm:px-3"
+                      onClick={readAllNotifications}
+                      icon={<CheckIcon />}
+                    >
+                      <span className="hidden sm:inline">Mark all read</span>
+                      <span className="sm:hidden">Read all</span>
+                    </Button>
+                  )}
                 </div>
               </div>
 
-              <div className="notification-history h-80 overflow-y-auto overscroll-contain">
+              <div className="notification-history max-h-[min(24rem,calc(100dvh-16rem))] min-h-48 overflow-y-auto overscroll-contain bg-slate-50/70 p-2 sm:p-3">
                 {visibleNotifications.map((notification) => (
                   <Button
                     key={notification.id}
                     variant="outline"
-                    className={`relative min-h-0 w-full justify-start rounded-none border-0 border-b border-slate-100 p-4 text-left shadow-none last:border-b-0 hover:bg-slate-50 ${
-                      notification.unread ? "bg-teal-50/40" : "bg-white"
+                    className={`notification-item group relative mb-2 min-h-0 w-full justify-start rounded-2xl border p-3 text-left last:mb-0 sm:p-3.5 ${
+                      notification.unread
+                        ? "border-teal-100 bg-white shadow-sm shadow-teal-900/5"
+                        : "border-slate-200/70 bg-white/75 shadow-none"
                     }`}
                     onClick={() => readNotification(notification.id)}
                   >
                     <NotificationIcon kind={notification.kind} />
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-start justify-between gap-3">
-                        <span className="truncate text-xs font-bold text-slate-800">
-                          {notification.title}
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-[0.68rem] font-bold uppercase tracking-wider text-slate-400">
+                          {notification.kind}
                         </span>
+                        <span className="size-1 rounded-full bg-slate-300" />
                         <span className="shrink-0 text-[0.65rem] font-medium text-slate-400">
                           {notification.time}
                         </span>
                       </span>
-                      <span className="mt-1 block text-xs font-normal leading-5 text-slate-500">
+                      <span className="mt-1 flex items-start justify-between gap-3">
+                        <span className="truncate text-sm font-bold text-slate-800">
+                          {notification.title}
+                        </span>
+                        {notification.unread && (
+                          <span className="mt-1 size-2 shrink-0 rounded-full bg-teal-500 ring-4 ring-teal-50" />
+                        )}
+                      </span>
+                      <span className="mt-1 block text-xs font-normal leading-5 text-slate-500 sm:pr-2">
                         {notification.message}
                       </span>
                     </span>
-                    {notification.unread && (
-                      <span className="absolute right-3 top-1/2 size-2 -translate-y-1/2 rounded-full bg-teal-500 ring-4 ring-teal-50" />
-                    )}
                   </Button>
                 ))}
                 {!visibleNotifications.length && (
-                  <div className="grid min-h-48 place-items-center p-6 text-center">
+                  <div className="grid min-h-56 place-items-center p-6 text-center">
                     <div>
-                      <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
-                        <BellIcon />
+                      <span className="mx-auto grid size-14 place-items-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-sm">
+                        <CheckIcon />
                       </span>
-                      <div className="mt-3 text-sm font-bold text-slate-800">
-                        No unread notifications
+                      <div className="mt-4 font-display text-sm font-bold text-slate-800">
+                        You’re all caught up
                       </div>
-                      <p className="mt-1 text-xs text-slate-400">
-                        New school updates will appear here.
+                      <p className="mx-auto mt-1 max-w-52 text-xs leading-5 text-slate-400">
+                        Important school activity and account updates will appear here.
                       </p>
                     </div>
                   </div>

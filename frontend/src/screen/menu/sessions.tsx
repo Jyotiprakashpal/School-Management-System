@@ -110,11 +110,11 @@ export default function Sessions() {
     setDeletingSession(null);
   };
 
-  return <div className="min-h-screen dashboard-bg pb-20">
+  return <div className="sessions-screen min-h-screen dashboard-bg pb-20">
     <Header title="Sessions" subtitle="Manage academic years" />
     <main className="mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
-      <div className="grid gap-4 lg:grid-cols-[minmax(15rem,.65fr)_minmax(0,1.35fr)] lg:items-stretch">
-        <section className="session-current-hero relative overflow-hidden rounded-2xl border p-5 text-white sm:p-6">
+      <div className="grid gap-4 lg:grid-cols-[minmax(17rem,.72fr)_minmax(0,1.28fr)] lg:items-stretch lg:gap-5">
+        <section className="session-current-hero relative overflow-hidden rounded-2xl border p-4 text-white sm:min-h-72 sm:p-6">
           <div className="absolute -right-10 -top-12 size-40 rounded-full border border-white/10 bg-white/10" />
           <div className="absolute -bottom-16 -left-12 size-36 rounded-full bg-white/5" />
           <div className="relative flex h-full flex-col">
@@ -122,29 +122,48 @@ export default function Sessions() {
               <span className="grid size-12 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20 backdrop-blur-sm"><SessionIcon name="calendar" className="size-6" /></span>
               <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold ring-1 ring-white/20 backdrop-blur-sm"><span className="size-2 rounded-full bg-white shadow-sm" />In use</span>
             </div>
-            <div className="mt-5 text-xs font-bold uppercase tracking-widest text-white/70">Current session</div>
-            <div className="mt-1 font-display text-4xl font-extrabold tracking-tight">{currentSession.name}</div>
+            <div className="mt-4 text-xs font-bold uppercase tracking-widest text-white/70 sm:mt-5">Current session</div>
+            <div className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{currentSession.name}</div>
             <div className="mt-4 rounded-xl bg-slate-950/10 p-3 ring-1 ring-white/15">
               <div className="text-xs font-semibold text-white/65">Academic year dates</div>
-              <div className="mt-1 text-sm font-bold">{readableDate(currentSession.startDate)} – {readableDate(currentSession.endDate)}</div>
+              <div className="mt-1 text-xs font-bold leading-5 sm:text-sm">{readableDate(currentSession.startDate)} – {readableDate(currentSession.endDate)}</div>
             </div>
-            <p className="mt-auto pt-4 text-xs leading-5 text-white/75">Used for attendance, fees, exams, and reports.</p>
+            <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
+              {["Attendance", "Fees", "Exams", "Reports"].map((module) => <span key={module} className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[0.65rem] font-semibold text-white/75">{module}</span>)}
+            </div>
           </div>
         </section>
 
-        <section className="panel">
+        <section className="session-create-panel panel flex min-w-0 flex-col">
           <div className="panel-title justify-start gap-3">
             <span className="metric-icon-teal grid size-8 place-items-center rounded-lg"><SessionIcon name="plus" className="size-4" /></span>
-            <div><div className="font-display text-sm font-bold text-slate-900">Create session</div><p className="mt-0.5 text-xs text-slate-400">Add a new academic year</p></div>
+            <div><div className="font-display text-sm font-bold text-slate-900">Create session</div><p className="mt-0.5 text-xs text-slate-400">Set up the next academic year</p></div>
           </div>
-          <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
-            <Input id="session-name" label="Session name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. 2028–29" />
-            <Input id="session-start" label="Start date" type="date" value={form.startDate} onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))} />
-            <Input id="session-end" label="End date" type="date" value={form.endDate} onChange={(event) => setForm((current) => ({ ...current, endDate: event.target.value }))} />
-          </div>
-          <div className="flex border-t border-slate-100 bg-slate-50/70 p-4 sm:justify-end sm:px-5">
-            <Button className="w-full sm:w-auto" onClick={addSession} isLoading={saving} loadingText="Adding session..." icon={<SessionIcon name="plus" />}>Add Session</Button>
-          </div>
+          <form className="flex flex-1 flex-col" onSubmit={(event) => { event.preventDefault(); void addSession(); }}>
+            <div className="flex flex-1 flex-col justify-center p-4 sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold text-slate-700">Academic year details</div>
+                  <div className="mt-0.5 text-[0.68rem] text-slate-400">Define the name and complete date range.</div>
+                </div>
+                <span className="session-required-badge hidden shrink-0 rounded-full px-2.5 py-1 text-[0.65rem] font-bold sm:inline-flex">3 required fields</span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(10rem,.8fr)_repeat(2,minmax(11rem,1fr))]">
+                <div className="sm:col-span-2 xl:col-span-1">
+                  <Input id="session-name" label="Session name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. 2028–29" />
+                </div>
+                <Input id="session-start" label="Start date" type="date" value={form.startDate} onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))} />
+                <Input id="session-end" label="End date" type="date" value={form.endDate} onChange={(event) => setForm((current) => ({ ...current, endDate: event.target.value }))} />
+              </div>
+            </div>
+            <div className="session-create-footer flex flex-col gap-3 border-t border-slate-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div className="session-create-note flex items-center gap-2 text-xs leading-5 text-slate-500">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg"><SessionIcon name="calendar" className="size-3.5" /></span>
+                New sessions remain inactive until you set them as current.
+              </div>
+              <Button type="submit" className="w-full shrink-0 sm:w-auto" isLoading={saving} loadingText="Adding session..." icon={<SessionIcon name="plus" />}>Add Session</Button>
+            </div>
+          </form>
         </section>
       </div>
 
@@ -154,26 +173,33 @@ export default function Sessions() {
             <span className="metric-icon-teal grid size-8 place-items-center rounded-lg"><SessionIcon name="calendar" className="size-4" /></span>
             <div><div className="font-display text-sm font-bold text-slate-900">Academic sessions</div><p className="mt-0.5 text-xs text-slate-400">{sessions.length} total</p></div>
           </div>
+          <div className="hidden items-center gap-2 sm:flex">
+            <span className="session-active-count rounded-full px-3 py-1 text-xs font-semibold">{sessions.filter((session) => session.current).length} active</span>
+            <span className="session-previous-count rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">{sessions.filter((session) => !session.current).length} previous</span>
+          </div>
         </div>
-        <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3 sm:p-5">
-          {sessions.map((session) => <article key={session.id} className={`relative overflow-hidden rounded-2xl border ${session.current ? "session-list-current" : "border-slate-200 bg-white"}`}>
-            <div className="p-4 sm:p-5">
+        <div className="grid items-start gap-3 p-3.5 sm:grid-cols-2 sm:p-5 2xl:grid-cols-3">
+          {sessions.map((session) => <article key={session.id} className={`session-list-card relative flex min-w-0 flex-col overflow-hidden rounded-2xl border ${session.current ? "session-list-current" : "session-list-archived border-slate-200 bg-white"}`}>
+            <div className="flex-1 p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="font-display text-xl font-extrabold text-slate-900">{session.name}</div>
-                  <div className={`mt-1 text-xs ${session.current ? "font-semibold text-teal-600" : "text-slate-400"}`}>{session.current ? "Active academic year" : "Academic year"}</div>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className={`session-card-icon grid size-10 shrink-0 place-items-center rounded-xl ${session.current ? "session-card-icon-current" : ""}`}><SessionIcon name="calendar" className="size-4" /></span>
+                  <div className="min-w-0">
+                    <div className="font-display text-lg font-extrabold text-slate-900 sm:text-xl">{session.name}</div>
+                    <div className={`mt-0.5 text-xs ${session.current ? "session-accent-text font-semibold" : "text-slate-400"}`}>{session.current ? "Active academic year" : "Academic year"}</div>
+                  </div>
                 </div>
                 <span className={session.current ? "session-current-badge inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold" : "status-neutral"}>
                   {session.current && <SessionIcon name="star" className="size-3" />}{session.current ? "Current" : "Archived"}
                 </span>
               </div>
-              <div className={`mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-xl p-3 ${session.current ? "session-current-dates" : "bg-slate-50"}`}>
+              <div className={`session-dates mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl p-3 sm:gap-3 ${session.current ? "session-current-dates" : "bg-slate-50"}`}>
                 <div><div className="text-xs text-slate-400">Starts</div><div className="mt-1 text-xs font-semibold text-slate-700">{readableDate(session.startDate)}</div></div>
-                <span className="h-px w-5 bg-slate-300" />
+                <span className="session-date-connector relative h-px w-6 bg-slate-300" />
                 <div className="text-right"><div className="text-xs text-slate-400">Ends</div><div className="mt-1 text-xs font-semibold text-slate-700">{readableDate(session.endDate)}</div></div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/60 p-3">
+            <div className="session-card-actions grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/60 p-3">
               {!session.current && <Button className="col-span-2 min-h-9 px-3 py-2" onClick={() => setCurrent(session)} icon={<SessionIcon name="star" className="size-3.5" />}>Set as Current</Button>}
               <Button variant="outline" className={`${session.current ? "col-span-2" : ""} !inline-flex min-h-9 items-center justify-center gap-2 px-3 py-2`} onClick={() => openEdit(session)} icon={<SessionIcon name="edit" className="size-3.5 text-teal-600" />}>Edit Session</Button>
               {!session.current && <Button variant="danger" className="!inline-flex min-h-9 items-center justify-center gap-2 px-3 py-2 text-xs" onClick={() => setDeletingSession(session)} icon={<SessionIcon name="trash" className="size-3.5" />}>Delete</Button>}
@@ -187,12 +213,12 @@ export default function Sessions() {
       <div className="space-y-4">
         <Input label="Session Name *" value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} />
         <div className="grid gap-4 sm:grid-cols-2"><Input label="Start Date *" type="date" value={editForm.startDate} onChange={(event) => setEditForm((current) => ({ ...current, startDate: event.target.value }))} /><Input label="End Date *" type="date" value={editForm.endDate} onChange={(event) => setEditForm((current) => ({ ...current, endDate: event.target.value }))} /></div>
-        {editingSession?.current && <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-xs leading-5 text-amber-800">You are editing the current session. Date changes affect the active academic year across the application.</div>}
+        {editingSession?.current && <div className="session-edit-warning rounded-xl border border-amber-100 bg-amber-50 p-4 text-xs leading-5 text-amber-800">You are editing the current session. Date changes affect the active academic year across the application.</div>}
       </div>
     </Popup>
 
     <Popup open={Boolean(deletingSession)} onClose={() => setDeletingSession(null)} title="Delete Academic Session" description="This action removes the session from session management." footer={<><Button variant="outline" onClick={() => setDeletingSession(null)}>Cancel</Button><Button variant="danger" onClick={deleteSession}>Delete Session</Button></>}>
-      {deletingSession && <div className="rounded-2xl border border-red-100 bg-red-50 p-5"><div className="font-display text-lg font-bold text-red-700">{deletingSession.name}</div><p className="mt-2 text-xs leading-5 text-red-600">Historical records linked to this session may no longer be available through session filters.</p></div>}
+      {deletingSession && <div className="session-delete-card rounded-2xl border border-red-100 bg-red-50 p-5"><div className="font-display text-lg font-bold text-red-700">{deletingSession.name}</div><p className="mt-2 text-xs leading-5 text-red-600">Historical records linked to this session may no longer be available through session filters.</p></div>}
     </Popup>
   </div>;
 }

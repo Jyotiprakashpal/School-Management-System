@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
 
 type PopupProps = {
   children: ReactNode
@@ -21,19 +21,33 @@ export default function Popup({
   open,
   title,
 }: PopupProps) {
+  const onCloseRef = useRef(onClose)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
   useEffect(() => {
     if (!open) return
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose()
+      if (event.key === "Escape") onCloseRef.current()
     }
     const previousOverflow = document.body.style.overflow
+    const previousPaddingRight = document.body.style.paddingRight
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
+    const bodyPaddingRight = Number.parseFloat(window.getComputedStyle(document.body).paddingRight) || 0
+
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${bodyPaddingRight + scrollbarWidth}px`
+    }
     document.body.style.overflow = "hidden"
     window.addEventListener("keydown", closeOnEscape)
     return () => {
       document.body.style.overflow = previousOverflow
+      document.body.style.paddingRight = previousPaddingRight
       window.removeEventListener("keydown", closeOnEscape)
     }
-  }, [onClose, open])
+  }, [open])
 
   if (!open) return null
 
@@ -46,7 +60,7 @@ export default function Popup({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
+        className="popup-backdrop absolute inset-0 bg-slate-950/60"
         aria-label="Close dialog"
         onClick={onClose}
       />

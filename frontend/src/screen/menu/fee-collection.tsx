@@ -222,7 +222,7 @@ export default function FeeCollection() {
               {matches.map((item) => {
                 const due = studentPending(item);
                 const active = item.id === activeId;
-                return <button key={item.id} type="button" onClick={() => selectStudent(item.id)} aria-pressed={active} className={`group min-w-56 snap-start rounded-2xl border p-3 text-left transition sm:min-w-0 xl:p-3 ${active ? "border-(--app-accent) bg-(--app-accent-faint) shadow-md ring-2 ring-(--app-accent)/20" : "border-slate-200 bg-white shadow-sm hover:border-(--app-accent)/50 hover:shadow-md"}`}>
+                return <button key={item.id} type="button" onClick={() => selectStudent(item.id)} aria-pressed={active} className={`fee-collection-student-card group min-w-56 snap-start rounded-2xl border p-3 text-left transition sm:min-w-0 xl:p-3 ${active ? "fee-collection-student-active border-(--app-accent) bg-(--app-accent-faint) shadow-md ring-2 ring-(--app-accent)/20" : "border-slate-200 bg-white shadow-sm hover:border-(--app-accent)/50 hover:shadow-md"}`}>
                   <div className="flex items-center gap-2.5">
                     <span className={`grid size-9 shrink-0 place-items-center rounded-xl text-xs font-bold ${active ? "bg-(--app-accent) text-white" : "bg-(--app-accent-soft) text-(--app-accent-dark)"}`}>{initials(item.name)}</span>
                     <div className="min-w-0"><div className="truncate text-sm font-semibold text-slate-900">{item.name}</div><div className="truncate text-[0.7rem] text-slate-500">{item.className} · {item.adm.slice(-4)}</div></div>
@@ -255,21 +255,21 @@ export default function FeeCollection() {
 
             <section className="panel overflow-visible">
               <PanelHead icon="fees" title="Fee Heads" subtitle={`${selectedFees.length} of ${payableFees.length} pending selected`} action={payableFees.length > 0 ? <Button variant="outline" className="shrink-0 px-3" onClick={toggleAll}>{allSelected ? "Clear all" : "Select all"}</Button> : <span className="status-success shrink-0">All cleared</span>} />
-              <ul className="space-y-2.5 bg-linear-to-b from-slate-50/60 to-transparent p-3 sm:p-4">
+              <ul className="fee-collection-head-list space-y-2.5 bg-linear-to-b from-slate-50/60 to-transparent p-3 sm:p-4">
                 {student.fees.map((fee) => {
                   const balance = balanceOf(fee);
                   const percent = fee.amount ? Math.round((fee.paid / fee.amount) * 100) : 0;
                   const cleared = balance === 0;
                   return <li key={fee.id}>
-                    <label className={`relative flex items-center gap-3 rounded-2xl border p-3 transition sm:gap-4 sm:p-4 ${cleared ? "cursor-not-allowed border-slate-200 bg-slate-50/70" : fee.selected ? "cursor-pointer border-(--app-accent) bg-(--app-accent-faint) shadow-md ring-2 ring-(--app-accent)/20" : "cursor-pointer border-slate-200 bg-white shadow-sm hover:border-(--app-accent)/50 hover:shadow-md"}`}>
+                    <label className={`fee-collection-head-card relative flex items-center gap-3 rounded-2xl border p-3 transition sm:gap-4 sm:p-4 ${cleared ? "fee-collection-head-cleared cursor-not-allowed border-slate-200 bg-slate-50/70" : fee.selected ? "fee-collection-head-selected cursor-pointer border-(--app-accent) bg-(--app-accent-faint) shadow-md ring-2 ring-(--app-accent)/20" : "cursor-pointer border-slate-200 bg-white shadow-sm hover:border-(--app-accent)/50 hover:shadow-md"}`}>
                       <input type="checkbox" className="peer sr-only" aria-label={`Select ${fee.name}`} checked={fee.selected} disabled={cleared} onChange={() => toggleFee(fee.id)} />
-                      <span aria-hidden="true" className={`grid size-6 shrink-0 place-items-center rounded-lg border-2 transition peer-focus-visible:ring-4 peer-focus-visible:ring-(--app-accent)/25 ${cleared ? "border-emerald-200 bg-emerald-100 text-emerald-600" : fee.selected ? "border-(--app-accent) bg-(--app-accent) text-white" : "border-slate-300 bg-white text-transparent"}`}><CollectionIcon type="check" className="size-3.5" /></span>
+                      <span aria-hidden="true" className={`fee-collection-checkbox grid size-6 shrink-0 place-items-center rounded-lg border-2 transition peer-focus-visible:ring-4 peer-focus-visible:ring-(--app-accent)/25 ${cleared ? "fee-collection-checkbox-cleared border-emerald-200 bg-emerald-100 text-emerald-600" : fee.selected ? "fee-collection-checkbox-selected border-(--app-accent) bg-(--app-accent) text-white" : "border-slate-300 bg-white text-transparent"}`}><CollectionIcon type="check" className="size-3.5" /></span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <span className="truncate text-sm font-semibold text-slate-900">{fee.name}</span>
                           <span className={`shrink-0 ${cleared ? "status-success" : fee.paid ? "status-info" : "status-warning"}`}>{cleared ? "Paid" : fee.paid ? "Partial" : "Pending"}</span>
                         </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full transition-all duration-500 ${cleared ? "bg-emerald-500" : "bg-(--app-accent)"}`} style={{ width: `${percent}%` }} /></div>
+                        <div className="fee-collection-progress mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full transition-all duration-500 ${cleared ? "bg-emerald-500" : "bg-(--app-accent)"}`} style={{ width: `${percent}%` }} /></div>
                         <div className="mt-2 grid grid-cols-3 gap-2 text-[0.7rem] sm:text-xs">
                           <span className="text-slate-500">Total <strong className="block text-slate-800 sm:inline">{money(fee.amount)}</strong></span>
                           <span className="text-slate-500">Paid <strong className="block text-emerald-600 sm:inline">{money(fee.paid)}</strong></span>
@@ -280,7 +280,7 @@ export default function FeeCollection() {
                   </li>;
                 })}
               </ul>
-              <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-white px-4 py-3 text-xs sm:px-5">
+              <div className="fee-collection-head-footer flex items-center justify-between gap-3 border-t border-slate-100 bg-white px-4 py-3 text-xs sm:px-5">
                 <span className="text-slate-500">{selectedFees.length ? `${selectedFees.length} selected` : "Tap a fee head to select it"}</span>
                 <span className="text-slate-500">Selected due <strong className="font-display text-sm text-(--app-accent-dark)">{money(selectedBalance)}</strong></span>
               </div>
@@ -291,23 +291,23 @@ export default function FeeCollection() {
             <span aria-hidden="true" className="absolute inset-x-6 top-0 h-0.5 rounded-b-full bg-[linear-gradient(90deg,transparent,var(--app-accent),transparent)]" />
             <PanelHead icon="payment" title="Payment Details" subtitle={selectedFees.length ? `${selectedFees.length} fee head${selectedFees.length > 1 ? "s" : ""} · ${money(selectedBalance)} due` : "Select fee heads to begin"} action={<span className="status-info shrink-0">{nextReceipt}</span>} />
             <form noValidate onSubmit={(event) => { event.preventDefault(); void collectFee(); }}>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-4 bg-linear-to-b from-slate-50/60 to-transparent p-4 sm:gap-x-4 sm:p-6 [&>*]:min-w-0 [&_select]:truncate max-sm:[&>:first-child]:col-span-2">
+              <div className="fee-collection-payment-form grid grid-cols-2 gap-x-3 gap-y-4 bg-linear-to-b from-slate-50/60 to-transparent p-4 sm:gap-x-4 sm:p-6 [&>*]:min-w-0 [&_select]:truncate max-sm:[&>:first-child]:col-span-2">
                 <div className="col-span-2">
                   <Input label="Payment Amount (₹) *" type="number" min="1" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} placeholder="0" hint={selectedFees.length ? `Selected balance: ${money(selectedBalance)}` : "Select a pending fee head first"} disabled={!selectedFees.length} />
-                  {selectedFees.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{[["Full", selectedBalance], ["Half", Math.ceil(selectedBalance / 2)], ["₹100", 100]].filter(([, value]) => Number(value) <= selectedBalance).map(([label, value]) => <button key={label as string} type="button" onClick={() => quickFill(value as number)} className="rounded-full border border-(--app-accent)/30 bg-(--app-accent-faint) px-3 py-1 text-xs font-semibold text-(--app-accent-dark) transition hover:bg-(--app-accent-soft)">{label === "Full" ? `Full ${money(value as number)}` : label === "Half" ? `Half ${money(value as number)}` : label}</button>)}</div>}
+                  {selectedFees.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{[["Full", selectedBalance], ["Half", Math.ceil(selectedBalance / 2)], ["₹100", 100]].filter(([, value]) => Number(value) <= selectedBalance).map(([label, value]) => <button key={label as string} type="button" onClick={() => quickFill(value as number)} className="fee-collection-shortcut rounded-full border border-(--app-accent)/30 bg-(--app-accent-faint) px-3 py-1 text-xs font-semibold text-(--app-accent-dark) transition hover:bg-(--app-accent-soft)">{label === "Full" ? `Full ${money(value as number)}` : label === "Half" ? `Half ${money(value as number)}` : label}</button>)}</div>}
                 </div>
                 <Dropdown label="Payment Mode" value={paymentMode} onChange={(event) => setPaymentMode(event.target.value)} options={modeOptions} placeholder="Select mode" />
                 <Input label="Payment Date" type="date" max={today()} value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} />
                 {needsReference && <div className="col-span-2"><Input label={`${paymentMode} Reference No. *`} value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Transaction / cheque number" /></div>}
                 <div className="col-span-2"><Input label="Remarks" value={remarks} onChange={(event) => setRemarks(event.target.value)} placeholder="Optional payment notes" /></div>
               </div>
-              <div className="bg-slate-50/60 px-4 pb-4 sm:px-6 sm:pb-6">
-                <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+              <div className="fee-collection-summary-wrap bg-slate-50/60 px-4 pb-4 sm:px-6 sm:pb-6">
+                <div className="fee-collection-summary rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
                   <div className="flex items-center justify-between text-xs text-slate-500"><span>Paying now</span><strong className="font-display text-base text-(--app-accent-dark)">{money(amountValue > 0 ? amountValue : 0)}</strong></div>
                   <div className="mt-2 flex items-center justify-between text-xs text-slate-500"><span>Balance after payment</span><strong className="text-slate-800">{money(Math.max(0, pending - (amountValue > 0 && amountValue <= selectedBalance ? amountValue : 0)))}</strong></div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-white p-4 sm:flex sm:justify-end sm:p-5">
+              <div className="fee-collection-actions grid grid-cols-2 gap-2 border-t border-slate-100 bg-white p-4 sm:flex sm:justify-end sm:p-5">
                 <Button variant="outline" onClick={() => { const last = transactions.find((item) => item.studentId === student.id); last ? setReceipt(last) : showToast("Complete a payment before printing a receipt.", { title: "No receipt available", tone: "error" }); }} icon={<CollectionIcon type="print" className="size-4" />}>Last Receipt</Button>
                 <Button type="submit" icon={<CollectionIcon type="check" className="size-4" />} isLoading={collecting} loadingText="Collecting..." disabled={!selectedFees.length}>Collect Fee</Button>
               </div>
@@ -318,14 +318,14 @@ export default function FeeCollection() {
 
       <section className="panel overflow-visible">
         <PanelHead icon="history" title="Transactions" subtitle={`${historyRows.length} receipts`} action={<Button variant="outline" className="shrink-0 px-3" onClick={exportHistory} disabled={!historyRows.length} icon={<CollectionIcon type="download" className="size-4" />}>Export</Button>} />
-        <div className="grid grid-cols-2 gap-2.5 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-[1fr_10rem_10rem_auto] sm:gap-3 sm:p-4 xl:grid-cols-[1fr_12rem_12rem_auto]">
+        <div className="fee-collection-history-filters grid grid-cols-2 gap-2.5 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-[1fr_10rem_10rem_auto] sm:gap-3 sm:p-4 xl:grid-cols-[1fr_12rem_12rem_auto]">
           <Input value={historySearch} onChange={(event) => { setHistorySearch(event.target.value); setCurrentPage(1); }} placeholder="Search receipt, student or fee head..." aria-label="Search transactions" />
           <Dropdown value={historyScope} onChange={(event) => { setHistoryScope(event.target.value as "student" | "all"); setCurrentPage(1); }} aria-label="Scope" placeholder="Scope" options={[{ label: "All students", value: "all" }, { label: student ? `${student.name} only` : "Selected student", value: "student" }]} />
           <Dropdown value={historyMode} onChange={(event) => { setHistoryMode(event.target.value); setCurrentPage(1); }} aria-label="Mode filter" placeholder="All Modes" options={modeOptions} />
-          <Button variant="outline" className="border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! hover:border-rose-300! active:scale-95" onClick={() => { setHistorySearch(""); setHistoryMode(""); setHistoryScope("all"); setCurrentPage(1); }} icon={<CollectionIcon type="reset" className="size-3.5" />}>Reset</Button>
+          <Button variant="outline" className="fee-collection-reset border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! hover:border-rose-300! active:scale-95" onClick={() => { setHistorySearch(""); setHistoryMode(""); setHistoryScope("all"); setCurrentPage(1); }} icon={<CollectionIcon type="reset" className="size-3.5" />}>Reset</Button>
         </div>
         <div className="overflow-x-auto"><table className="module-table student-directory-table student-premium-cards"><thead><tr><th>Receipt</th><th>Student</th><th>Fee Heads</th><th>Amount</th><th>Date</th><th>Mode</th><th>Action</th></tr></thead><tbody>{pagedRows.map((item) => <tr key={item.receipt}><td data-label="Receipt"><span className="font-semibold text-(--app-accent-dark)">{item.receipt}</span></td><td data-label="Student">{ownerOf(item)?.name}</td><td data-label="Fee Heads">{item.heads}</td><td data-label="Amount"><span className="font-bold text-emerald-600">{money(item.amount)}</span></td><td data-label="Date">{formatDate(item.date)}</td><td data-label="Mode"><span className="status-neutral">{item.mode}</span></td><td data-label="Action"><Button variant="outline" className="min-h-8 px-3 py-1.5" onClick={() => setReceipt(item)}>Receipt</Button></td></tr>)}</tbody></table>
-          {!pagedRows.length && <div className="grid min-h-40 place-items-center p-6 text-center text-sm text-slate-400">No transactions match these filters.</div>}
+          {!pagedRows.length && <div className="fee-collection-empty grid min-h-40 place-items-center p-6 text-center text-sm text-slate-400">No transactions match these filters.</div>}
         </div>
         <PremiumPagination currentPage={safePage} totalPages={totalPages} totalRecords={historyRows.length} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }} wideLayout />
       </section>
@@ -338,7 +338,7 @@ export default function FeeCollection() {
       description="Review the payment summary before printing."
       footer={<><Button variant="outline" onClick={() => setReceipt(null)}>Close</Button><Button icon={<CollectionIcon type="print" className="size-4" />} onClick={() => receipt && printReceipt(receipt)}>Print Receipt</Button></>}
     >
-      {receipt && <div className="space-y-4"><div className="rounded-2xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-5 text-white"><div className="text-xs text-white/70">Amount received</div><div className="mt-1 font-display text-3xl font-bold">{money(receipt.amount)}</div><div className="mt-4 flex justify-between text-xs"><span className="text-white/70">Receipt No.</span><strong>{receipt.receipt}</strong></div></div><dl className="grid grid-cols-2 gap-3">{[["Student", ownerOf(receipt)?.name ?? ""], ["Admission No.", ownerOf(receipt)?.adm ?? ""], ["Payment Date", formatDate(receipt.date)], ["Payment Mode", receipt.mode], ["Fee Heads", receipt.heads], ["Reference", receipt.reference || "—"]].map(([label, value]) => <div key={label} className="min-w-0 rounded-xl border border-slate-100 p-3"><dt className="text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-1 break-words text-sm font-semibold text-slate-800">{value}</dd></div>)}</dl>{receipt.remarks && <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Remarks: {receipt.remarks}</p>}</div>}
+      {receipt && <div className="space-y-4"><div className="rounded-2xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-5 text-white"><div className="text-xs text-white/70">Amount received</div><div className="mt-1 font-display text-3xl font-bold">{money(receipt.amount)}</div><div className="mt-4 flex justify-between text-xs"><span className="text-white/70">Receipt No.</span><strong>{receipt.receipt}</strong></div></div><dl className="fee-collection-receipt-details grid grid-cols-2 gap-3">{[["Student", ownerOf(receipt)?.name ?? ""], ["Admission No.", ownerOf(receipt)?.adm ?? ""], ["Payment Date", formatDate(receipt.date)], ["Payment Mode", receipt.mode], ["Fee Heads", receipt.heads], ["Reference", receipt.reference || "—"]].map(([label, value]) => <div key={label} className="min-w-0 rounded-xl border border-slate-100 p-3"><dt className="text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-1 break-words text-sm font-semibold text-slate-800">{value}</dd></div>)}</dl>{receipt.remarks && <p className="fee-collection-receipt-remarks rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Remarks: {receipt.remarks}</p>}</div>}
     </Popup>
   </div>;
 }

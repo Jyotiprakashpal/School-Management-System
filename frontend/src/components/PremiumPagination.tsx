@@ -124,7 +124,7 @@ export default function PremiumPagination({
 
   const iconButtonClass = "!grid !size-8 !min-h-8 shrink-0 !place-items-center !rounded-full border-0 bg-transparent !p-0 leading-none text-slate-400 shadow-none hover:bg-slate-100 hover:text-slate-700 active:scale-90";
 
-  return <div className={`flex w-full min-w-0 flex-col items-start justify-between gap-2.5 ${wideLayout ? "sm:rounded-2xl sm:border sm:border-slate-100 sm:bg-slate-50/70 sm:p-4 lg:flex-row lg:items-center" : "2xl:flex-row 2xl:items-center"} ${tabletSingleRow ? "sm:max-lg:flex-row sm:max-lg:items-center sm:max-lg:gap-2 sm:max-lg:border-0 sm:max-lg:bg-transparent sm:max-lg:p-0" : ""}`}>
+  return <div className={`premium-pagination flex w-full min-w-0 flex-col items-start justify-between gap-2.5 ${wideLayout ? "sm:rounded-2xl sm:border sm:border-slate-100 sm:bg-slate-50/70 sm:p-4 lg:flex-row lg:items-center" : "2xl:flex-row 2xl:items-center"} ${tabletSingleRow ? "sm:max-lg:flex-row sm:max-lg:items-center sm:max-lg:gap-2 sm:max-lg:border-0 sm:max-lg:bg-transparent sm:max-lg:p-0" : ""}`}>
     <p className="flex items-center gap-2 whitespace-nowrap text-xs font-medium text-slate-500">
       {wideLayout && <span className="hidden size-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-300 sm:block" />}
       <span className="hidden sm:inline">Showing <strong className="font-semibold text-slate-800">{startRecord}–{endRecord}</strong> of <strong className="font-semibold text-slate-800">{totalRecords}</strong> records</span>

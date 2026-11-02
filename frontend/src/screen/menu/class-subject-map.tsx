@@ -193,7 +193,7 @@ export default function ClassSubjectMap() {
     { label: "Unassigned", value: unassigned, tone: "violet", copy: unassigned ? "Need a teacher" : "All covered", icon: "link" as IconType },
   ];
 
-  return <div className="min-h-screen dashboard-bg pb-16">
+  return <div className="class-subject-map-screen min-h-screen dashboard-bg pb-16">
     <Header title="Class-Subject Map" subtitle="Assign subjects, teachers, and weekly periods to each class" />
     <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="panel overflow-hidden">
@@ -223,7 +223,7 @@ export default function ClassSubjectMap() {
           <div className="space-y-3 border-b border-slate-100 p-3.5 sm:p-5">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2.5 sm:gap-3">
               <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search subject, code or teacher" startIcon={<MapIcon type="search" className="size-4" />} aria-label="Search subjects" />
-              <Button variant="outline" disabled={!filtersActive} onClick={() => { setQuery(""); setTypeFilter("All"); }} icon={<MapIcon type="reset" className="size-4" />} className={`${resetClass} min-w-28`}>Reset</Button>
+              <Button variant="outline" disabled={!filtersActive} onClick={() => { setQuery(""); setTypeFilter("All"); }} icon={<MapIcon type="reset" className="size-4" />} className={`class-map-reset ${resetClass} min-w-28`}>Reset</Button>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">
               {chips.map((chip) => <button key={chip.id} type="button" onClick={() => setTypeFilter(chip.id)} className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${typeFilter === chip.id ? "border-(--app-accent) bg-(--app-accent) text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}>{chip.id}<span className={`rounded-full px-1.5 text-[0.65rem] ${typeFilter === chip.id ? "bg-white/25" : "bg-slate-100 text-slate-500"}`}>{chip.count}</span></button>)}
@@ -262,7 +262,7 @@ export default function ClassSubjectMap() {
             {!filtered.length && <div className="grid min-h-52 place-items-center text-center"><div><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-slate-100 text-slate-400"><MapIcon type="book" /></div><h3 className="mt-4 font-display text-sm font-bold text-slate-700">{mappings.length ? "No subjects match" : "No subjects mapped"}</h3><p className="mt-1 text-xs text-slate-400">{mappings.length ? "Try a different search or filter." : "Add a subject to build the class curriculum."}</p></div></div>}
           </ul>
 
-          <footer className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/60 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <footer className="class-map-footer flex flex-col gap-3 border-t border-slate-100 bg-slate-50/60 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div className="text-xs text-slate-500">{mappings.length} subjects · {totalPeriods} weekly periods</div>
             <div className="grid grid-cols-2 gap-2.5 sm:flex [&>button]:h-11">
               <Button variant="outline" onClick={discard} disabled={!dirty || saving}>Discard</Button>
@@ -329,7 +329,7 @@ export default function ClassSubjectMap() {
       <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 sm:gap-x-4">
         <Dropdown label="Copy from class" value={copyFrom.className} onChange={(event) => setCopyFrom((current) => ({ ...current, className: event.target.value }))} options={classes.map((value) => ({ label: value, value }))} />
         <Dropdown label="Section" value={copyFrom.section} onChange={(event) => setCopyFrom((current) => ({ ...current, section: event.target.value }))} options={sections.map((value) => ({ label: value, value }))} />
-        <p className="col-span-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs leading-5 text-amber-700">Current subjects in {label} will be replaced. Nothing is saved until you press Save Mapping.</p>
+        <p className="class-map-copy-warning col-span-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs leading-5 text-amber-700">Current subjects in {label} will be replaced. Nothing is saved until you press Save Mapping.</p>
       </div>
     </Popup>
 
