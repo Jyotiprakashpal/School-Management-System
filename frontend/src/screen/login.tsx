@@ -118,8 +118,8 @@ export default function Login({ onLogin }: LoginProps) {
   }
 
   return (
-    <div className="login-screen h-dvh overflow-hidden">
-      <main className="grid h-dvh overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(28rem,.9fr)]">
+    <div className="login-screen h-lvh overflow-hidden">
+      <main className="grid h-lvh overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(28rem,.9fr)]">
         <section className="login-visual relative hidden h-full overflow-hidden lg:flex lg:flex-col lg:justify-between">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-teal-950/65 to-cyan-900/25" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/20" />
@@ -193,7 +193,7 @@ export default function Login({ onLogin }: LoginProps) {
           </div>
         </section>
 
-        <section className="login-form-panel relative flex h-dvh min-h-0 flex-col overflow-hidden">
+        <section className="login-form-panel relative flex h-lvh min-h-0 flex-col overflow-hidden">
           <div className="login-accent-bar absolute inset-x-0 top-0 z-20 h-1" />
           <span className="login-theme-orb absolute -right-16 top-24 size-44 rounded-full" />
           <span className="login-theme-orb absolute -left-20 bottom-20 size-52 rounded-full opacity-60" />
