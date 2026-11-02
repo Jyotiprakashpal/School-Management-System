@@ -21,6 +21,7 @@ import { staffRepository } from './models/Staff.js';
 import { salaryRepository } from './models/Salary.js';
 import { sessionRepository } from './models/Session.js';
 import { adminSettingsRepository } from './models/AdminSettings.js';
+import { documentRepository } from './models/Document.js';
 
 export async function initializeDatabase(): Promise<void> {
   await userRepository.initializeTable();
@@ -47,4 +48,5 @@ export async function initializeDatabase(): Promise<void> {
   await salaryRepository.initializeTable();
   await sessionRepository.initializeTable();
   await adminSettingsRepository.initializeTable();
+  await documentRepository.initializeTable();
 }
