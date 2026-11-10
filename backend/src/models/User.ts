@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 
 export interface User {
   id: number;
+  userId: string;
   username: string;
   name: string;
   email: string | null;
@@ -22,6 +23,8 @@ export interface CreateUserDto {
   role?: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant';
   status?: 'Active' | 'Suspended';
   createdBy?: string;
+  /** API alias for createdBy. */
+  createBy?: string;
 }
 
 export interface UpdateUserDto {
@@ -57,7 +60,7 @@ function toUserResponse(user: any): User {
 }
 
 const selectUserColumns = sql`
-  id, username, name, email, role, status, "lastLogin", "createdBy", "createdAt", "updatedAt"
+  id, "userId", username, name, email, role, status, "lastLogin", "createdBy", "createdAt", "updatedAt"
 `;
 
 export const userRepository = {
@@ -65,6 +68,7 @@ export const userRepository = {
     await sql`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
+        "userId" TEXT UNIQUE,
         username VARCHAR(80) NOT NULL UNIQUE,
         name VARCHAR(120) NOT NULL,
         email VARCHAR(255),
@@ -84,7 +88,7 @@ export const userRepository = {
     await sql`
       ALTER TABLE users 
       ADD COLUMN IF NOT EXISTS id SERIAL,
-      ADD COLUMN IF NOT EXISTS userId TEXT,
+      ADD COLUMN IF NOT EXISTS "userId" TEXT,
       ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Suspended')),
       ADD COLUMN IF NOT EXISTS "lastLogin" TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255),
@@ -92,6 +96,17 @@ export const userRepository = {
       ADD COLUMN IF NOT EXISTS "resetToken" VARCHAR(255),
       ADD COLUMN IF NOT EXISTS "resetTokenExpiry" TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS email VARCHAR(255)
+    `;
+
+    // Backfill IDs for databases created before userId was introduced.
+    await sql`
+      UPDATE users
+      SET "userId" = 'PALITHUB' || id::text
+      WHERE "userId" IS NULL OR BTRIM("userId") = ''
+    `;
+
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_user_id ON users("userId")
     `;
     
     await sql`
@@ -148,6 +163,17 @@ export const userRepository = {
     return user ? toUserResponse(user) : null;
   },
 
+  async authenticate(username: string, password: string): Promise<User | null> {
+    const [user] = await sql<any[]>`
+      SELECT ${selectUserColumns}
+      FROM users
+      WHERE username = ${username.trim()}
+        AND status = 'Active'
+        AND password_hash = crypt(${password}, password_hash)
+    `;
+    return user ? toUserResponse(user) : null;
+  },
+
   async findByEmail(email: string): Promise<User | null> {
     const [user] = await sql<any[]>`
       SELECT ${selectUserColumns} FROM users WHERE LOWER(email) = LOWER(${email.trim()})
@@ -159,9 +185,15 @@ export const userRepository = {
     const [passwordHash] = await sql<{ crypt: string }[]>`
       SELECT crypt(${data.password}, gen_salt('bf'))
     `;
-    const [user] = await sql<any[]>`
+    const [createdUser] = await sql<any[]>`
       INSERT INTO users (username, name, email, password_hash, role, status, "createdBy")
-      VALUES (${data.username.trim()}, ${data.name.trim()}, ${data.email?.trim().toLowerCase() || null}, ${passwordHash.crypt}, ${data.role || 'Operator'}, ${data.status || 'Active'}, ${data.createdBy || null})
+      VALUES (${data.username.trim()}, ${data.name.trim()}, ${data.email?.trim().toLowerCase() || null}, ${passwordHash.crypt}, ${data.role || 'Operator'}, ${data.status || 'Active'}, ${data.createdBy || data.createBy || null})
+      RETURNING id
+    `;
+    const [user] = await sql<any[]>`
+      UPDATE users
+      SET "userId" = 'PALITHUB' || id::text
+      WHERE id = ${createdUser.id}
       RETURNING ${selectUserColumns}
     `;
     return toUserResponse(user);

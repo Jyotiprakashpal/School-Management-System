@@ -12,6 +12,24 @@ import { sendPasswordResetEmail, sendPasswordChangedNotification } from '../serv
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
+export const loginUser = async (req: Request, res: Response) => {
+  try {
+    const { username, password } = req.body as { username?: string; password?: string };
+    if (!username?.trim() || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const user = await userRepository.authenticate(username, password);
+    if (!user) return res.status(401).json({ error: 'Invalid username or password' });
+
+    await userRepository.updateLastLogin(user.id);
+    res.json({ token: `session-${user.id}-${Date.now()}`, user });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Unable to sign in' });
+  }
+};
+
 const createNotification = async (req: Request, data: {
   userId?: string;
   title: string;
@@ -110,7 +128,7 @@ export const createUser = async (req: Request<{}, User | { error: string }, Crea
       return res.status(400).json({ error: validationError });
     }
 
-    const { username, name, password, email, role, status } = req.body;
+    const { username, name, password, email, role, status, createdBy } = req.body;
 
     const existingUser = await userRepository.findByUsername(username);
     if (existingUser) {
@@ -124,7 +142,7 @@ export const createUser = async (req: Request<{}, User | { error: string }, Crea
       }
     }
 
-    const user = await userRepository.create({ username, name, password, email, role: role || 'Operator', status: status || 'Active' });
+    const user = await userRepository.create({ username, name, password, email, role: role || 'Operator', status: status || 'Active', createdBy });
 
     getIO(req).to('users').emit('user:created', user);
 

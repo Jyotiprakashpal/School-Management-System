@@ -18,6 +18,8 @@ export function useAppController() {
 
   const logout = () => {
     window.sessionStorage.removeItem("pal-login-time");
+    window.localStorage.removeItem("pal-auth-token");
+    window.sessionStorage.removeItem("pal-auth-token");
     setAuthenticated(false);
     setActiveScreen("Dashboard");
     setSidebarOpen(false);

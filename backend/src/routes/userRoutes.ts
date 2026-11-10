@@ -13,9 +13,12 @@ import {
   toggleUserStatus,
   forgotPassword,
   resetPasswordWithToken,
+  loginUser,
 } from '../controllers/userController.js';
 
 const router: Router = Router();
+
+router.post('/login', loginUser);
 
 // Stats
 router.get('/stats', getUserStats);

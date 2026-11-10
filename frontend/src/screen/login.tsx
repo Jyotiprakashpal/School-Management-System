@@ -1,5 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react"
 import { Button, Input, useToast } from "../components"
+import { post } from "../api/methods"
+import { API_BASE, API_ENDPOINTS } from "../api/endpoints"
 
 type LoginIconName = "arrow" | "book" | "check" | "eye" | "eyeOff" | "lock" | "mail" | "people" | "person" | "shield" | "spark"
 
@@ -86,6 +88,11 @@ type LoginProps = {
   onLogin: () => void
 }
 
+type LoginResponse = {
+  token: string
+  user: { id: number; username: string; name: string; role: string }
+}
+
 export default function Login({ onLogin }: LoginProps) {
   const [username, setUsername] = useState("admin")
   const [password, setPassword] = useState("admin123")
@@ -100,21 +107,46 @@ export default function Login({ onLogin }: LoginProps) {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSubmitting(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 700))
-    onLogin()
+    try {
+      const response = await post<LoginResponse>(`${API_BASE}${API_ENDPOINTS.LOGIN}`, {
+        username: username.trim(),
+        password,
+        rememberMe,
+      })
+      const storage = rememberMe ? window.localStorage : window.sessionStorage
+      storage.setItem("pal-auth-token", response.token)
+      const otherStorage = rememberMe ? window.sessionStorage : window.localStorage
+      otherStorage.removeItem("pal-auth-token")
+      onLogin()
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to sign in. Please try again.", {
+        title: "Sign in failed",
+      })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const sendRecoveryLink = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSendingRecoveryLink(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 700))
-    setSendingRecoveryLink(false)
-    setForgotPasswordOpen(false)
-    setRecoveryEmail("")
-    showToast(
-      "If an account is registered with this email, a password reset link will arrive shortly.",
-      { title: "Check your inbox" },
-    )
+    try {
+      const response = await post<{ message: string }>(
+        `${API_BASE}${API_ENDPOINTS.FORGOT_PASSWORD}`,
+        {
+          email: recoveryEmail.trim(),
+        },
+      )
+      setForgotPasswordOpen(false)
+      setRecoveryEmail("")
+      showToast(response.message, { title: "Check your inbox" })
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to send the reset link.", {
+        title: "Recovery failed",
+      })
+    } finally {
+      setSendingRecoveryLink(false)
+    }
   }
 
   return (
