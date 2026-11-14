@@ -63,6 +63,17 @@ export const sessionRepository = {
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    // Keep existing installations compatible with the current session model.
+    // CREATE TABLE IF NOT EXISTS does not add columns to an older table.
+    await sql`
+      ALTER TABLE academic_sessions
+        ADD COLUMN IF NOT EXISTS "startDate" DATE,
+        ADD COLUMN IF NOT EXISTS "endDate" DATE,
+        ADD COLUMN IF NOT EXISTS current BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS "createdBy" TEXT,
+        ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    `;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_academic_sessions_current ON academic_sessions(current)
     `;

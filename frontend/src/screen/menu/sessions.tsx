@@ -1,7 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { del, get, post, put } from "../../api/methods";
 
 type AcademicSession = {
   current: boolean;
@@ -10,6 +12,8 @@ type AcademicSession = {
   name: string;
   startDate: string;
 };
+
+type SessionPayload = Pick<AcademicSession, "name" | "startDate" | "endDate">;
 
 type SessionIconName = "calendar" | "edit" | "plus" | "star" | "trash";
 
@@ -25,26 +29,36 @@ function SessionIcon({ name, className = "size-5" }: { name: SessionIconName; cl
   return <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{iconPaths[name]}</svg>;
 }
 
-const initialSessions: AcademicSession[] = [
-  { id: 1, name: "2027–28", startDate: "2027-04-01", endDate: "2028-03-31", current: true },
-  { id: 2, name: "2026–27", startDate: "2026-04-01", endDate: "2027-03-31", current: false },
-  { id: 3, name: "2025–26", startDate: "2025-04-01", endDate: "2026-03-31", current: false },
-];
-
 const blankForm = { name: "", startDate: "", endDate: "" };
+
+const sessionUrl = `${API_BASE}${API_ENDPOINTS.SESSIONS}`;
+
+function normalizeSession(session: AcademicSession): AcademicSession {
+  return { ...session, startDate: session.startDate.slice(0, 10), endDate: session.endDate.slice(0, 10) };
+}
 
 function readableDate(value: string) {
   return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 export default function Sessions() {
-  const [sessions, setSessions] = useState(initialSessions);
+  const [sessions, setSessions] = useState<AcademicSession[]>([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(blankForm);
   const [saving, setSaving] = useState(false);
   const [editingSession, setEditingSession] = useState<AcademicSession | null>(null);
   const [editForm, setEditForm] = useState(blankForm);
   const [deletingSession, setDeletingSession] = useState<AcademicSession | null>(null);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    let active = true;
+    void get<AcademicSession[]>(`${sessionUrl}/simple`, { cache: "no-store" })
+      .then((data) => { if (active) setSessions(data.map(normalizeSession)); })
+      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load academic sessions.", { title: "Sessions unavailable", tone: "error" }); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [showToast]);
 
   const currentSession = sessions.find((session) => session.current) ?? sessions[0];
 
@@ -67,17 +81,16 @@ export default function Sessions() {
   const addSession = async () => {
     if (!validate(form)) return;
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 700));
-    setSessions((current) => [...current, {
-      id: Date.now(),
-      name: form.name.trim(),
-      startDate: form.startDate,
-      endDate: form.endDate,
-      current: false,
-    }]);
-    setSaving(false);
-    setForm(blankForm);
-    showToast(`${form.name} has been added. Set it as current when you are ready to use it.`, { title: "Session created" });
+    try {
+      const created = await post<AcademicSession>(sessionUrl, { name: form.name.trim(), startDate: form.startDate, endDate: form.endDate } satisfies SessionPayload);
+      setSessions((current) => [...current, normalizeSession(created)]);
+      setForm(blankForm);
+      showToast(`${created.name} has been added. Set it as current when you are ready to use it.`, { title: "Session created" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to create the session.", { title: "Session creation failed", tone: "error" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openEdit = (session: AcademicSession) => {
@@ -88,26 +101,44 @@ export default function Sessions() {
   const updateSession = async () => {
     if (!editingSession || !validate(editForm, editingSession.id)) return;
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 600));
-    setSessions((current) => current.map((session) => session.id === editingSession.id ? { ...session, ...editForm, name: editForm.name.trim() } : session));
-    setSaving(false);
-    setEditingSession(null);
-    showToast(`${editForm.name} has been updated.`, { title: "Session updated" });
+    try {
+      const updated = await put<AcademicSession>(`${sessionUrl}/${editingSession.id}`, { name: editForm.name.trim(), startDate: editForm.startDate, endDate: editForm.endDate } satisfies SessionPayload);
+      setSessions((current) => current.map((session) => session.id === updated.id ? normalizeSession(updated) : session));
+      setEditingSession(null);
+      showToast(`${updated.name} has been updated.`, { title: "Session updated" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to update the session.", { title: "Session update failed", tone: "error" });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const setCurrent = (session: AcademicSession) => {
-    setSessions((current) => current.map((item) => ({
-      ...item,
-      current: item.id === session.id,
-    })));
-    showToast(`${session.name} is now the current academic session.`, { title: "Current session changed" });
+  const setCurrent = async (session: AcademicSession) => {
+    setSaving(true);
+    try {
+      const currentSession = await put<AcademicSession>(`${sessionUrl}/${session.id}/set-current`);
+      setSessions((current) => current.map((item) => ({ ...item, current: item.id === currentSession.id })));
+      showToast(`${currentSession.name} is now the current academic session.`, { title: "Current session changed" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to change the current session.", { title: "Session change failed", tone: "error" });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const deleteSession = () => {
+  const deleteSession = async () => {
     if (!deletingSession || deletingSession.current) return;
-    setSessions((current) => current.filter((session) => session.id !== deletingSession.id));
-    showToast(`${deletingSession.name} has been deleted.`, { title: "Session deleted", tone: "info" });
-    setDeletingSession(null);
+    setSaving(true);
+    try {
+      await del<{ message: string }>(`${sessionUrl}/${deletingSession.id}`);
+      setSessions((current) => current.filter((session) => session.id !== deletingSession.id));
+      showToast(`${deletingSession.name} has been deleted.`, { title: "Session deleted", tone: "info" });
+      setDeletingSession(null);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to delete the session.", { title: "Session deletion failed", tone: "error" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return <div className="sessions-screen min-h-screen dashboard-bg pb-20">
@@ -123,10 +154,10 @@ export default function Sessions() {
               <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold ring-1 ring-white/20 backdrop-blur-sm"><span className="size-2 rounded-full bg-white shadow-sm" />In use</span>
             </div>
             <div className="mt-4 text-xs font-bold uppercase tracking-widest text-white/70 sm:mt-5">Current session</div>
-            <div className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{currentSession.name}</div>
+            <div className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{loading ? "Loading..." : currentSession?.name ?? "No current session"}</div>
             <div className="mt-4 rounded-xl bg-slate-950/10 p-3 ring-1 ring-white/15">
               <div className="text-xs font-semibold text-white/65">Academic year dates</div>
-              <div className="mt-1 text-xs font-bold leading-5 sm:text-sm">{readableDate(currentSession.startDate)} – {readableDate(currentSession.endDate)}</div>
+              <div className="mt-1 text-xs font-bold leading-5 sm:text-sm">{currentSession ? `${readableDate(currentSession.startDate)} – ${readableDate(currentSession.endDate)}` : "—"}</div>
             </div>
             <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
               {["Attendance", "Fees", "Exams", "Reports"].map((module) => <span key={module} className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[0.65rem] font-semibold text-white/75">{module}</span>)}
@@ -179,7 +210,7 @@ export default function Sessions() {
           </div>
         </div>
         <div className="grid items-start gap-3 p-3.5 sm:grid-cols-2 sm:p-5 2xl:grid-cols-3">
-          {sessions.map((session) => <article key={session.id} className={`session-list-card relative flex min-w-0 flex-col overflow-hidden rounded-2xl border ${session.current ? "session-list-current" : "session-list-archived border-slate-200 bg-white"}`}>
+          {loading ? <div className="col-span-full py-10 text-center text-sm text-slate-400">Loading academic sessions...</div> : sessions.length === 0 ? <div className="col-span-full py-10 text-center text-sm text-slate-400">No academic sessions found.</div> : sessions.map((session) => <article key={session.id} className={`session-list-card relative flex min-w-0 flex-col overflow-hidden rounded-2xl border ${session.current ? "session-list-current" : "session-list-archived border-slate-200 bg-white"}`}>
             <div className="flex-1 p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
