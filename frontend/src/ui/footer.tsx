@@ -1,4 +1,7 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { get } from "../api/methods";
+import { API_BASE, API_ENDPOINTS } from "../api/endpoints";
+import { onSettingsUpdated } from "../api/socket";
 
 type FooterIconName = "facebook" | "globe" | "instagram" | "phone" | "youtube";
 
@@ -23,23 +26,39 @@ const footerItems: { icon: FooterIconName; label: string }[] = [
 ];
 
 export default function Footer() {
+  const [settings, setSettings] = useState<{ schoolName: string; schoolPhone: string; schoolWebsite: string } | null>(null);
+
+  useEffect(() => {
+    void get<{ schoolName: string; schoolPhone: string; schoolWebsite: string }>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`)
+      .then(setSettings)
+      .catch(() => setSettings(null));
+    return onSettingsUpdated((updated) => setSettings(updated));
+  }, []);
+
+  const websiteUrl = settings?.schoolWebsite
+    ? /^https?:\/\//i.test(settings.schoolWebsite) ? settings.schoolWebsite : `https://${settings.schoolWebsite}`
+    : "";
+
   return <footer className="contact-footer relative z-20 flex h-14 w-full min-w-0 max-w-full shrink-0 items-center border-t border-white/10 px-2 text-white shadow-2xl shadow-slate-950/20 lg:px-4">
     <div className="mx-auto flex w-full max-w-screen-2xl min-w-0 items-center gap-3">
       <div className="hidden shrink-0 items-center gap-2 xl:flex">
         <span className="grid size-7 place-items-center rounded-lg border border-white/15 bg-white/10 font-display text-xs font-extrabold shadow-inner">P</span>
-        <span><span className="block font-display text-xs font-bold">PAL IT HUB</span><span className="block text-xs text-white/55">Connected workspace</span></span>
+        <span><span className="block max-w-40 truncate font-display text-xs font-bold">{settings?.schoolName || "School"}</span><span className="block text-xs text-white/55">Connected workspace</span></span>
       </div>
 
       <div className="nav-scroll flex min-w-0 flex-1 items-center justify-start gap-1.5 overflow-x-auto md:justify-center">
-        {footerItems.map((item) => <div key={item.label} className="footer-chip">
-          <span className={`grid size-6 shrink-0 place-items-center rounded-lg ${
+        {footerItems.map((item) => {
+          const label = item.icon === "phone" ? settings?.schoolPhone : item.icon === "globe" ? "Website" : item.label;
+          const content = <><span className={`grid size-6 shrink-0 place-items-center rounded-lg ${
             item.icon === "youtube" ? "bg-red-500 text-white"
               : item.icon === "facebook" ? "bg-blue-600 text-white"
                 : item.icon === "instagram" ? "bg-gradient-to-br from-fuchsia-500 via-rose-500 to-amber-400 text-white"
                   : "bg-white/10 text-white/80"
-          }`}><FooterIcon name={item.icon} /></span>
-          <span>{item.label}</span>
-        </div>)}
+          }`}><FooterIcon name={item.icon} /></span><span>{label || "—"}</span></>;
+          if (item.icon === "globe" && websiteUrl) return <a key={item.label} href={websiteUrl} target="_blank" rel="noreferrer" className="footer-chip">{content}</a>;
+          if (item.icon === "phone" && settings?.schoolPhone) return <a key={item.label} href={`tel:${settings.schoolPhone}`} className="footer-chip">{content}</a>;
+          return <div key={item.label} className="footer-chip">{content}</div>;
+        })}
       </div>
 
       <div className="hidden shrink-0 items-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 2xl:flex">

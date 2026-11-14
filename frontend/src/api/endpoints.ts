@@ -54,6 +54,7 @@ export const API_ENDPOINTS = {
   SALARY: "/salary",
   SESSIONS: "/sessions",
   SETTINGS: "/settings",
+  SETTINGS_LOGO: "/settings/logo",
   ADMIN_SETTINGS: "/admin-settings",
   BACKUP: "/backup",
   DOCUMENTS: "/documents",

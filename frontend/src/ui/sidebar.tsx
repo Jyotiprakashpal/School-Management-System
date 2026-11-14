@@ -1,7 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { navigation, type NavigationIconName } from "../models/navigation";
 import { ThemePicker } from "./theme";
+import { get } from "../api/methods";
+import { API_BASE, API_ENDPOINTS } from "../api/endpoints";
+import { onSettingsUpdated } from "../api/socket";
 
 const iconPaths: Record<NavigationIconName, ReactNode> = {
   admission: <><path d="M12 3v18M3 12h18" /><circle cx="12" cy="12" r="9" /></>,
@@ -44,8 +47,21 @@ type SidebarProps = {
   open: boolean;
 };
 
+type SidebarSettings = {
+  schoolName: string;
+  logo: string | null;
+};
+
 export default function Sidebar({ active, collapsed, onClose, onSelect, onToggleCollapse, open }: SidebarProps) {
   const [tooltip, setTooltip] = useState<{ label: string; top: number } | null>(null);
+  const [schoolSettings, setSchoolSettings] = useState<SidebarSettings | null>(null);
+
+  useEffect(() => {
+    void get<SidebarSettings>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`)
+      .then(setSchoolSettings)
+      .catch(() => setSchoolSettings(null));
+    return onSettingsUpdated((settings) => setSchoolSettings(settings));
+  }, []);
   const showTooltip = (label: string, target: HTMLElement) => {
     if (!collapsed) return;
     const bounds = target.getBoundingClientRect();
@@ -56,8 +72,10 @@ export default function Sidebar({ active, collapsed, onClose, onSelect, onToggle
     {open && <button className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" aria-label="Close navigation overlay" onClick={onClose} />}
     <aside className={`sidebar ${collapsed ? "sidebar-collapsed lg:w-20" : "lg:w-64"} fixed inset-y-0 left-0 z-40 flex w-72 flex-col text-white lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="sidebar-brand relative flex h-20 items-center gap-3 border-b border-white/10 px-5">
-        <div className="sidebar-brand-icon grid size-11 place-items-center rounded-2xl bg-white text-emerald-700 shadow-xl shadow-black/10 ring-1 ring-white/60"><MenuIcon name="book" /></div>
-        <div className={`min-w-0 flex-1 ${collapsed ? "lg:hidden" : ""}`}><div className="font-display truncate text-sm font-extrabold tracking-tight">PAL IT HUB</div><div className="mt-0.5 text-[0.65rem] font-medium truncate text-emerald-100/70">School Management System</div></div>
+        <div className="sidebar-brand-icon grid size-11 place-items-center overflow-hidden rounded-2xl bg-white text-emerald-700 shadow-xl shadow-black/10 ring-1 ring-white/60">
+          {schoolSettings?.logo ? <img src={schoolSettings.logo} alt="School logo" className="size-full object-cover" /> : <MenuIcon name="book" />}
+        </div>
+        <div className={`min-w-0 flex-1 ${collapsed ? "lg:hidden" : ""}`}><div className="font-display truncate text-sm font-extrabold tracking-tight">{schoolSettings?.schoolName || "School"}</div><div className="mt-0.5 text-[0.65rem] font-medium truncate text-emerald-100/70">School Management System</div></div>
         <button onClick={onClose} aria-label="Close navigation" className="grid size-9 place-items-center rounded-lg bg-white/10 text-white lg:hidden"><MenuIcon name="arrow" className="size-4 rotate-180" /></button>
         <button onClick={() => { setTooltip(null); onToggleCollapse(); }} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} aria-expanded={!collapsed} className="sidebar-collapse-toggle absolute -right-3 top-24 z-20 hidden size-7 place-items-center rounded-lg border lg:grid"><SidebarToggleIcon /></button>
       </div>

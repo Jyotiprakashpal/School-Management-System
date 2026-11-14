@@ -1,7 +1,8 @@
-import { useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { Button, Input, useToast } from "../components"
-import { post } from "../api/methods"
+import { get, post } from "../api/methods"
 import { API_BASE, API_ENDPOINTS } from "../api/endpoints"
+import { onSettingsUpdated } from "../api/socket"
 
 type LoginIconName = "arrow" | "book" | "check" | "eye" | "eyeOff" | "lock" | "mail" | "people" | "person" | "shield" | "spark"
 
@@ -93,6 +94,12 @@ type LoginResponse = {
   user: { id: number; username: string; name: string; role: string }
 }
 
+type LoginBranding = {
+  schoolName: string
+  logo: string | null
+  academicYear: string
+}
+
 export default function Login({ onLogin }: LoginProps) {
   const [username, setUsername] = useState("admin")
   const [password, setPassword] = useState("Admin@1234")
@@ -102,7 +109,15 @@ export default function Login({ onLogin }: LoginProps) {
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
   const [recoveryEmail, setRecoveryEmail] = useState("")
   const [sendingRecoveryLink, setSendingRecoveryLink] = useState(false)
+  const [branding, setBranding] = useState<LoginBranding | null>(null)
   const { showToast } = useToast()
+
+  useEffect(() => {
+    void get<LoginBranding>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`)
+      .then(setBranding)
+      .catch(() => setBranding(null))
+    return onSettingsUpdated((updated) => setBranding(updated))
+  }, [])
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -157,12 +172,12 @@ export default function Login({ onLogin }: LoginProps) {
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/20" />
 
           <div className="relative z-10 flex items-center gap-3 p-8 xl:p-10">
-            <div className="grid size-12 place-items-center rounded-2xl border border-white/20 bg-white/15 text-white backdrop-blur-md">
-              <LoginIcon name="book" className="size-6" />
+            <div className="grid size-12 place-items-center overflow-hidden rounded-2xl border border-white/20 bg-white/15 text-white backdrop-blur-md">
+              {branding?.logo ? <img src={branding.logo} alt="School logo" className="size-full object-cover" /> : <LoginIcon name="book" className="size-6" />}
             </div>
             <div>
               <div className="font-display text-lg font-extrabold text-white">
-                PAL IT HUB
+                {branding?.schoolName || "School"}
               </div>
               <div className="mt-0.5 text-xs font-medium text-cyan-100/80">
                 School Management System
@@ -421,7 +436,8 @@ export default function Login({ onLogin }: LoginProps) {
             </div>
           </div>
 
-          <footer className="relative z-10 flex shrink-0 flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-white/10 bg-white/5 px-5 py-2.5 text-xs text-white/45 backdrop-blur-md">
+          <footer className="login-brand-footer relative z-10 flex shrink-0 flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-white/10 bg-white/5 px-5 py-2.5 text-xs text-white/45 backdrop-blur-md">
+            <span className="login-brand-year">© {branding?.academicYear || new Date().getFullYear()} {branding?.schoolName || "School"}</span>
             <span>© 2027 PAL IT HUB</span>
             <span>Privacy</span>
             <span>Support</span>

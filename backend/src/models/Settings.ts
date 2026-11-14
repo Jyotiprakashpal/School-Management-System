@@ -9,6 +9,7 @@ export interface SchoolSettings {
   schoolAddress: string;
   schoolWebsite: string;
   schoolPrincipal: string;
+  logo: string | null;
   academicYear: string;
   weekStart: string;
   language: string;
@@ -39,6 +40,7 @@ export interface UpdateSettingsDto {
   schoolAddress?: string;
   schoolWebsite?: string;
   schoolPrincipal?: string;
+  logo?: string | null;
   academicYear?: string;
   weekStart?: string;
   language?: string;
@@ -67,6 +69,7 @@ function toSettingsResponse(settings: SettingsRow): SchoolSettings {
 
 const selectSettingsColumns = sql`
   id, "schoolName", "schoolCode", "schoolEmail", "schoolPhone", "schoolAddress", "schoolWebsite", "schoolPrincipal",
+  logo,
   "academicYear", "weekStart", language, timezone, "dateFormat", currency,
   "notificationEmail", "notificationSms", "notificationFee", "notificationAttendance", "notificationReports", "notificationProduct",
   theme, density, "securityTwoFactor", "securityLoginAlerts", "sessionTimeout", "createdBy", "createdAt", "updatedAt"
@@ -84,6 +87,7 @@ export const settingsRepository = {
         "schoolAddress" TEXT,
         "schoolWebsite" VARCHAR(200),
         "schoolPrincipal" VARCHAR(120),
+        logo TEXT,
         "academicYear" VARCHAR(20) NOT NULL DEFAULT '2027–28',
         "weekStart" VARCHAR(20) NOT NULL DEFAULT 'Monday',
         language VARCHAR(20) NOT NULL DEFAULT 'English',
@@ -117,6 +121,7 @@ export const settingsRepository = {
         ADD COLUMN IF NOT EXISTS "schoolAddress" TEXT,
         ADD COLUMN IF NOT EXISTS "schoolWebsite" VARCHAR(200),
         ADD COLUMN IF NOT EXISTS "schoolPrincipal" VARCHAR(120),
+        ADD COLUMN IF NOT EXISTS logo TEXT,
         ADD COLUMN IF NOT EXISTS "academicYear" VARCHAR(20) NOT NULL DEFAULT '2027–28',
         ADD COLUMN IF NOT EXISTS "weekStart" VARCHAR(20) NOT NULL DEFAULT 'Monday',
         ADD COLUMN IF NOT EXISTS language VARCHAR(20) NOT NULL DEFAULT 'English',
@@ -165,6 +170,7 @@ export const settingsRepository = {
       schoolAddress: data.schoolAddress ?? current.schoolAddress,
       schoolWebsite: data.schoolWebsite ?? current.schoolWebsite,
       schoolPrincipal: data.schoolPrincipal ?? current.schoolPrincipal,
+      logo: data.logo !== undefined ? data.logo : current.logo,
       academicYear: data.academicYear ?? current.academicYear,
       weekStart: data.weekStart ?? current.weekStart,
       language: data.language ?? current.language,
@@ -193,6 +199,7 @@ export const settingsRepository = {
            "schoolAddress" = ${next.schoolAddress},
            "schoolWebsite" = ${next.schoolWebsite},
            "schoolPrincipal" = ${next.schoolPrincipal},
+           logo = ${next.logo},
            "academicYear" = ${next.academicYear},
            "weekStart" = ${next.weekStart},
            language = ${next.language},

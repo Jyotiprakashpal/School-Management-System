@@ -61,6 +61,28 @@ export const get = <T>(url: string, options?: Omit<RequestOptions, "method" | "b
 export const post = <T>(url: string, body?: unknown, options?: Omit<RequestOptions, "method" | "body">) =>
   request<T>(url, { ...options, method: "POST", body })
 
+export async function upload<T>(url: string, body: FormData): Promise<T> {
+  const token =
+    window.localStorage.getItem("pal-auth-token") ??
+    window.sessionStorage.getItem("pal-auth-token")
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body,
+  })
+  const contentType = response.headers.get("content-type")
+  const payload = contentType?.includes("application/json")
+    ? await response.json()
+    : await response.text()
+  if (!response.ok) {
+    throw new ApiError(getErrorMessage(payload, `Request failed with status ${response.status}`), response.status)
+  }
+  return payload as T
+}
+
 export const put = <T>(url: string, body?: unknown, options?: Omit<RequestOptions, "method" | "body">) =>
   request<T>(url, { ...options, method: "PUT", body })
 

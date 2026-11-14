@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Button, Dropdown, Input, useToast } from "../../components";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { Button, Dropdown, Input, SettingsSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import { useTheme, type ThemeName } from "../../ui/theme";
-import { get, put } from "../../api/methods";
+import { get, put, upload } from "../../api/methods";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { onSettingsUpdated } from "../../api/socket";
 
 type SectionId = "general" | "academic" | "notifications" | "appearance" | "security";
 type IconName = "bell" | "book" | "building" | "check" | "clock" | "globe" | "lock" | "mail" | "palette" | "phone" | "save" | "settings" | "shield";
@@ -32,6 +33,7 @@ type SettingsResponse = {
   securityTwoFactor: boolean;
   securityLoginAlerts: boolean;
   sessionTimeout: number;
+  logo: string | null;
   updatedAt: string;
 };
 
@@ -112,6 +114,9 @@ export default function Settings() {
   });
   const [security, setSecurity] = useState({ twoFactor: true, loginAlerts: true });
   const [loadedSettings, setLoadedSettings] = useState<SettingsResponse | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const { density, setDensity, theme, setTheme } = useTheme();
   const { showToast } = useToast();
 
@@ -147,7 +152,7 @@ export default function Settings() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const settings = await get<SettingsResponse>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`);
+        const settings = await get<SettingsResponse>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`, { cache: "no-store" });
         setLoadedSettings(settings);
         applyFieldValues(settings);
 
@@ -167,10 +172,29 @@ export default function Settings() {
         if (settings.density === "comfortable" || settings.density === "compact") setDensity(settings.density);
       } catch (error) {
         showToast(error instanceof Error ? error.message : "Unable to load settings.", { title: "Settings unavailable", tone: "error" });
+      } finally {
+        setSettingsLoading(false);
       }
     };
 
     void loadSettings();
+    const unsubscribe = onSettingsUpdated((updated) => {
+      const settings = updated as unknown as SettingsResponse;
+      setLoadedSettings(settings);
+      setNotifications({
+        email: settings.notificationEmail,
+        sms: settings.notificationSms,
+        fee: settings.notificationFee,
+        attendance: settings.notificationAttendance,
+        reports: settings.notificationReports,
+        product: settings.notificationProduct,
+      });
+      setSecurity({ twoFactor: settings.securityTwoFactor, loginAlerts: settings.securityLoginAlerts });
+      if (["teal", "violet", "blue", "dark"].includes(settings.theme)) setTheme(settings.theme as ThemeName);
+      if (settings.density === "comfortable" || settings.density === "compact") setDensity(settings.density);
+      applyFieldValues(settings);
+    });
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -225,6 +249,35 @@ export default function Settings() {
   const toggleNotification = (key: keyof typeof notifications) => setNotifications((current) => ({ ...current, [key]: !current[key] }));
   const enabledNotificationCount = Object.values(notifications).filter(Boolean).length;
 
+  const uploadLogo = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      showToast("Please choose a PNG, JPG, or WebP image.", { title: "Invalid logo", tone: "warning" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("The logo must be 5 MB or smaller.", { title: "Logo is too large", tone: "warning" });
+      return;
+    }
+
+    setLogoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("logo", file);
+      const updatedSettings = await upload<SettingsResponse>(`${API_BASE}${API_ENDPOINTS.SETTINGS_LOGO}`, formData);
+      setLoadedSettings(updatedSettings);
+      showToast("Institution logo updated successfully.", { title: "Logo updated" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to upload the logo.", { title: "Logo upload failed", tone: "error" });
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  if (settingsLoading) return <SettingsSkeleton />;
+
   return <div className="min-h-screen dashboard-bg pb-20">
     <Header title="Settings" subtitle="Personalize your institution and application preferences" />
     <main className="mx-auto max-w-7xl p-3 sm:p-6 xl:p-8">
@@ -249,9 +302,10 @@ export default function Settings() {
             <div className="grid gap-4 p-4 sm:grid-cols-2 sm:gap-5 sm:p-6">
               <div className="sm:col-span-2">
                 <div className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:flex-row sm:items-center">
-                  <div className="settings-icon-solid grid size-14 shrink-0 place-items-center rounded-2xl font-display text-lg font-extrabold sm:size-16 sm:text-xl">PH</div>
+                  {loadedSettings?.logo ? <img src={loadedSettings.logo} alt="Institution logo" className="size-14 shrink-0 rounded-2xl object-cover sm:size-16" /> : <div className="settings-icon-solid grid size-14 shrink-0 place-items-center rounded-2xl font-display text-lg font-extrabold sm:size-16 sm:text-xl">PH</div>}
                   <div className="flex-1"><div className="text-sm font-bold text-slate-900">Institution logo</div><p className="mt-1 text-xs leading-5 text-slate-500">Use a square PNG or JPG for the best result on documents.</p></div>
-                  <Button variant="outline" className="w-full sm:w-auto" onClick={() => showToast("Logo upload is ready.", { title: "Choose school logo", tone: "info" })}>Change logo</Button>
+                  <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadLogo} className="hidden" />
+                  <Button variant="outline" className="w-full sm:w-auto" onClick={() => logoInputRef.current?.click()} isLoading={logoUploading} loadingText="Uploading...">Change logo</Button>
                 </div>
               </div>
               <Input id="school-name" label="Institution name" defaultValue="" />

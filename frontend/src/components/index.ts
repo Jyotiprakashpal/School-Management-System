@@ -11,6 +11,7 @@ export { default as PremiumPagination } from "./PremiumPagination";
 export type { PremiumPaginationProps } from "./PremiumPagination";
 export { default as PasswordChangePopup } from "./PasswordChangePopup";
 export { default as SignOutPopup } from "./SignOutPopup";
+export { default as SettingsSkeleton } from "./SettingsSkeleton";
 export { default as TerminateSessionPopup } from "./TerminateSessionPopup";
 export { Calendar } from "./calendar";
 export { ToastProvider, useToast } from "./Toast";
