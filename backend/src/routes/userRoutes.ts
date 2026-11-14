@@ -12,7 +12,6 @@ import {
   terminateSession,
   toggleUserStatus,
   forgotPassword,
-  resetPasswordWithToken,
   loginUser,
   changePassword,
 } from '../controllers/userController.js';
@@ -39,8 +38,7 @@ router.put('/:id/status', toggleUserStatus);
 router.delete('/:id', deleteUser);
 
 // Password reset
-router.post('/admin-reset-password', resetPassword);
+router.post('/reset-password', resetPassword);
 router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPasswordWithToken);
 
 export default router;

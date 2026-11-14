@@ -48,6 +48,22 @@ export const userSessionRepository = {
     `;
   },
 
+  async findPage(cursor?: string, limit = 20): Promise<{ data: UserSession[]; hasMore: boolean }> {
+    const pageSize = Math.min(100, Math.max(1, limit));
+    const rows = await sql<UserSession[]>`
+      SELECT s.id, s."userId" AS "userId", u.username, u.name AS "user",
+        s.device, s.location, s.token, s."createdAt" AS "createdAt", s."lastActive" AS "lastActive",
+        CASE WHEN s."lastActive" > NOW() - INTERVAL '15 minutes' THEN 'Active' ELSE 'Inactive' END AS active
+      FROM user_sessions s
+      INNER JOIN users u ON u.id = s."userId"
+      WHERE s."lastActive" > NOW() - INTERVAL '30 days'
+        AND (${cursor || null}::timestamptz IS NULL OR s."lastActive" < ${cursor || null}::timestamptz)
+      ORDER BY s."lastActive" DESC
+      LIMIT ${pageSize + 1}
+    `;
+    return { data: rows.slice(0, pageSize), hasMore: rows.length > pageSize };
+  },
+
   async terminate(id: number): Promise<boolean> {
     const result = await sql`DELETE FROM user_sessions WHERE id = ${id}`;
     return result.count > 0;

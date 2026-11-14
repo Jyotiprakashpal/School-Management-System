@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button, Dropdown, Input, TerminateSessionPopup, UserManagementSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
@@ -24,13 +24,15 @@ type LoginSession = {
   user: string;
   current?: boolean;
 };
-type IconName = "activity" | "calendar" | "check" | "close" | "key" | "lock" | "plus" | "settings" | "shield" | "users";
+type IconName = "activity" | "calendar" | "check" | "close" | "eye" | "eyeOff" | "key" | "lock" | "plus" | "settings" | "shield" | "users";
 
 const iconPaths: Record<IconName, ReactNode> = {
   activity: <><path d="M3 12h4l2-6 4 12 2-6h6" /><circle cx="12" cy="12" r="9" /></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></>,
   check: <path d="m5 12 4 4L19 6" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="2.5" /></>,
+  eyeOff: <><path d="m3 3 18 18M10.6 6.2A9.8 9.8 0 0 1 12 6c6.5 0 10 6 10 6a16 16 0 0 1-2.1 2.8M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6a9.7 9.7 0 0 0 3.8-.8" /><path d="M10.5 10.5a2.1 2.1 0 0 0 3 3" /></>,
   key: <><circle cx="8" cy="15" r="4" /><path d="m11 12 8-8m-3 3 2 2m-5 1 2 2" /></>,
   lock: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
   plus: <path d="M12 5v14M5 12h14" />,
@@ -67,6 +69,9 @@ export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<RoleRecord[]>([]);
   const [sessions, setSessions] = useState<LoginSession[]>([]);
+  const [sessionsHasMore, setSessionsHasMore] = useState(false);
+  const [sessionsLoadingMore, setSessionsLoadingMore] = useState(false);
+  const sessionsCursorRef = useRef<string | undefined>(undefined);
   const [loaded, setLoaded] = useState({ users: false, roles: false, sessions: false });
   const [selectedResetUser, setSelectedResetUser] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
@@ -82,14 +87,30 @@ export default function UserManagement() {
     return () => { active = false; };
   }, [showToast]);
 
+  const loadMoreSessions = async () => {
+    const cursor = sessionsCursorRef.current;
+    if (!cursor || !sessionsHasMore || sessionsLoadingMore) return;
+    setSessionsLoadingMore(true);
+    try {
+      const response = await get<{ data: LoginSession[]; hasMore: boolean; nextCursor: string | null }>(`${API_BASE}${API_ENDPOINTS.USER}/sessions?limit=20&cursor=${encodeURIComponent(cursor)}`, { cache: "no-store" });
+      setSessions((current) => [...current, ...response.data]);
+      sessionsCursorRef.current = response.nextCursor ?? undefined;
+      setSessionsHasMore(response.hasMore);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to load more sessions.", { title: "Sessions unavailable", tone: "error" });
+    } finally {
+      setSessionsLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
     if (!selectedResetUser && users[0]) setSelectedResetUser(String(users[0].id));
   }, [selectedResetUser, users]);
 
   useEffect(() => {
     let active = true;
-    void get<{ data: LoginSession[] }>(`${API_BASE}${API_ENDPOINTS.USER}/sessions`, { cache: "no-store" })
-      .then((response) => { if (active) setSessions(response.data); })
+    void get<{ data: LoginSession[]; hasMore: boolean; nextCursor: string | null }>(`${API_BASE}${API_ENDPOINTS.USER}/sessions?limit=20`, { cache: "no-store" })
+      .then((response) => { if (active) { setSessions(response.data); sessionsCursorRef.current = response.nextCursor ?? undefined; setSessionsHasMore(response.hasMore); } })
       .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load active sessions.", { title: "Sessions unavailable", tone: "error" }); })
       .finally(() => { if (active) setLoaded((current) => ({ ...current, sessions: true })); });
     return () => { active = false; };
@@ -149,12 +170,27 @@ export default function UserManagement() {
   const resetPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formElement = event.currentTarget;
-    setResettingPassword(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 600));
-    setResettingPassword(false);
+    const newPassword = String(new FormData(formElement).get("newPassword") ?? "");
     const user = users.find((item) => String(item.id) === selectedResetUser);
-    showToast(`A new password has been set for ${user?.name ?? "the selected user"}.`, { title: "Password reset" });
-    formElement.reset();
+
+    if (!user) {
+      showToast("Select a user before resetting the password.", { title: "Password reset failed", tone: "error" });
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      await post<User>(`${API_BASE}${API_ENDPOINTS.RESET_PASSWORD}`, { userId: user.id, newPassword });
+      showToast(`A new password has been set for ${user.name}.`, { title: "Password reset" });
+      formElement.reset();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to reset the password.", {
+        title: "Password reset failed",
+        tone: "error",
+      });
+    } finally {
+      setResettingPassword(false);
+    }
   };
 
   const notify = (title: string, message: string) => showToast(message, { title });
@@ -168,7 +204,8 @@ export default function UserManagement() {
         {tabs.map((tab) => <Button key={tab.id} variant={activeTab === tab.id ? "primary" : "outline"} className="!inline-flex min-h-11 items-center justify-center gap-2 px-2 sm:px-4" onClick={() => setActiveTab(tab.id)} icon={<Icon name={tab.icon} />}>{tab.label}</Button>)}
       </nav>
 
-      {activeTab === "users" && <UsersAndPermissions
+      <div className={activeTab === "users" ? "" : "hidden"}>
+        <UsersAndPermissions
         users={users}
         creatingUser={creatingUser}
         resettingPassword={resettingPassword}
@@ -179,9 +216,10 @@ export default function UserManagement() {
         onNotify={notify}
         roles={roles}
         onChangeRole={changeUserRole}
-      />}
-      {activeTab === "activity" && <ActivityLog />}
-      {activeTab === "sessions" && <Sessions sessions={sessions} onTerminate={async (id) => {
+        />
+      </div>
+      <div className={activeTab === "activity" ? "" : "hidden"}><ActivityLog /></div>
+      <div className={activeTab === "sessions" ? "" : "hidden"}><Sessions sessions={sessions} hasMore={sessionsHasMore} loadingMore={sessionsLoadingMore} onLoadMore={loadMoreSessions} onTerminate={async (id) => {
         try {
           await post(`${API_BASE}${API_ENDPOINTS.USER}/sessions/${id}/terminate`);
           setSessions((current) => current.filter((session) => session.id !== id));
@@ -189,7 +227,7 @@ export default function UserManagement() {
         } catch (error) {
           notify("Session termination failed", error instanceof Error ? error.message : "Failed to terminate the session.");
         }
-      }} />}
+      }} /></div>
     </main>
   </div>;
 }
@@ -221,6 +259,7 @@ function UsersAndPermissions({
   const [roleUser, setRoleUser] = useState<User | null>(null);
   const [roleValue, setRoleValue] = useState("");
   const [roleSaving, setRoleSaving] = useState(false);
+  const [resetPasswordVisible, setResetPasswordVisible] = useState(false);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({
     "Student Management": true,
     "Fee Collection": true,
@@ -301,7 +340,12 @@ function UsersAndPermissions({
         <form onSubmit={onResetPassword}>
           <div className="space-y-4 p-5">
             <Dropdown id="reset-user" label="Select user" value={selectedResetUser} onChange={(event) => onSelectResetUser(event.target.value)} options={users.map((user) => ({ label: `${user.name} (${user.username})`, value: String(user.id) }))} />
-            <Input id="new-password" type="password" label="New password" placeholder="Minimum 6 characters" minLength={6} required />
+            <div className="relative">
+              <Input id="new-password" name="newPassword" type={resetPasswordVisible ? "text" : "password"} label="New password" placeholder="Minimum 6 characters" minLength={6} className="pr-12" required />
+              <Button type="button" variant="outline" onClick={() => setResetPasswordVisible((visible) => !visible)} className="!absolute !bottom-1 !right-1 !grid !size-9 !min-h-9 !place-items-center !rounded-lg !border-0 !bg-transparent !p-0 text-teal-600 !shadow-none hover:!bg-teal-50" aria-label={resetPasswordVisible ? "Hide new password" : "Show new password"}>
+                <Icon name={resetPasswordVisible ? "eyeOff" : "eye"} className="size-5" />
+              </Button>
+            </div>
           </div>
           <div className="user-form-footer border-t border-slate-100 bg-slate-50/60 p-4 sm:flex sm:justify-end sm:px-5"><Button type="submit" className="w-full sm:w-auto" isLoading={resettingPassword} loadingText="Resetting..." icon={<Icon name="key" />}>Reset Password</Button></div>
         </form>
@@ -419,20 +463,44 @@ function UsersAndPermissions({
 function ActivityLog() {
   const [activities, setActivities] = useState<{ user: string; action: string; target: string; date: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const cursorRef = useRef<string | undefined>(undefined);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    let active = true;
-    void get<{ data: { user: string; action: string; target: string; date: string }[] }>(`${API_BASE}${API_ENDPOINTS.USER}/activity?limit=50`, { cache: "no-store" })
-      .then((response) => { if (active) setActivities(response.data); })
-      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load activity.", { title: "Activity unavailable", tone: "error" }); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+  const loadActivities = useCallback(async (cursor?: string) => {
+    if (cursor) setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ limit: "20" });
+      if (cursor) params.set("cursor", cursor);
+      const response = await get<{ data: { user: string; action: string; target: string; date: string }[]; nextCursor: string | null; hasMore: boolean }>(`${API_BASE}${API_ENDPOINTS.USER}/activity?${params.toString()}`, { cache: "no-store" });
+      setActivities((current) => cursor ? [...current, ...response.data] : response.data);
+      cursorRef.current = response.nextCursor ?? undefined;
+      setHasMore(response.hasMore);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to load activity.", { title: "Activity unavailable", tone: "error" });
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
   }, [showToast]);
+
+  useEffect(() => { void loadActivities(); }, [loadActivities]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || !hasMore) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && !loadingMore && cursorRef.current) void loadActivities(cursorRef.current);
+    }, { rootMargin: "240px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loadActivities]);
 
   return <section className="user-activity-panel panel">
     <PanelTitle title="Account Activity Log" icon="activity" />
-    <div className="divide-y divide-slate-100">{loading ? <div className="p-6 text-center text-sm text-slate-400">Loading activity...</div> : activities.length === 0 ? <div className="p-6 text-center text-sm text-slate-400">No activity found.</div> : activities.map(({ user, action, target, date }) => <div key={`${user}-${date}-${action}`} className="user-activity-row relative m-3 flex flex-col gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/60 p-4 shadow-lg shadow-slate-900/5 sm:m-0 sm:flex-row sm:items-center sm:rounded-none sm:border-0 sm:bg-white sm:p-5 sm:shadow-none">
+    <div className="divide-y divide-slate-100">{loading ? <div className="p-6 text-center text-sm text-slate-400">Loading activity...</div> : activities.length === 0 ? <div className="p-6 text-center text-sm text-slate-400">No activity found.</div> : activities.map(({ user, action, target, date }, index) => <div key={`${user}-${date}-${action}-${index}`} className="user-activity-row relative m-3 flex flex-col gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/60 p-4 shadow-lg shadow-slate-900/5 sm:m-0 sm:flex-row sm:items-center sm:rounded-none sm:border-0 sm:bg-white sm:p-5 sm:shadow-none">
       <span className="absolute inset-y-0 left-0 w-1 bg-(--app-accent) sm:hidden" />
       <div className="flex items-center gap-3 sm:contents">
         <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,var(--app-accent),var(--app-accent-dark))] font-display text-sm font-extrabold text-white shadow-md shadow-slate-900/10 ring-2 ring-white sm:size-10 sm:rounded-xl sm:shadow-sm sm:ring-0">{user.charAt(0)}</div>
@@ -440,17 +508,28 @@ function ActivityLog() {
       </div>
       <div className="rounded-xl border border-slate-100 bg-white/80 p-3 shadow-sm sm:hidden"><div className="text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">{action}</div><div className="mt-1.5 text-xs font-semibold text-slate-700">{target}</div></div>
       <span className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-500 sm:block sm:bg-transparent sm:p-0 sm:text-slate-400"><span className="sm:hidden">Activity time</span><span className="font-semibold sm:font-normal">{new Date(date).toLocaleString()}</span></span>
-    </div>)}</div>
+    </div>)}{hasMore && <div ref={loadMoreRef} className="p-4 text-center text-sm text-slate-400">{loadingMore ? "Loading more activity..." : "Scroll to load more"}</div>}</div>
   </section>;
 }
 
-function Sessions({ sessions, onTerminate }: { sessions: LoginSession[]; onTerminate: (id: number) => void | Promise<void> }) {
+function Sessions({ sessions, hasMore, loadingMore, onLoadMore, onTerminate }: { sessions: LoginSession[]; hasMore: boolean; loadingMore: boolean; onLoadMore: () => void | Promise<void>; onTerminate: (id: number) => void | Promise<void> }) {
   const [sessionToTerminate, setSessionToTerminate] = useState<LoginSession | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const confirmTerminate = () => {
     if (!sessionToTerminate) return;
     void onTerminate(sessionToTerminate.id);
     setSessionToTerminate(null);
   };
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || !hasMore) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && !loadingMore) void onLoadMore();
+    }, { rootMargin: "240px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, onLoadMore]);
 
   return <>
   <section className="user-sessions-panel panel">
@@ -474,7 +553,7 @@ function Sessions({ sessions, onTerminate }: { sessions: LoginSession[]; onTermi
       <div className="hidden text-sm text-slate-600 sm:block">{session.device}</div>
       <div className="hidden sm:block"><div className="text-sm text-slate-600">{session.location}</div><div className="mt-1 text-xs text-emerald-600">{session.active}</div></div>
       <div className="hidden sm:block sm:text-right">{session.current ? <span className="status-success">Current</span> : <Button variant="danger" onClick={() => setSessionToTerminate(session)}>Terminate</Button>}</div>
-    </div>)}</div>
+    </div>)}{hasMore && <div ref={loadMoreRef} className="p-4 text-center text-sm text-slate-400">{loadingMore ? "Loading more sessions..." : "Scroll to load more"}</div>}</div>
   </section>
   <TerminateSessionPopup
     open={Boolean(sessionToTerminate)}

@@ -30,6 +30,7 @@ export interface NotificationQuery {
   isRead?: boolean;
   type?: string;
   entityType?: string;
+  cursor?: string;
 }
 
 type NotificationRow = Omit<Notification, 'createdAt'> & { createdAt: string };
@@ -58,6 +59,17 @@ export const notificationRepository = {
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    // Existing deployments may have created this table before all notification
+    // fields were introduced. Keep the activity API compatible with them.
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "userId" TEXT`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS title VARCHAR(200) DEFAULT 'Account activity'`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS message TEXT DEFAULT 'An account change was recorded'`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'info'`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "entityType" VARCHAR(20) DEFAULT 'user'`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "entityId" TEXT`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "isRead" BOOLEAN DEFAULT false`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW()`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications("userId")
     `;
@@ -67,6 +79,26 @@ export const notificationRepository = {
     await sql`
       CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications("isRead")
     `;
+  },
+
+  async seedActivity(): Promise<void> {
+    const [{ count }] = await sql<{ count: number }[]>`SELECT COUNT(*)::int AS count FROM notifications`;
+    if (count > 0) return;
+
+    const [user] = await sql<{ userId: string; name: string }[]>`
+      SELECT "userId", name FROM users ORDER BY id LIMIT 1
+    `;
+    if (!user) return;
+
+    await this.create({
+      userId: user.userId,
+      createdBy: user.userId,
+      title: 'Account activity',
+      message: `${user.name} account is ready to use`,
+      type: 'success',
+      entityType: 'user',
+      entityId: user.userId,
+    });
   },
 
   async create(data: CreateNotificationDto): Promise<Notification> {
@@ -102,6 +134,7 @@ export const notificationRepository = {
     const isRead = params.isRead !== undefined ? params.isRead : null;
     const type = params.type || null;
     const entityType = params.entityType || null;
+    const cursor = params.cursor || null;
 
     const notifications = await sql<NotificationRow[]>`
       SELECT ${selectNotificationColumns}
@@ -110,6 +143,7 @@ export const notificationRepository = {
         AND (${isRead}::boolean IS NULL OR "isRead" = ${isRead})
         AND (${type}::text IS NULL OR type = ${type})
         AND (${entityType}::text IS NULL OR "entityType" = ${entityType})
+        AND (${cursor}::timestamptz IS NULL OR "createdAt" < ${cursor}::timestamptz)
       ORDER BY "createdAt" DESC
       LIMIT ${limit} OFFSET ${offset}
     `;

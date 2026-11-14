@@ -8,7 +8,7 @@ import {
   UserQuery
 } from '../models/User.js';
 import { notificationRepository } from '../models/Notification.js';
-import { sendPasswordResetEmail, sendPasswordChangedNotification } from '../services/emailService.js';
+import { sendPasswordResetEmail } from '../services/emailService.js';
 import { userSessionRepository } from '../models/UserSession.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
@@ -344,27 +344,44 @@ export const getUserStats = async (_req: Request, res: Response<{
   }
 };
 
-export const getUserActivity = async (req: Request<{}, {}, {}, { userId?: string; limit?: string }>, res: Response<any | { error: string }>) => {
+export const getUserActivity = async (req: Request<{}, {}, {}, { userId?: string; limit?: string; cursor?: string }>, res: Response<any | { error: string }>) => {
   try {
     const userId = req.query.userId ? parseInt(req.query.userId as string, 10) : undefined;
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string || '50', 10)));
+    const cursor = req.query.cursor || undefined;
 
-    const notifications = await notificationRepository.findMany({
+    let notifications = await notificationRepository.findMany({
       limit,
       userId: userId ? String(userId) : undefined,
+      cursor,
+    });
+    if (notifications.total === 0 && !userId && !cursor) {
+      await notificationRepository.seedActivity();
+      notifications = await notificationRepository.findMany({ limit });
+    }
+
+    const users = await userRepository.findMany({ limit: 100 });
+    const userNames = new Map<string, string>();
+    users.data.forEach((user) => {
+      userNames.set(String(user.id), user.name);
+      userNames.set(user.userId, user.name);
     });
     res.json({
       data: notifications.data.map((item) => ({
-        user: item.createdBy || item.userId || 'System',
-        action: item.title,
-        target: item.message,
+        user: userNames.get(item.createdBy || '') || userNames.get(item.userId || '') || item.createdBy || 'System',
+        action: item.title || 'Account activity',
+        target: item.message || 'An account change was recorded',
         date: item.createdAt,
         type: item.type,
       })),
       total: notifications.total,
       page: 1,
       limit,
-      totalPages: Math.ceil(notifications.total / limit)
+      totalPages: Math.ceil(notifications.total / limit),
+      nextCursor: notifications.data.length === limit
+        ? notifications.data[notifications.data.length - 1].createdAt.toISOString()
+        : null,
+      hasMore: notifications.data.length === limit,
     });
   } catch (error) {
     console.error('Get user activity error:', error);
@@ -372,12 +389,14 @@ export const getUserActivity = async (req: Request<{}, {}, {}, { userId?: string
   }
 };
 
-export const getUserSessions = async (req: Request<{ userId?: string }>, res: Response<any | { error: string }>) => {
+export const getUserSessions = async (req: Request<{}, {}, {}, { cursor?: string; limit?: string }>, res: Response<any | { error: string }>) => {
   try {
-    const sessions = await userSessionRepository.findAll();
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const sessions = await userSessionRepository.findPage(req.query.cursor, limit);
     const authorization = req.headers.authorization;
     const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : '';
-    res.json({ data: sessions.map(({ token: sessionToken, ...session }) => ({ ...session, current: sessionToken === token })) });
+    const data = sessions.data.map(({ token: sessionToken, ...session }) => ({ ...session, current: sessionToken === token }));
+    res.json({ data, hasMore: sessions.hasMore, nextCursor: data.length > 0 ? data[data.length - 1].lastActive : null });
   } catch (error) {
     console.error('Get user sessions error:', error);
     res.status(500).json({ error: 'Failed to fetch user sessions' });
@@ -464,39 +483,3 @@ export const forgotPassword = async (req: Request<{}, { message: string } | { er
   }
 };
 
-export const resetPasswordWithToken = async (req: Request<{}, User | { message: string } | { error: string }, { token: string; newPassword: string }>, res: Response<User | { message: string } | { error: string }>) => {
-  try {
-    const { token, newPassword } = req.body;
-
-    if (!token || !token.trim()) {
-      return res.status(400).json({ error: 'Reset token is required' });
-    }
-
-    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-
-    const user = await userRepository.resetPassword(token, newPassword);
-    
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
-    }
-
-    await sendPasswordChangedNotification(user.email || '', user.name);
-
-    getIO(req).to('users').emit('user:updated', user);
-
-    await createNotification(req, {
-      title: 'Password Reset',
-      message: `Your password has been successfully reset`,
-      type: 'success',
-      entityType: 'user',
-      entityId: user.id.toString()
-    });
-
-    res.json({ message: 'Password has been successfully reset' });
-  } catch (error) {
-    console.error('Reset password with token error:', error);
-    res.status(500).json({ error: 'Failed to reset password' });
-  }
-};

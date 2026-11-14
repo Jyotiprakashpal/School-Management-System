@@ -31,6 +31,7 @@ export async function initializeDatabase(): Promise<void> {
   await admissionEnquiryRepository.initializeTable();
   await settingsRepository.initializeTable();
   await notificationRepository.initializeTable();
+  await notificationRepository.seedActivity();
   await admissionRepository.initializeTable();
   await archivedStudentRepository.initializeTable();
   await promotionRepository.initializeTable();
