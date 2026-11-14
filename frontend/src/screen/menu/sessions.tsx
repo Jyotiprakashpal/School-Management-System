@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Button, Input, useToast } from "../../components";
+import { Button, Input, SessionSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
@@ -140,6 +140,8 @@ export default function Sessions() {
       setSaving(false);
     }
   };
+
+  if (loading) return <SessionSkeleton />;
 
   return <div className="sessions-screen min-h-screen dashboard-bg pb-20">
     <Header title="Sessions" subtitle="Manage academic years" />

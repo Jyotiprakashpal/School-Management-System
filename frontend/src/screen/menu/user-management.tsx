@@ -136,6 +136,12 @@ export default function UserManagement() {
     }
   };
 
+  const changeUserRole = async (userId: number, role: Role) => {
+    const updated = await put<User>(`${API_BASE}${API_ENDPOINTS.USER}/${userId}`, { role });
+    setUsers((current) => current.map((user) => user.id === updated.id ? updated : user));
+    return updated;
+  };
+
   const resetPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -166,6 +172,7 @@ export default function UserManagement() {
         onSelectResetUser={setSelectedResetUser}
         onNotify={notify}
         roles={roles}
+        onChangeRole={changeUserRole}
       />}
       {activeTab === "activity" && <ActivityLog />}
       {activeTab === "sessions" && <Sessions sessions={sessions} onTerminate={async (id) => {
@@ -191,6 +198,7 @@ function UsersAndPermissions({
   onSelectResetUser,
   onNotify,
   roles,
+  onChangeRole,
 }: {
   users: User[];
   creatingUser: boolean;
@@ -201,8 +209,12 @@ function UsersAndPermissions({
   onSelectResetUser: (value: string) => void;
   onNotify: (title: string, message: string) => void;
   roles: RoleRecord[];
+  onChangeRole: (userId: number, role: Role) => Promise<User>;
 }) {
   const [permissionUser, setPermissionUser] = useState<User | null>(null);
+  const [roleUser, setRoleUser] = useState<User | null>(null);
+  const [roleValue, setRoleValue] = useState("");
+  const [roleSaving, setRoleSaving] = useState(false);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({
     "Student Management": true,
     "Fee Collection": true,
@@ -237,6 +249,25 @@ function UsersAndPermissions({
       onNotify("Permissions updated", `${permissionUser.name}'s module access has been saved.`);
     } catch (error) {
       onNotify("Permission update failed", error instanceof Error ? error.message : "Failed to save role permissions.");
+    }
+  };
+
+  const openRoleChange = (user: User) => {
+    setRoleUser(user);
+    setRoleValue(user.role);
+  };
+
+  const saveRole = async () => {
+    if (!roleUser || !roleValue) return;
+    setRoleSaving(true);
+    try {
+      const updated = await onChangeRole(roleUser.id, roleValue as Role);
+      setRoleUser(null);
+      onNotify("Role updated", `${updated.name} is now assigned the ${updated.role} role.`);
+    } catch (error) {
+      onNotify("Role update failed", error instanceof Error ? error.message : "Failed to change the user role.");
+    } finally {
+      setRoleSaving(false);
     }
   };
 
@@ -298,13 +329,25 @@ function UsersAndPermissions({
             </div>
           </div>
           <div className="user-account-footer border-t border-slate-100 bg-white/80 p-3 sm:bg-slate-50/60">
-            {user.role === "Superadmin"
-              ? <div className="flex items-center justify-center gap-2 py-2 text-xs font-semibold text-slate-500"><Icon name="shield" className="size-4 text-teal-600" />Full system access</div>
-              : <Button variant="outline" fullWidth className="!inline-flex min-h-10 items-center justify-center gap-2" onClick={() => setPermissionUser(user)} icon={<Icon name="shield" className="size-4 text-teal-600" />}>Manage Permissions</Button>}
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" fullWidth className="!inline-flex min-h-10 items-center justify-center gap-2" onClick={() => setPermissionUser(user)} icon={<Icon name="shield" className="size-4 text-teal-600" />}>Manage Permissions</Button>
+              <Button variant="outline" fullWidth className="!inline-flex min-h-10 items-center justify-center gap-2" onClick={() => openRoleChange(user)} icon={<Icon name="settings" className="size-4 text-teal-600" />}>Change Role</Button>
+            </div>
           </div>
         </article>)}
       </div>
     </section>
+
+    {roleUser && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4 backdrop-blur-sm" role="presentation" onMouseDown={() => !roleSaving && setRoleUser(null)}>
+      <section className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4">
+          <div><h2 className="font-display text-lg font-bold text-slate-900">Change user role</h2><p className="mt-1 text-sm text-slate-500">Update the access role for {roleUser.name}.</p></div>
+          <Button variant="outline" aria-label="Close" className="!grid !size-9 !min-h-9 !place-items-center !p-0" onClick={() => setRoleUser(null)}><Icon name="close" className="size-4" /></Button>
+        </div>
+        <div className="mt-5"><Dropdown label="Role" value={roleValue} onChange={(event) => setRoleValue(event.target.value)} options={roles.map((role) => ({ label: role.roleName, value: role.roleName }))} /></div>
+        <div className="mt-6 flex justify-end gap-2"><Button variant="outline" onClick={() => setRoleUser(null)} disabled={roleSaving}>Cancel</Button><Button onClick={() => void saveRole()} isLoading={roleSaving} loadingText="Updating...">Update Role</Button></div>
+      </section>
+    </div>}
 
     {permissionUser && <div className="fixed inset-0 z-50 grid items-end bg-slate-950/55 backdrop-blur-sm sm:place-items-center sm:p-5" role="presentation" onMouseDown={() => setPermissionUser(null)}>
       <section className="premium-modal flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white sm:max-h-[92dvh] sm:rounded-3xl" role="dialog" aria-modal="true" aria-labelledby="permission-title" onMouseDown={(event) => event.stopPropagation()}>

@@ -2536,6 +2536,48 @@
   border-color: #263244;
 }
 
+[data-theme] .session-skeleton-hero {
+  border-color: color-mix(in srgb, var(--app-accent) 55%, white);
+  background:
+    radial-gradient(circle at 85% 15%, color-mix(in srgb, var(--app-accent) 58%, white), transparent 19rem),
+    linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark));
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--app-dark-end) 18%, transparent);
+}
+
+[data-theme="dark"] .session-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .session-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .session-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .session-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .session-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .session-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .session-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
 [data-theme] .form-input:focus {
   border-color: var(--app-accent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-accent) 10%, transparent);

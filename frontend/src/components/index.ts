@@ -9,6 +9,7 @@ export { default as ISTClock } from "./ISTClock";
 export { default as Loader } from "./Loader";
 export { default as PremiumPagination } from "./PremiumPagination";
 export type { PremiumPaginationProps } from "./PremiumPagination";
+export { default as SessionSkeleton } from "./SessionSkeleton";
 export { default as PasswordChangePopup } from "./PasswordChangePopup";
 export { default as SignOutPopup } from "./SignOutPopup";
 export { default as SettingsSkeleton } from "./SettingsSkeleton";
