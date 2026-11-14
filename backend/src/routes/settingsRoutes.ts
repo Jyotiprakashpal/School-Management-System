@@ -4,6 +4,7 @@ import { getSettings, updateSettings } from '../controllers/settingsController.j
 const router: Router = Router();
 
 router.get('/', getSettings);
+router.post('/', updateSettings);
 router.put('/', updateSettings);
 
 export default router;

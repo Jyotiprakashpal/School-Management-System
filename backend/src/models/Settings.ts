@@ -106,6 +106,39 @@ export const settingsRepository = {
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+
+    // Keep existing installations compatible when new settings columns are added.
+    await sql`
+      ALTER TABLE school_settings
+        ADD COLUMN IF NOT EXISTS "schoolName" VARCHAR(120) NOT NULL DEFAULT 'School Name',
+        ADD COLUMN IF NOT EXISTS "schoolCode" VARCHAR(80) NOT NULL DEFAULT 'SCH-001',
+        ADD COLUMN IF NOT EXISTS "schoolEmail" VARCHAR(120) NOT NULL DEFAULT 'admin@school.edu',
+        ADD COLUMN IF NOT EXISTS "schoolPhone" VARCHAR(40) NOT NULL DEFAULT '+91 00000 00000',
+        ADD COLUMN IF NOT EXISTS "schoolAddress" TEXT,
+        ADD COLUMN IF NOT EXISTS "schoolWebsite" VARCHAR(200),
+        ADD COLUMN IF NOT EXISTS "schoolPrincipal" VARCHAR(120),
+        ADD COLUMN IF NOT EXISTS "academicYear" VARCHAR(20) NOT NULL DEFAULT '2027–28',
+        ADD COLUMN IF NOT EXISTS "weekStart" VARCHAR(20) NOT NULL DEFAULT 'Monday',
+        ADD COLUMN IF NOT EXISTS language VARCHAR(20) NOT NULL DEFAULT 'English',
+        ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) NOT NULL DEFAULT 'Asia/Kolkata',
+        ADD COLUMN IF NOT EXISTS "dateFormat" VARCHAR(20) NOT NULL DEFAULT 'DD MMM YYYY',
+        ADD COLUMN IF NOT EXISTS currency VARCHAR(10) NOT NULL DEFAULT 'INR',
+        ADD COLUMN IF NOT EXISTS "notificationEmail" BOOLEAN NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS "notificationSms" BOOLEAN NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS "notificationFee" BOOLEAN NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS "notificationAttendance" BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS "notificationReports" BOOLEAN NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS "notificationProduct" BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS theme VARCHAR(20) NOT NULL DEFAULT 'teal',
+        ADD COLUMN IF NOT EXISTS density VARCHAR(20) NOT NULL DEFAULT 'comfortable',
+        ADD COLUMN IF NOT EXISTS "securityTwoFactor" BOOLEAN NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS "securityLoginAlerts" BOOLEAN NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS "sessionTimeout" INTEGER NOT NULL DEFAULT 30,
+        ADD COLUMN IF NOT EXISTS "createdBy" TEXT,
+        ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    `;
+
     // Insert default row if not exists
     await sql`
       INSERT INTO school_settings (id) VALUES (1)

@@ -305,6 +305,10 @@
   .status-warning { @apply inline-flex rounded-full bg-amber-50 px-2 py-1 font-semibold text-amber-600; }
   .form-label { @apply mb-2 block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500; }
   .form-input { @apply h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-700 shadow-sm outline-none transition duration-200 placeholder:text-slate-300 hover:border-slate-300 focus:border-teal-400 focus:ring-4 focus:ring-teal-50; }
+  .settings-dropdown { color: #334155; color-scheme: light; -webkit-text-fill-color: #334155; }
+  .settings-dropdown option { color: #334155; background-color: #ffffff; }
+  .settings-dropdown option:hover { color: #ffffff; background-color: var(--app-accent); }
+  .settings-dropdown option:checked { color: #334155; background-color: #ffffff; }
   .tiny-green { @apply rounded-md bg-emerald-500 px-2.5 py-1.5 text-[0.65rem] font-semibold text-white hover:bg-emerald-600; }
   .tiny-red { @apply rounded-md bg-red-500 px-2.5 py-1.5 text-[0.65rem] font-semibold text-white hover:bg-red-600; }
   .profile-action { @apply shrink-0 rounded-lg border border-violet-200 bg-white px-4 py-2.5 text-xs font-semibold text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-md; }
@@ -2607,6 +2611,23 @@
 [data-theme="dark"] input::placeholder,
 [data-theme="dark"] textarea::placeholder {
   color: #64748b;
+}
+
+[data-theme="dark"] .settings-dropdown,
+[data-theme="dark"] .settings-dropdown option {
+  color: #ffffff;
+  background-color: #111a2a;
+}
+
+[data-theme="dark"] .settings-dropdown {
+  color-scheme: dark;
+  -webkit-text-fill-color: #ffffff;
+}
+
+[data-theme="dark"] .settings-dropdown option:hover,
+[data-theme="dark"] .settings-dropdown option:checked {
+  color: #ffffff;
+  background-color: var(--app-accent);
 }
 
 [data-theme="dark"] .bg-slate-50,

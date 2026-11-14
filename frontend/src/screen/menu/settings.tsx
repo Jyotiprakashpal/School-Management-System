@@ -1,10 +1,39 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button, Dropdown, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import { useTheme, type ThemeName } from "../../ui/theme";
+import { get, put } from "../../api/methods";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 
 type SectionId = "general" | "academic" | "notifications" | "appearance" | "security";
 type IconName = "bell" | "book" | "building" | "check" | "clock" | "globe" | "lock" | "mail" | "palette" | "phone" | "save" | "settings" | "shield";
+type SettingsResponse = {
+  schoolName: string;
+  schoolCode: string;
+  schoolEmail: string;
+  schoolPhone: string;
+  schoolAddress: string;
+  schoolWebsite: string;
+  schoolPrincipal: string;
+  academicYear: string;
+  weekStart: string;
+  language: string;
+  timezone: string;
+  dateFormat: string;
+  currency: string;
+  notificationEmail: boolean;
+  notificationSms: boolean;
+  notificationFee: boolean;
+  notificationAttendance: boolean;
+  notificationReports: boolean;
+  notificationProduct: boolean;
+  theme: string;
+  density: string;
+  securityTwoFactor: boolean;
+  securityLoginAlerts: boolean;
+  sessionTimeout: number;
+  updatedAt: string;
+};
 
 const paths: Record<IconName, ReactNode> = {
   bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
@@ -33,6 +62,20 @@ const sections: { id: SectionId; label: string; description: string; icon: IconN
   { id: "appearance", label: "Appearance", description: "Theme and display preferences", icon: "palette" },
   { id: "security", label: "Security", description: "Sessions and account protection", icon: "shield" },
 ];
+
+function formatSavedAt(value?: string) {
+  if (!value) return "Not saved yet";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not saved yet";
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date).replace(",", " at");
+}
 
 function SectionHeader({ icon, title, copy }: { icon: IconName; title: string; copy: string }) {
   return <div className="flex items-start gap-3 border-b border-slate-100 p-4 sm:p-6">
@@ -68,14 +111,115 @@ export default function Settings() {
     product: false,
   });
   const [security, setSecurity] = useState({ twoFactor: true, loginAlerts: true });
+  const [loadedSettings, setLoadedSettings] = useState<SettingsResponse | null>(null);
   const { density, setDensity, theme, setTheme } = useTheme();
   const { showToast } = useToast();
 
+  const fieldIds = [
+    "school-name", "school-code", "school-email", "school-phone", "school-address", "school-website", "school-principal",
+    "academic-year", "week-start", "language", "timezone", "date-format", "currency", "session-timeout",
+  ];
+
+  const applyFieldValues = (settings: SettingsResponse) => {
+    const values: Record<string, string | number> = {
+      "school-name": settings.schoolName,
+      "school-code": settings.schoolCode,
+      "school-email": settings.schoolEmail,
+      "school-phone": settings.schoolPhone,
+      "school-address": settings.schoolAddress,
+      "school-website": settings.schoolWebsite,
+      "school-principal": settings.schoolPrincipal,
+      "academic-year": settings.academicYear,
+      "week-start": settings.weekStart,
+      language: settings.language,
+      timezone: settings.timezone,
+      "date-format": settings.dateFormat,
+      currency: settings.currency,
+      "session-timeout": String(settings.sessionTimeout),
+    };
+
+    fieldIds.forEach((id) => {
+      const element = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+      if (element && values[id] !== undefined) element.value = String(values[id]);
+    });
+  };
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await get<SettingsResponse>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`);
+        setLoadedSettings(settings);
+        applyFieldValues(settings);
+
+        setNotifications({
+          email: settings.notificationEmail,
+          sms: settings.notificationSms,
+          fee: settings.notificationFee,
+          attendance: settings.notificationAttendance,
+          reports: settings.notificationReports,
+          product: settings.notificationProduct,
+        });
+        setSecurity({
+          twoFactor: settings.securityTwoFactor,
+          loginAlerts: settings.securityLoginAlerts,
+        });
+        if (["teal", "violet", "blue", "dark"].includes(settings.theme)) setTheme(settings.theme as ThemeName);
+        if (settings.density === "comfortable" || settings.density === "compact") setDensity(settings.density);
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "Unable to load settings.", { title: "Settings unavailable", tone: "error" });
+      }
+    };
+
+    void loadSettings();
+  }, []);
+
+  useEffect(() => {
+    if (loadedSettings) applyFieldValues(loadedSettings);
+  }, [activeSection, loadedSettings]);
+
   const save = async () => {
+    if (!loadedSettings) {
+      showToast("Settings are still loading. Please try again in a moment.", { title: "Please wait", tone: "warning" });
+      return;
+    }
+
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 650));
-    setSaving(false);
-    showToast(`${sections.find((section) => section.id === activeSection)?.label} preferences have been updated.`, { title: "Settings saved" });
+    try {
+      const value = (id: string, fallback: string) => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null)?.value || fallback;
+      const current = loadedSettings;
+      const updatedSettings = await put<SettingsResponse>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`, {
+        schoolName: value("school-name", current?.schoolName ?? ""),
+        schoolCode: value("school-code", current?.schoolCode ?? ""),
+        schoolEmail: value("school-email", current?.schoolEmail ?? ""),
+        schoolPhone: value("school-phone", current?.schoolPhone ?? ""),
+        schoolAddress: value("school-address", current?.schoolAddress ?? ""),
+        schoolWebsite: value("school-website", current?.schoolWebsite ?? ""),
+        schoolPrincipal: value("school-principal", current?.schoolPrincipal ?? ""),
+        academicYear: value("academic-year", current?.academicYear ?? ""),
+        weekStart: value("week-start", current?.weekStart ?? ""),
+        language: value("language", current?.language ?? ""),
+        timezone: value("timezone", current?.timezone ?? ""),
+        dateFormat: value("date-format", current?.dateFormat ?? ""),
+        currency: value("currency", current?.currency ?? ""),
+        notificationEmail: notifications.email,
+        notificationSms: notifications.sms,
+        notificationFee: notifications.fee,
+        notificationAttendance: notifications.attendance,
+        notificationReports: notifications.reports,
+        notificationProduct: notifications.product,
+        theme,
+        density,
+        securityTwoFactor: security.twoFactor,
+        securityLoginAlerts: security.loginAlerts,
+        sessionTimeout: Number(value("session-timeout", String(current?.sessionTimeout ?? 30))) || 30,
+      });
+      setLoadedSettings(updatedSettings);
+      showToast(`${sections.find((section) => section.id === activeSection)?.label} preferences have been updated.`, { title: "Settings saved" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to save settings.", { title: "Settings save failed", tone: "error" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleNotification = (key: keyof typeof notifications) => setNotifications((current) => ({ ...current, [key]: !current[key] }));
@@ -95,7 +239,7 @@ export default function Settings() {
           </div>
           <div className="mt-3 hidden rounded-xl bg-slate-50 p-4 lg:block">
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-700"><Icon name="check" className="size-4 text-teal-600" />All changes synced</div>
-            <p className="mt-2 text-xs leading-5 text-slate-400">Last saved today at 18:04</p>
+            <p className="mt-2 text-xs leading-5 text-slate-400">Last saved {formatSavedAt(loadedSettings?.updatedAt)}</p>
           </div>
         </aside>
 
@@ -110,25 +254,25 @@ export default function Settings() {
                   <Button variant="outline" className="w-full sm:w-auto" onClick={() => showToast("Logo upload is ready.", { title: "Choose school logo", tone: "info" })}>Change logo</Button>
                 </div>
               </div>
-              <Input id="school-name" label="Institution name" defaultValue="PAL IT HUB" />
-              <Input id="school-code" label="School code" defaultValue="PAL-EDU-2026" />
-              <Input id="school-email" type="email" label="Official email" defaultValue="admin@palithub.edu" startIcon={<Icon name="mail" className="size-4" />} />
-              <Input id="school-phone" type="tel" label="Phone number" defaultValue="+91 77555 67890" startIcon={<Icon name="phone" className="size-4" />} />
-              <div className="sm:col-span-2"><Input id="school-address" label="School address" defaultValue="12 Knowledge Park, Lucknow, Uttar Pradesh 226010" /></div>
-              <Input id="school-website" label="Website" defaultValue="www.pal.education" startIcon={<Icon name="globe" className="size-4" />} />
-              <Input id="school-principal" label="Principal / Director" defaultValue="Dr. Amit Verma" />
+              <Input id="school-name" label="Institution name" defaultValue="" />
+              <Input id="school-code" label="School code" defaultValue="" />
+              <Input id="school-email" type="email" label="Official email" defaultValue="" startIcon={<Icon name="mail" className="size-4" />} />
+              <Input id="school-phone" type="tel" label="Phone number" defaultValue="" startIcon={<Icon name="phone" className="size-4" />} />
+              <div className="sm:col-span-2"><Input id="school-address" label="School address" defaultValue="" /></div>
+              <Input id="school-website" label="Website" defaultValue="" startIcon={<Icon name="globe" className="size-4" />} />
+              <Input id="school-principal" label="Principal / Director" defaultValue="" />
             </div>
           </section>}
 
           {activeSection === "academic" && <section className="panel">
             <SectionHeader icon="book" title="Academic & Regional Setup" copy="Choose defaults used across attendance, fees, examinations, and reports." />
             <div className="grid gap-4 p-4 sm:grid-cols-2 sm:gap-5 sm:p-6">
-              <Dropdown id="academic-year" label="Current academic year" defaultValue="2027–28" options={[{ label: "2026–27", value: "2026–27" }, { label: "2027–28", value: "2027–28" }, { label: "2028–29", value: "2028–29" }]} />
-              <Dropdown id="week-start" label="Week starts on" defaultValue="Monday" options={[{ label: "Monday", value: "Monday" }, { label: "Sunday", value: "Sunday" }]} />
-              <Dropdown id="language" label="Application language" defaultValue="English" options={[{ label: "English", value: "English" }, { label: "Hindi", value: "Hindi" }]} />
-              <Dropdown id="timezone" label="Timezone" defaultValue="Asia/Kolkata" options={[{ label: "India Standard Time (UTC+05:30)", value: "Asia/Kolkata" }, { label: "UTC", value: "UTC" }]} />
-              <Dropdown id="date-format" label="Date format" defaultValue="DD MMM YYYY" options={[{ label: "26 Sep 2026", value: "DD MMM YYYY" }, { label: "26/09/2026", value: "DD/MM/YYYY" }, { label: "09/26/2026", value: "MM/DD/YYYY" }]} />
-              <Dropdown id="currency" label="Currency" defaultValue="INR" options={[{ label: "Indian Rupee (₹)", value: "INR" }, { label: "US Dollar ($)", value: "USD" }]} />
+              <Dropdown id="academic-year" label="Current academic year" defaultValue="" options={[{ label: "2026–27", value: "2026–27" }, { label: "2027–28", value: "2027–28" }, { label: "2028–29", value: "2028–29" }]} />
+              <Dropdown id="week-start" label="Week starts on" defaultValue="" options={[{ label: "Monday", value: "Monday" }, { label: "Sunday", value: "Sunday" }]} />
+              <Dropdown id="language" label="Application language" defaultValue="" options={[{ label: "English", value: "English" }, { label: "Hindi", value: "Hindi" }]} />
+              <Dropdown id="timezone" label="Timezone" defaultValue="" options={[{ label: "India Standard Time (UTC+05:30)", value: "Asia/Kolkata" }, { label: "UTC", value: "UTC" }]} />
+              <Dropdown id="date-format" label="Date format" defaultValue="" options={[{ label: "26 Sep 2026", value: "DD MMM YYYY" }, { label: "26/09/2026", value: "DD/MM/YYYY" }, { label: "09/26/2026", value: "MM/DD/YYYY" }]} />
+              <Dropdown id="currency" label="Currency" defaultValue="" options={[{ label: "Indian Rupee (₹)", value: "INR" }, { label: "US Dollar ($)", value: "USD" }]} />
               <div className="settings-callout sm:col-span-2 flex items-start gap-3 rounded-xl border p-4 text-xs leading-5"><Icon name="clock" className="mt-0.5 size-4 shrink-0" /><p>Changing the academic year updates the default selection across modules but does not alter historical records.</p></div>
             </div>
           </section>}
@@ -227,7 +371,7 @@ export default function Settings() {
               <ToggleRow checked={security.twoFactor} onChange={() => setSecurity((current) => ({ ...current, twoFactor: !current.twoFactor }))} icon="shield" label="Two-factor authentication" copy="Require a verification code when an administrator signs in." />
               <ToggleRow checked={security.loginAlerts} onChange={() => setSecurity((current) => ({ ...current, loginAlerts: !current.loginAlerts }))} icon="bell" label="New login alerts" copy="Notify administrators when a new browser or device signs in." />
               <div className="grid gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-5 sm:grid-cols-[1fr_auto] sm:items-end">
-                <Dropdown id="session-timeout" label="Automatic session timeout" defaultValue="30" options={[{ label: "15 minutes", value: "15" }, { label: "30 minutes", value: "30" }, { label: "1 hour", value: "60" }, { label: "4 hours", value: "240" }]} />
+                <Dropdown id="session-timeout" label="Automatic session timeout" defaultValue="" options={[{ label: "15 minutes", value: "15" }, { label: "30 minutes", value: "30" }, { label: "1 hour", value: "60" }, { label: "4 hours", value: "240" }]} />
                 <Button variant="outline" className="!inline-flex w-full items-center justify-center gap-2 sm:w-auto" onClick={() => showToast("All other sessions have been ended.", { title: "Sessions secured" })} icon={<Icon name="lock" />}>Sign out other sessions</Button>
               </div>
               <div className="settings-callout flex items-start gap-3 rounded-xl border p-4 text-xs leading-5"><Icon name="shield" className="mt-0.5 size-4 shrink-0" /><p><strong>Security status:</strong> Your administrator account has strong protection enabled. Last security review was completed today.</p></div>
@@ -236,7 +380,7 @@ export default function Settings() {
 
           <div className="panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div><div className="text-sm font-bold text-slate-800">Ready to apply your changes?</div><p className="mt-1 text-xs text-slate-400">Settings are applied immediately after saving.</p></div>
-            <Button className="w-full sm:w-auto" onClick={save} isLoading={saving} loadingText="Saving changes..." icon={<Icon name="save" />}>Save Changes</Button>
+            <Button className="w-full sm:w-auto" onClick={save} isLoading={saving} loadingText="Updating..." icon={<Icon name="save" />}>Update Settings</Button>
           </div>
         </div>
       </div>
