@@ -79,9 +79,9 @@ export const getRoleById = async (req: Request<{ id: string }>, res: Response<{ 
   }
 };
 
-export const createRole = async (req: Request<{}, { data: Role } | { error: string }, { roleName: string; createdBy?: string }>, res: Response<{ data: Role } | { error: string }>) => {
+export const createRole = async (req: Request<{}, { data: Role } | { error: string }, { roleName: string; permissions?: Record<string, boolean>; createdBy?: string }>, res: Response<{ data: Role } | { error: string }>) => {
   try {
-    const { roleName, createdBy } = req.body;
+    const { roleName, permissions, createdBy } = req.body;
 
     if (!roleName || !roleName.trim()) {
       return res.status(400).json({ error: 'Role name is required' });
@@ -93,7 +93,8 @@ export const createRole = async (req: Request<{}, { data: Role } | { error: stri
       return res.status(409).json({ error: 'Role with this name already exists' });
     }
 
-    const role = await roleRepository.create({ roleName: normalizedRoleName, createdBy });
+    const role = await roleRepository.create({ roleName: normalizedRoleName, permissions, createdBy });
+    getIO(req)?.to('roles').emit('role:created', role);
 
     await createNotification(req, {
       title: 'Role created',
@@ -113,19 +114,19 @@ export const createRole = async (req: Request<{}, { data: Role } | { error: stri
   }
 };
 
-export const updateRole = async (req: Request<{ id: string }, { data: Role } | { error: string }, { roleName?: string }>, res: Response<{ data: Role } | { error: string }>) => {
+export const updateRole = async (req: Request<{ id: string }, { data: Role } | { error: string }, { roleName?: string; permissions?: Record<string, boolean> }>, res: Response<{ data: Role } | { error: string }>) => {
   try {
     const { id } = req.params;
     if (!id) {
       return res.status(400).json({ error: 'Role ID is required' });
     }
 
-    const { roleName } = req.body || {};
+    const { roleName, permissions } = req.body || {};
     if (roleName !== undefined && (!roleName || !roleName.trim())) {
       return res.status(400).json({ error: 'Role name cannot be empty' });
     }
 
-    const role = await roleRepository.update(id, { roleName: roleName?.trim() });
+    const role = await roleRepository.update(id, { roleName: roleName?.trim(), permissions });
     if (!role) {
       return res.status(404).json({ error: 'Role not found' });
     }
@@ -136,6 +137,7 @@ export const updateRole = async (req: Request<{ id: string }, { data: Role } | {
       entityType: 'role',
       entityId: role.roleId
     });
+    getIO(req)?.to('roles').emit('role:updated', role);
     res.json({ data: role });
   } catch (error) {
     console.error('Update role error:', error);
@@ -159,6 +161,7 @@ export const deleteRole = async (req: Request<{ id: string }>, res: Response<{ m
     }
 
     await roleRepository.delete(id);
+    getIO(req)?.to('roles').emit('role:deleted', { roleId: id });
     await createNotification(req, {
       title: 'Role deleted',
       message: `Role "${role.roleName}" was deleted.`,

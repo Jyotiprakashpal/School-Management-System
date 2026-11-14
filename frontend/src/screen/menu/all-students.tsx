@@ -123,7 +123,7 @@ function QrMark() {
 }
 
 function StudentIdCard({ initials, student }: { initials: string; student: string[] }) {
-  const cardNumber = student[0].replaceAll("-", "");
+  const cardNumber = student[0].split("-").join("");
 
   return <div className="student-id-card-spread grid gap-5 sm:grid-cols-2">
     <article className="student-id-card student-id-card-front">

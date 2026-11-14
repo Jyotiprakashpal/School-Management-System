@@ -23,6 +23,7 @@ import { sessionRepository } from './models/Session.js';
 import { adminSettingsRepository } from './models/AdminSettings.js';
 import { documentRepository } from './models/Document.js';
 import { roleRepository } from './models/Role.js';
+import { userSessionRepository } from './models/UserSession.js';
 
 export async function initializeDatabase(): Promise<void> {
   await userRepository.initializeTable();
@@ -51,4 +52,5 @@ export async function initializeDatabase(): Promise<void> {
   await adminSettingsRepository.initializeTable();
   await documentRepository.initializeTable();
   await roleRepository.initializeTable();
+  await userSessionRepository.initializeTable();
 }

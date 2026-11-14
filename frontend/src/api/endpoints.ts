@@ -1,6 +1,8 @@
 
-const PRODUCTION_API_URL = "http://localhost:5000/api"
-const PRODUCTION_SOCKET_URL = "http://localhost:5000"
+const LOCAL_API_URL = "http://localhost:5000/api"
+const LOCAL_SOCKET_URL = "http://localhost:5000"
+const PRODUCTION_API_URL = "https://school-management-system-1mmw.onrender.com/api"
+const PRODUCTION_SOCKET_URL = "https://school-management-system-1mmw.onrender.com"
 
 function normalizeUrl(url: string) {
   return url.replace(/\/+$/, "")
@@ -8,6 +10,11 @@ function normalizeUrl(url: string) {
 
 function isLocalhostUrl(url: string) {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(url)
+}
+
+function isLocalFrontend() {
+  if (typeof window === "undefined") return false
+  return /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname)
 }
 
 function resolveUrl(envUrl: string | undefined, productionUrl: string) {
@@ -21,20 +28,26 @@ function resolveUrl(envUrl: string | undefined, productionUrl: string) {
   return normalizedUrl
 }
 
-export const API_BASE = resolveUrl(import.meta.env.VITE_API_URL, PRODUCTION_API_URL)
+export const API_BASE = resolveUrl(import.meta.env.VITE_API_URL, isLocalFrontend() ? LOCAL_API_URL : PRODUCTION_API_URL)
 
 export const SOCKET_URL = resolveUrl(
   import.meta.env.VITE_SOCKET_URL,
-  API_BASE.replace(/\/?api\/?$/, "") || PRODUCTION_SOCKET_URL,
+  isLocalFrontend() ? LOCAL_SOCKET_URL : PRODUCTION_SOCKET_URL,
 )
 
 export const API_ENDPOINTS = {
   SYSTEM_HEALTH: "/health",
   NOTIFICATIONS: "/notifications",
+
   LOGIN: "/users/login",
   CHANGE_PASSWORD: "/users/change-password",
-  USER: "/users",
   FORGOT_PASSWORD: "/users/forgot-password",
+  SESSIONS: "/sessions",
+  ROLES: "/roles",
+  SETTINGS: "/settings",
+  SETTINGS_LOGO: "/settings/logo",
+  USER: "/users",
+  
   RESET_PASSWORD: "/users/reset-password",
   STUDENTS: "/students",
   ADMISSIONS: "/admissions",
@@ -52,9 +65,7 @@ export const API_ENDPOINTS = {
   REPORTS: "/reports",
   STAFF: "/staff",
   SALARY: "/salary",
-  SESSIONS: "/sessions",
-  SETTINGS: "/settings",
-  SETTINGS_LOGO: "/settings/logo",
+  
   ADMIN_SETTINGS: "/admin-settings",
   BACKUP: "/backup",
   DOCUMENTS: "/documents",

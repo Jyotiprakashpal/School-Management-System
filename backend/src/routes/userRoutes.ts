@@ -27,6 +27,11 @@ router.get('/stats', getUserStats);
 
 // User management
 router.get('/', getAllUsers);
+// These static routes must be registered before /:id.
+router.get('/activity', getUserActivity);
+router.get('/sessions', getUserSessions);
+router.post('/sessions/:id/terminate', terminateSession);
+router.get('/:userId/sessions', getUserSessions);
 router.get('/:id', getUserById);
 router.post('/', createUser);
 router.put('/:id', updateUser);
@@ -37,11 +42,5 @@ router.delete('/:id', deleteUser);
 router.post('/admin-reset-password', resetPassword);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPasswordWithToken);
-
-// Activity & sessions
-router.get('/activity', getUserActivity);
-router.get('/sessions', getUserSessions);
-router.get('/:userId/sessions', getUserSessions);
-router.post('/sessions/:id/terminate', terminateSession);
 
 export default router;

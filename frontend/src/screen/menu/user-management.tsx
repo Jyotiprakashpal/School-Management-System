@@ -1,16 +1,20 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Button, Dropdown, Input, TerminateSessionPopup, useToast } from "../../components";
 import Header from "../../ui/header";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { get, post, put } from "../../api/methods";
+import { onRoleCreated, onRoleDeleted, onRoleUpdated } from "../../api/socket";
 
 type TabId = "users" | "activity" | "sessions";
-type Role = "Superadmin" | "Admin" | "Operator" | "Accountant";
+type Role = "Superadmin" | "Admin" | "Operator" | "Accountant" | "Student" | "Teacher";
+type RoleRecord = { roleId: string; roleName: string; permissions: Record<string, boolean> };
 type User = {
   id: number;
   username: string;
   name: string;
   role: Role;
   status: "Active" | "Suspended";
-  lastLogin: string;
+  lastLogin: string | null;
 };
 type LoginSession = {
   active: string;
@@ -18,6 +22,7 @@ type LoginSession = {
   id: number;
   location: string;
   user: string;
+  current?: boolean;
 };
 type IconName = "activity" | "calendar" | "check" | "close" | "key" | "lock" | "plus" | "settings" | "shield" | "users";
 
@@ -44,17 +49,13 @@ const tabs: { id: TabId; label: string; icon: IconName }[] = [
   { id: "sessions", label: "Sessions", icon: "calendar" },
 ];
 
-const initialUsers: User[] = [
-  { id: 1, username: "superadmin", name: "Super Administrator", role: "Superadmin", status: "Active", lastLogin: "26 Sep 2026, 17:58" },
-  { id: 2, username: "admin", name: "Administrator", role: "Admin", status: "Active", lastLogin: "26 Sep 2026, 14:35" },
-  { id: 3, username: "RAJKUMAR", name: "Raj Kumar", role: "Operator", status: "Active", lastLogin: "20 Sep 2026, 21:15" },
-];
-
 const roleStyles: Record<Role, string> = {
   Superadmin: "bg-gradient-to-r from-violet-600 to-cyan-500 text-white",
   Admin: "bg-rose-50 text-rose-600",
   Operator: "bg-blue-50 text-blue-600",
   Accountant: "bg-amber-50 text-amber-700",
+  Student: "bg-cyan-50 text-cyan-700",
+  Teacher: "bg-emerald-50 text-emerald-700",
 };
 
 function PanelTitle({ title, icon }: { title: string; icon: IconName }) {
@@ -63,16 +64,54 @@ function PanelTitle({ title, icon }: { title: string; icon: IconName }) {
 
 export default function UserManagement() {
   const [activeTab, setActiveTab] = useState<TabId>("users");
-  const [users, setUsers] = useState(initialUsers);
-  const [selectedResetUser, setSelectedResetUser] = useState("1");
-  const [sessions, setSessions] = useState([
-    { id: 1, user: "Super Administrator", device: "Chrome · Windows", location: "Lucknow, India", active: "Current session" },
-    { id: 2, user: "Administrator", device: "Chrome · Android", location: "Lucknow, India", active: "12 minutes ago" },
-    { id: 3, user: "Raj Kumar", device: "Edge · Windows", location: "Kanpur, India", active: "2 hours ago" },
-  ]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<RoleRecord[]>([]);
+  const [sessions, setSessions] = useState<LoginSession[]>([]);
+  const [selectedResetUser, setSelectedResetUser] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    let active = true;
+    void get<{ data: RoleRecord[] }>(`${API_BASE}${API_ENDPOINTS.ROLES}?limit=100`, { cache: "no-store" })
+      .then((response) => { if (active) setRoles(response.data); })
+      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load roles.", { title: "Roles unavailable", tone: "error" }); });
+    return () => { active = false; };
+  }, [showToast]);
+
+  useEffect(() => {
+    if (!selectedResetUser && users[0]) setSelectedResetUser(String(users[0].id));
+  }, [selectedResetUser, users]);
+
+  useEffect(() => {
+    let active = true;
+    void get<{ data: LoginSession[] }>(`${API_BASE}${API_ENDPOINTS.USER}/sessions`, { cache: "no-store" })
+      .then((response) => { if (active) setSessions(response.data); })
+      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load active sessions.", { title: "Sessions unavailable", tone: "error" }); });
+    return () => { active = false; };
+  }, [showToast]);
+
+  useEffect(() => {
+    const removeCreated = onRoleCreated((role) => {
+      setRoles((current) => current.some((item) => item.roleId === role.roleId) ? current : [...current, role]);
+    });
+    const removeUpdated = onRoleUpdated((role) => {
+      setRoles((current) => current.map((item) => item.roleId === role.roleId ? role : item));
+    });
+    const removeDeleted = onRoleDeleted(({ roleId }) => {
+      setRoles((current) => current.filter((item) => item.roleId !== roleId));
+    });
+    return () => { removeCreated(); removeUpdated(); removeDeleted(); };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void get<{ data: User[] }>(`${API_BASE}${API_ENDPOINTS.USER}?limit=100`, { cache: "no-store" })
+      .then((response) => { if (active) setUsers(response.data); })
+      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load users.", { title: "Users unavailable", tone: "error" }); });
+    return () => { active = false; };
+  }, [showToast]);
 
   const createUser = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -80,18 +119,21 @@ export default function UserManagement() {
     const form = new FormData(formElement);
     const name = String(form.get("fullName"));
     setCreatingUser(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 700));
-    setUsers((current) => [...current, {
-      id: Date.now(),
-      username: String(form.get("username")),
-      name,
-      role: String(form.get("role")) as Role,
-      status: "Active",
-      lastLogin: "Not signed in yet",
-    }]);
-    setCreatingUser(false);
-    formElement.reset();
-    showToast(`${name} can now sign in with the new account.`, { title: "User created" });
+    try {
+      const user = await post<User>(`${API_BASE}${API_ENDPOINTS.USER}`, {
+        username: String(form.get("username")),
+        name,
+        password: String(form.get("password")),
+        role: String(form.get("role")) as Role,
+      });
+      setUsers((current) => [...current, user]);
+      formElement.reset();
+      showToast(`${name} can now sign in with the new account.`, { title: "User created" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to create the user.", { title: "User creation failed", tone: "error" });
+    } finally {
+      setCreatingUser(false);
+    }
   };
 
   const resetPassword = async (event: FormEvent<HTMLFormElement>) => {
@@ -123,11 +165,17 @@ export default function UserManagement() {
         onResetPassword={resetPassword}
         onSelectResetUser={setSelectedResetUser}
         onNotify={notify}
+        roles={roles}
       />}
       {activeTab === "activity" && <ActivityLog />}
-      {activeTab === "sessions" && <Sessions sessions={sessions} onTerminate={(id) => {
-        setSessions((current) => current.filter((session) => session.id !== id));
-        notify("Session ended", "The selected user session has been securely terminated.");
+      {activeTab === "sessions" && <Sessions sessions={sessions} onTerminate={async (id) => {
+        try {
+          await post(`${API_BASE}${API_ENDPOINTS.USER}/sessions/${id}/terminate`);
+          setSessions((current) => current.filter((session) => session.id !== id));
+          notify("Session ended", "The selected user session has been securely terminated.");
+        } catch (error) {
+          notify("Session termination failed", error instanceof Error ? error.message : "Failed to terminate the session.");
+        }
       }} />}
     </main>
   </div>;
@@ -142,6 +190,7 @@ function UsersAndPermissions({
   onResetPassword,
   onSelectResetUser,
   onNotify,
+  roles,
 }: {
   users: User[];
   creatingUser: boolean;
@@ -151,6 +200,7 @@ function UsersAndPermissions({
   onResetPassword: (event: FormEvent<HTMLFormElement>) => void;
   onSelectResetUser: (value: string) => void;
   onNotify: (title: string, message: string) => void;
+  roles: RoleRecord[];
 }) {
   const [permissionUser, setPermissionUser] = useState<User | null>(null);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({
@@ -167,10 +217,27 @@ function UsersAndPermissions({
   const permissionTotal = Object.keys(permissions).length;
   const permissionCoverage = Math.round((enabledPermissionCount / permissionTotal) * 100);
 
-  const savePermissions = () => {
+  useEffect(() => {
     if (!permissionUser) return;
-    setPermissionUser(null);
-    onNotify("Permissions updated", `${permissionUser.name}'s module access has been saved.`);
+    const role = roles.find((item) => item.roleName === permissionUser.role);
+    if (role) setPermissions((current) => ({ ...current, ...role.permissions }));
+  }, [permissionUser, roles]);
+
+  const savePermissions = async () => {
+    if (!permissionUser) return;
+    const role = roles.find((item) => item.roleName === permissionUser.role);
+    if (!role) {
+      onNotify("Permissions unavailable", "The selected role could not be found.");
+      return;
+    }
+    try {
+      const response = await put<{ data: RoleRecord }>(`${API_BASE}${API_ENDPOINTS.ROLES}/${role.roleId}`, { permissions });
+      setPermissions(response.data.permissions);
+      setPermissionUser(null);
+      onNotify("Permissions updated", `${permissionUser.name}'s module access has been saved.`);
+    } catch (error) {
+      onNotify("Permission update failed", error instanceof Error ? error.message : "Failed to save role permissions.");
+    }
   };
 
   const setAllPermissions = (enabled: boolean) => {
@@ -186,12 +253,7 @@ function UsersAndPermissions({
             <div className="sm:col-span-2"><Input id="full-name" name="fullName" label="Full name" placeholder="Full name" required /></div>
             <Input id="username" name="username" label="Username" placeholder="Used for login" required />
             <Input id="user-password" name="password" type="password" label="Password" placeholder="Minimum 6 characters" minLength={6} required />
-            <div className="sm:col-span-2"><Dropdown id="role" name="role" label="Role" defaultValue="Operator" options={[
-                { label: "Superadmin — full system access", value: "Superadmin" },
-                { label: "Admin — all management features", value: "Admin" },
-                { label: "Operator — granted permissions only", value: "Operator" },
-                { label: "Accountant — finance permissions", value: "Accountant" },
-              ]} /></div>
+            <div className="sm:col-span-2"><Dropdown id="role" name="role" label="Role" defaultValue="" required options={roles.map((role) => ({ label: role.roleName, value: role.roleName }))} /></div>
           </div>
           <div className="user-form-footer border-t border-slate-100 bg-slate-50/60 p-4 sm:flex sm:justify-end sm:px-5"><Button type="submit" className="w-full sm:w-auto" isLoading={creatingUser} loadingText="Creating user..." icon={<Icon name="plus" />}>Create User</Button></div>
         </form>
@@ -306,31 +368,38 @@ function UsersAndPermissions({
 }
 
 function ActivityLog() {
-  const activities = [
-    ["Super Administrator", "Created a new user account", "Meera Joshi", "Today, 11:42"],
-    ["Administrator", "Updated fee collection permissions", "Raj Kumar", "Today, 10:16"],
-    ["Super Administrator", "Changed an administrator role", "Meera Joshi", "Yesterday, 18:30"],
-    ["Raj Kumar", "Signed in from a new device", "Chrome · Windows", "20 Sep 2026, 21:15"],
-  ];
+  const [activities, setActivities] = useState<{ user: string; action: string; target: string; date: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    let active = true;
+    void get<{ data: { user: string; action: string; target: string; date: string }[] }>(`${API_BASE}${API_ENDPOINTS.USER}/activity?limit=50`, { cache: "no-store" })
+      .then((response) => { if (active) setActivities(response.data); })
+      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load activity.", { title: "Activity unavailable", tone: "error" }); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [showToast]);
+
   return <section className="user-activity-panel panel">
     <PanelTitle title="Account Activity Log" icon="activity" />
-    <div className="divide-y divide-slate-100">{activities.map(([user, action, target, date]) => <div key={`${user}-${date}`} className="user-activity-row relative m-3 flex flex-col gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/60 p-4 shadow-lg shadow-slate-900/5 sm:m-0 sm:flex-row sm:items-center sm:rounded-none sm:border-0 sm:bg-white sm:p-5 sm:shadow-none">
+    <div className="divide-y divide-slate-100">{loading ? <div className="p-6 text-center text-sm text-slate-400">Loading activity...</div> : activities.length === 0 ? <div className="p-6 text-center text-sm text-slate-400">No activity found.</div> : activities.map(({ user, action, target, date }) => <div key={`${user}-${date}-${action}`} className="user-activity-row relative m-3 flex flex-col gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/60 p-4 shadow-lg shadow-slate-900/5 sm:m-0 sm:flex-row sm:items-center sm:rounded-none sm:border-0 sm:bg-white sm:p-5 sm:shadow-none">
       <span className="absolute inset-y-0 left-0 w-1 bg-(--app-accent) sm:hidden" />
       <div className="flex items-center gap-3 sm:contents">
         <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,var(--app-accent),var(--app-accent-dark))] font-display text-sm font-extrabold text-white shadow-md shadow-slate-900/10 ring-2 ring-white sm:size-10 sm:rounded-xl sm:shadow-sm sm:ring-0">{user.charAt(0)}</div>
         <div className="min-w-0 flex-1"><div className="truncate font-display text-sm font-bold text-slate-900 sm:font-semibold sm:text-slate-800">{user}</div><div className="mt-0.5 inline-flex items-center gap-1.5 text-[0.65rem] font-semibold text-(--app-accent-dark) sm:hidden"><Icon name="activity" className="size-3.5" />Account activity</div><p className="mt-1 hidden text-xs text-slate-500 sm:block">{action} · <span className="font-medium">{target}</span></p></div>
       </div>
       <div className="rounded-xl border border-slate-100 bg-white/80 p-3 shadow-sm sm:hidden"><div className="text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">{action}</div><div className="mt-1.5 text-xs font-semibold text-slate-700">{target}</div></div>
-      <span className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-500 sm:block sm:bg-transparent sm:p-0 sm:text-slate-400"><span className="sm:hidden">Activity time</span><span className="font-semibold sm:font-normal">{date}</span></span>
+      <span className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-500 sm:block sm:bg-transparent sm:p-0 sm:text-slate-400"><span className="sm:hidden">Activity time</span><span className="font-semibold sm:font-normal">{new Date(date).toLocaleString()}</span></span>
     </div>)}</div>
   </section>;
 }
 
-function Sessions({ sessions, onTerminate }: { sessions: LoginSession[]; onTerminate: (id: number) => void }) {
+function Sessions({ sessions, onTerminate }: { sessions: LoginSession[]; onTerminate: (id: number) => void | Promise<void> }) {
   const [sessionToTerminate, setSessionToTerminate] = useState<LoginSession | null>(null);
   const confirmTerminate = () => {
     if (!sessionToTerminate) return;
-    onTerminate(sessionToTerminate.id);
+    void onTerminate(sessionToTerminate.id);
     setSessionToTerminate(null);
   };
 
@@ -350,12 +419,12 @@ function Sessions({ sessions, onTerminate }: { sessions: LoginSession[]; onTermi
           <div className="rounded-xl border border-slate-100 bg-white/80 p-3 shadow-sm"><div className="flex items-center gap-1.5 text-[0.6rem] font-bold uppercase tracking-wider text-slate-400"><Icon name="calendar" className="size-3.5" />Location</div><div className="mt-1.5 truncate text-xs font-semibold text-slate-700">{session.location}</div></div>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5"><div><div className="text-[0.6rem] font-bold uppercase tracking-wider text-slate-400">Last activity</div><div className="mt-0.5 text-xs font-semibold text-emerald-600">{session.active}</div></div><Icon name="activity" className="size-5 text-(--app-accent)" /></div>
-        {index === 0 ? <div className="mt-3 flex min-h-10 items-center justify-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 text-xs font-bold text-emerald-700"><Icon name="check" />Current Session</div> : <Button variant="danger" className="mt-3 w-full" onClick={() => setSessionToTerminate(session)} icon={<Icon name="lock" />}>Terminate Session</Button>}
+        {session.current ? <div className="mt-3 flex min-h-10 items-center justify-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 text-xs font-bold text-emerald-700"><Icon name="check" />Current Session</div> : <Button variant="danger" className="mt-3 w-full" onClick={() => setSessionToTerminate(session)} icon={<Icon name="lock" />}>Terminate Session</Button>}
       </div>
       <div className="hidden sm:block"><div className="font-semibold text-slate-900">{session.user}</div><div className="mt-1 text-xs text-slate-400">{index === 0 ? "This device" : "Authenticated user"}</div></div>
       <div className="hidden text-sm text-slate-600 sm:block">{session.device}</div>
       <div className="hidden sm:block"><div className="text-sm text-slate-600">{session.location}</div><div className="mt-1 text-xs text-emerald-600">{session.active}</div></div>
-      <div className="hidden sm:block sm:text-right">{index === 0 ? <span className="status-success">Current</span> : <Button variant="danger" onClick={() => setSessionToTerminate(session)}>Terminate</Button>}</div>
+      <div className="hidden sm:block sm:text-right">{session.current ? <span className="status-success">Current</span> : <Button variant="danger" onClick={() => setSessionToTerminate(session)}>Terminate</Button>}</div>
     </div>)}</div>
   </section>
   <TerminateSessionPopup

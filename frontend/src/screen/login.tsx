@@ -100,6 +100,54 @@ type LoginBranding = {
   academicYear: string
 }
 
+async function getReadableLoginLocation(): Promise<string> {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown location"
+  if (!navigator.geolocation) return timezone
+
+  try {
+    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: false,
+        timeout: 5000,
+        maximumAge: 300000,
+      })
+    })
+    const { latitude, longitude } = position.coords
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1&accept-language=en`,
+      { headers: { Accept: "application/json" } },
+    )
+    if (!response.ok) return timezone
+    const result = (await response.json()) as {
+      display_name?: string
+      address?: {
+        house_number?: string
+        road?: string
+        neighbourhood?: string
+        suburb?: string
+        quarter?: string
+        village?: string
+        town?: string
+        city?: string
+        city_district?: string
+        state?: string
+        postcode?: string
+        country?: string
+      }
+    }
+    const address = result.address || {}
+    const locality = address.neighbourhood || address.suburb || address.quarter || address.village || address.town || address.city_district || address.city
+    const city = address.city || address.town || address.village || address.state
+    const street = [address.house_number, address.road].filter(Boolean).join(" ")
+    const parts = [street, locality, city, address.postcode, address.country]
+      .filter(Boolean)
+      .filter((part, index, values) => values.indexOf(part) === index)
+    return parts.length > 1 ? parts.join(", ") : result.display_name || timezone
+  } catch {
+    return timezone
+  }
+}
+
 export default function Login({ onLogin }: LoginProps) {
   const [username, setUsername] = useState("admin")
   const [password, setPassword] = useState("Admin@1234")
@@ -123,10 +171,12 @@ export default function Login({ onLogin }: LoginProps) {
     event.preventDefault()
     setSubmitting(true)
     try {
+      const location = await getReadableLoginLocation()
       const response = await post<LoginResponse>(`${API_BASE}${API_ENDPOINTS.LOGIN}`, {
         username: username.trim(),
         password,
         rememberMe,
+        location,
       })
       const storage = rememberMe ? window.localStorage : window.sessionStorage
       storage.setItem("pal-auth-token", response.token)

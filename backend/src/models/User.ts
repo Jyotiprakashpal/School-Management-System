@@ -7,7 +7,7 @@ export interface User {
   username: string;
   name: string;
   email: string | null;
-  role: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant';
+  role: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant' | 'Student' | 'Teacher';
   status: 'Active' | 'Suspended';
   lastLogin: string | null;
   createdBy: string | null;
@@ -20,7 +20,7 @@ export interface CreateUserDto {
   name: string;
   password: string;
   email?: string;
-  role?: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant';
+  role?: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant' | 'Student' | 'Teacher';
   status?: 'Active' | 'Suspended';
   createdBy?: string;
   /** API alias for createdBy. */
@@ -31,7 +31,7 @@ export interface UpdateUserDto {
   username?: string;
   name?: string;
   email?: string | null;
-  role?: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant';
+  role?: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant' | 'Student' | 'Teacher';
   status?: 'Active' | 'Suspended';
   password?: string;
 }
@@ -40,7 +40,7 @@ export interface UserQuery {
   page?: number;
   limit?: number;
   search?: string;
-  role?: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant';
+  role?: 'Superadmin' | 'Admin' | 'Operator' | 'Accountant' | 'Student' | 'Teacher';
   status?: 'Active' | 'Suspended';
 }
 
@@ -73,7 +73,7 @@ export const userRepository = {
         name VARCHAR(120) NOT NULL,
         email VARCHAR(255),
         password_hash VARCHAR(255) NOT NULL,
-        role VARCHAR(40) NOT NULL DEFAULT 'Operator' CHECK (role IN ('Superadmin', 'Admin', 'Operator', 'Accountant')),
+        role VARCHAR(40) NOT NULL DEFAULT 'Operator' CHECK (role IN ('Superadmin', 'Admin', 'Operator', 'Accountant', 'Student', 'Teacher')),
         status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Suspended')),
         "lastLogin" TIMESTAMPTZ,
         "resetToken" VARCHAR(255),
@@ -83,6 +83,8 @@ export const userRepository = {
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`;
+    await sql`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('Superadmin', 'Admin', 'Operator', 'Accountant', 'Student', 'Teacher'))`;
     
     // Add missing columns if they don't exist
     await sql`

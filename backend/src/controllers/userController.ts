@@ -9,12 +9,19 @@ import {
 } from '../models/User.js';
 import { notificationRepository } from '../models/Notification.js';
 import { sendPasswordResetEmail, sendPasswordChangedNotification } from '../services/emailService.js';
+import { userSessionRepository } from '../models/UserSession.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
+function parseDevice(userAgent: string): string {
+  const browser = userAgent.includes('Edg/') ? 'Edge' : userAgent.includes('Chrome/') ? 'Chrome' : userAgent.includes('Firefox/') ? 'Firefox' : userAgent.includes('Safari/') ? 'Safari' : 'Browser';
+  const platform = /Android/i.test(userAgent) ? 'Android' : /iPhone|iPad|iPod/i.test(userAgent) ? 'iOS' : /Windows/i.test(userAgent) ? 'Windows' : /Mac OS/i.test(userAgent) ? 'macOS' : /Linux/i.test(userAgent) ? 'Linux' : 'Unknown';
+  return `${browser} · ${platform}`;
+}
+
 export const loginUser = async (req: Request, res: Response) => {
   try {
-    const { username, password } = req.body as { username?: string; password?: string };
+    const { username, password, device, location } = req.body as { username?: string; password?: string; device?: string; location?: string };
     if (!username?.trim() || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
     }
@@ -23,7 +30,12 @@ export const loginUser = async (req: Request, res: Response) => {
     if (!user) return res.status(401).json({ error: 'Invalid username or password' });
 
     await userRepository.updateLastLogin(user.id);
-    res.json({ token: `session-${user.id}-${Date.now()}`, user });
+    const token = `session-${user.id}-${Date.now()}`;
+    const userAgent = String(req.headers['user-agent'] || 'Unknown device');
+    const detectedDevice = typeof device === 'string' && device.trim() ? device.trim() : parseDevice(userAgent);
+    const detectedLocation = typeof location === 'string' && location.trim() ? location.trim() : 'Unknown location';
+    await userSessionRepository.create({ userId: user.id, token, device: detectedDevice, location: detectedLocation });
+    res.json({ token, user });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Unable to sign in' });
@@ -103,7 +115,7 @@ const validateUserBody = (body: Partial<CreateUserDto>): string | null => {
   if (typeof body.name !== 'string' || !body.name.trim()) return 'Name is required';
   if (typeof body.password !== 'string' || body.password.length < 6) return 'Password must be at least 6 characters';
   if (body.email !== undefined && (typeof body.email !== 'string' || !body.email.trim() || !body.email.includes('@'))) return 'Valid email address is required';
-  if (body.role && !['Superadmin', 'Admin', 'Operator', 'Accountant'].includes(body.role)) return 'Invalid role';
+  if (body.role && !['Superadmin', 'Admin', 'Operator', 'Accountant', 'Student', 'Teacher'].includes(body.role)) return 'Invalid role';
   if (body.status && !['Active', 'Suspended'].includes(body.status)) return 'Invalid status';
   return null;
 };
@@ -112,7 +124,7 @@ const validateUpdateBody = (body: Partial<UpdateUserDto>): string | null => {
   if (body.username !== undefined && (typeof body.username !== 'string' || !body.username.trim())) return 'Username must be a non-empty string';
   if (body.name !== undefined && (typeof body.name !== 'string' || !body.name.trim())) return 'Name must be a non-empty string';
   if (body.email !== undefined && body.email !== null && (typeof body.email !== 'string' || !body.email.trim() || !body.email.includes('@'))) return 'Valid email address is required';
-  if (body.role && !['Superadmin', 'Admin', 'Operator', 'Accountant'].includes(body.role)) return 'Invalid role';
+  if (body.role && !['Superadmin', 'Admin', 'Operator', 'Accountant', 'Student', 'Teacher'].includes(body.role)) return 'Invalid role';
   if (body.status && !['Active', 'Suspended'].includes(body.status)) return 'Invalid status';
   if (body.password !== undefined && (typeof body.password !== 'string' || body.password.length < 6)) return 'Password must be at least 6 characters';
   return null;
@@ -123,7 +135,7 @@ export const getAllUsers = async (req: Request<{}, {}, {}, UserQuery>, res: Resp
     const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
     const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '10'), 10)));
     const search = req.query.search as string;
-    const role = req.query.role as 'Superadmin' | 'Admin' | 'Operator' | 'Accountant';
+    const role = req.query.role as 'Superadmin' | 'Admin' | 'Operator' | 'Accountant' | 'Student' | 'Teacher';
     const status = req.query.status as 'Active' | 'Suspended';
 
     const { data, total } = await userRepository.findMany({ page, limit, search, role, status });
@@ -337,14 +349,22 @@ export const getUserActivity = async (req: Request<{}, {}, {}, { userId?: string
     const userId = req.query.userId ? parseInt(req.query.userId as string, 10) : undefined;
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string || '50', 10)));
 
-    // This would typically query an activity_log table
-    // For now, return mock data structure
+    const notifications = await notificationRepository.findMany({
+      limit,
+      userId: userId ? String(userId) : undefined,
+    });
     res.json({
-      data: [],
-      total: 0,
+      data: notifications.data.map((item) => ({
+        user: item.createdBy || item.userId || 'System',
+        action: item.title,
+        target: item.message,
+        date: item.createdAt,
+        type: item.type,
+      })),
+      total: notifications.total,
       page: 1,
       limit,
-      totalPages: 0
+      totalPages: Math.ceil(notifications.total / limit)
     });
   } catch (error) {
     console.error('Get user activity error:', error);
@@ -352,19 +372,12 @@ export const getUserActivity = async (req: Request<{}, {}, {}, { userId?: string
   }
 };
 
-export const getUserSessions = async (req: Request<{ userId: string }>, res: Response<any | { error: string }>) => {
+export const getUserSessions = async (req: Request<{ userId?: string }>, res: Response<any | { error: string }>) => {
   try {
-    const userId = parseInt(req.params.userId, 10);
-    if (!Number.isInteger(userId) || userId <= 0) {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
-    // This would typically query a sessions table
-    // For now, return mock structure
-    res.json({
-      currentSession: null,
-      pastSessions: []
-    });
+    const sessions = await userSessionRepository.findAll();
+    const authorization = req.headers.authorization;
+    const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : '';
+    res.json({ data: sessions.map(({ token: sessionToken, ...session }) => ({ ...session, current: sessionToken === token })) });
   } catch (error) {
     console.error('Get user sessions error:', error);
     res.status(500).json({ error: 'Failed to fetch user sessions' });
@@ -378,8 +391,9 @@ export const terminateSession = async (req: Request<{ id: string }>, res: Respon
       return res.status(400).json({ error: 'Invalid session ID' });
     }
 
-    // This would typically delete from sessions table
-    // For now, just return success
+    const terminated = await userSessionRepository.terminate(id);
+    if (!terminated) return res.status(404).json({ error: 'Session not found' });
+    getIO(req).to('users').emit('user:session_terminated', { id });
     res.json({ message: 'Session terminated successfully' });
   } catch (error) {
     console.error('Terminate session error:', error);
