@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Button, Dropdown, Input, TerminateSessionPopup, useToast } from "../../components";
+import { Button, Dropdown, Input, TerminateSessionPopup, UserManagementSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { get, post, put } from "../../api/methods";
@@ -67,6 +67,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<RoleRecord[]>([]);
   const [sessions, setSessions] = useState<LoginSession[]>([]);
+  const [loaded, setLoaded] = useState({ users: false, roles: false, sessions: false });
   const [selectedResetUser, setSelectedResetUser] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
@@ -76,7 +77,8 @@ export default function UserManagement() {
     let active = true;
     void get<{ data: RoleRecord[] }>(`${API_BASE}${API_ENDPOINTS.ROLES}?limit=100`, { cache: "no-store" })
       .then((response) => { if (active) setRoles(response.data); })
-      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load roles.", { title: "Roles unavailable", tone: "error" }); });
+      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load roles.", { title: "Roles unavailable", tone: "error" }); })
+      .finally(() => { if (active) setLoaded((current) => ({ ...current, roles: true })); });
     return () => { active = false; };
   }, [showToast]);
 
@@ -88,7 +90,8 @@ export default function UserManagement() {
     let active = true;
     void get<{ data: LoginSession[] }>(`${API_BASE}${API_ENDPOINTS.USER}/sessions`, { cache: "no-store" })
       .then((response) => { if (active) setSessions(response.data); })
-      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load active sessions.", { title: "Sessions unavailable", tone: "error" }); });
+      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load active sessions.", { title: "Sessions unavailable", tone: "error" }); })
+      .finally(() => { if (active) setLoaded((current) => ({ ...current, sessions: true })); });
     return () => { active = false; };
   }, [showToast]);
 
@@ -109,7 +112,8 @@ export default function UserManagement() {
     let active = true;
     void get<{ data: User[] }>(`${API_BASE}${API_ENDPOINTS.USER}?limit=100`, { cache: "no-store" })
       .then((response) => { if (active) setUsers(response.data); })
-      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load users.", { title: "Users unavailable", tone: "error" }); });
+      .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load users.", { title: "Users unavailable", tone: "error" }); })
+      .finally(() => { if (active) setLoaded((current) => ({ ...current, users: true })); });
     return () => { active = false; };
   }, [showToast]);
 
@@ -154,6 +158,8 @@ export default function UserManagement() {
   };
 
   const notify = (title: string, message: string) => showToast(message, { title });
+
+  if (!loaded.users || !loaded.roles || !loaded.sessions) return <UserManagementSkeleton />;
 
   return <div className="min-h-screen dashboard-bg pb-20">
     <Header title="User Management" subtitle="Manage staff accounts and permissions" />

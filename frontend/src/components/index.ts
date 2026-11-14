@@ -14,5 +14,6 @@ export { default as PasswordChangePopup } from "./PasswordChangePopup";
 export { default as SignOutPopup } from "./SignOutPopup";
 export { default as SettingsSkeleton } from "./SettingsSkeleton";
 export { default as TerminateSessionPopup } from "./TerminateSessionPopup";
+export { default as UserManagementSkeleton } from "./UserManagementSkeleton";
 export { Calendar } from "./calendar";
 export { ToastProvider, useToast } from "./Toast";

@@ -2578,6 +2578,40 @@
   border-color: #263244;
 }
 
+[data-theme="dark"] .user-management-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .user-management-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .user-management-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .user-management-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .user-management-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .user-management-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .user-management-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
 [data-theme] .form-input:focus {
   border-color: var(--app-accent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-accent) 10%, transparent);
