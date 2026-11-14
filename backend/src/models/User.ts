@@ -226,9 +226,9 @@ export const userRepository = {
     updates.push('"updatedAt" = NOW()');
     values.push(id);
 
-    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING ${selectUserColumns}`;
-    const [user] = await sql.unsafe(query, values);
-    return user ? toUserResponse(user) : null;
+    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING id`;
+    const [updatedUser] = await sql.unsafe<{ id: number }[]>(query, values);
+    return updatedUser ? this.findById(Number(updatedUser.id)) : null;
   },
 
   async delete(id: number): Promise<boolean> {

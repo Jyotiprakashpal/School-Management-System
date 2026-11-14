@@ -32,6 +32,7 @@ export const API_ENDPOINTS = {
   SYSTEM_HEALTH: "/health",
   NOTIFICATIONS: "/notifications",
   LOGIN: "/users/login",
+  CHANGE_PASSWORD: "/users/change-password",
   USER: "/users",
   FORGOT_PASSWORD: "/users/forgot-password",
   RESET_PASSWORD: "/users/reset-password",

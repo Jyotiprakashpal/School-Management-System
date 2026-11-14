@@ -95,7 +95,7 @@ type LoginResponse = {
 
 export default function Login({ onLogin }: LoginProps) {
   const [username, setUsername] = useState("admin")
-  const [password, setPassword] = useState("admin123")
+  const [password, setPassword] = useState("Admin@1234")
   const [rememberMe, setRememberMe] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)

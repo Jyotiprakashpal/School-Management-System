@@ -30,6 +30,44 @@ export const loginUser = async (req: Request, res: Response) => {
   }
 };
 
+export const changePassword = async (req: Request, res: Response) => {
+  try {
+    const authorization = req.headers.authorization;
+    const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : '';
+    const match = /^session-(\d+)-\d+$/.exec(token);
+    const userId = match ? Number(match[1]) : 0;
+    const { currentPassword, newPassword } = req.body as {
+      currentPassword?: string;
+      newPassword?: string;
+    };
+
+    if (!userId) return res.status(401).json({ error: 'You must be signed in to change your password' });
+    if (!currentPassword || typeof currentPassword !== 'string') {
+      return res.status(400).json({ error: 'Current password is required' });
+    }
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ error: 'New password must be different from your current password' });
+    }
+
+    const user = await userRepository.findById(userId);
+    if (!user || !await userRepository.authenticate(user.username, currentPassword)) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const updatedUser = await userRepository.update(userId, { password: newPassword });
+    if (!updatedUser) return res.status(404).json({ error: 'User not found' });
+
+    getIO(req).to('users').emit('user:updated', updatedUser);
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+};
+
 const createNotification = async (req: Request, data: {
   userId?: string;
   title: string;

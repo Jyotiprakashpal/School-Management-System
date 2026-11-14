@@ -14,11 +14,13 @@ import {
   forgotPassword,
   resetPasswordWithToken,
   loginUser,
+  changePassword,
 } from '../controllers/userController.js';
 
 const router: Router = Router();
 
 router.post('/login', loginUser);
+router.post('/change-password', changePassword);
 
 // Stats
 router.get('/stats', getUserStats);

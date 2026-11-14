@@ -3,6 +3,8 @@ import Popup from "../ui/popup";
 import Button from "./Button";
 import Input from "./Input";
 import { useToast } from "./Toast";
+import { post } from "../api/methods";
+import { API_BASE, API_ENDPOINTS } from "../api/endpoints";
 
 type IconName = "check" | "eye" | "eyeOff" | "key" | "lock" | "shield";
 
@@ -99,13 +101,26 @@ export default function PasswordChangePopup({ onClose, open }: PasswordChangePop
     if (!canSubmit) return;
 
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 700));
-    setSaving(false);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    onClose();
-    showToast("Your password has been updated successfully.", { title: "Password changed" });
+
+    try {
+      await post(`${API_BASE}${API_ENDPOINTS.CHANGE_PASSWORD}`, {
+        currentPassword,
+        newPassword,
+      });
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      onClose();
+      showToast("Your password has been updated successfully.", { title: "Password changed" });
+    } catch (requestError) {
+      const message = requestError instanceof Error
+          ? requestError.message
+          : "We could not update your password. Please try again.";
+      showToast(message, { title: "Password change failed", tone: "error" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return <Popup
