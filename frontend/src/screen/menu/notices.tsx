@@ -1,40 +1,47 @@
-import { useMemo, useState } from "react";
-import { Button, Dropdown, Input, useToast } from "../../components";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button, Dropdown, Input, NoticeSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { del, get, post, put } from "../../api/methods";
+import { onNoticeCreated, onNoticeDeleted, onNoticeUpdated, type NoticeRealtime } from "../../api/socket";
 
 type NoticePriority = "High" | "Normal";
 type NoticeStatus = "Draft" | "Published" | "Scheduled";
 
 type Notice = {
   audience: string;
-  author: string;
+  createdBy: string | null;
   body: string;
   expiresOn: string;
   id: number;
   priority: NoticePriority;
-  publishedOn: string;
+  publishedOn: string | null;
   status: NoticeStatus;
   title: string;
 };
-
-const initialNotices: Notice[] = [
-  { id: 1, title: "Half Yearly Examination Schedule", body: "The half yearly examinations will begin on 14 October 2026. Students should review the detailed timetable and arrive thirty minutes before each paper.", audience: "Students & Parents", author: "Academic Office", publishedOn: "2026-09-26", expiresOn: "2026-10-22", status: "Published", priority: "High" },
-  { id: 2, title: "School Closed on Monday", body: "The school will remain closed on Monday due to scheduled campus maintenance. Regular classes will resume on Tuesday.", audience: "Everyone", author: "Administration", publishedOn: "2026-09-25", expiresOn: "2026-09-30", status: "Published", priority: "High" },
-  { id: 3, title: "Parent-Teacher Meeting", body: "The monthly parent-teacher meeting is scheduled for 5 October from 9:00 AM to 1:00 PM. Parents are requested to attend.", audience: "Parents", author: "Principal Office", publishedOn: "2026-09-24", expiresOn: "2026-10-06", status: "Published", priority: "Normal" },
-  { id: 4, title: "Teacher Training Workshop", body: "A classroom technology workshop will be conducted in the seminar hall. Department coordinators will share session allocations.", audience: "Staff", author: "HR Department", publishedOn: "2026-10-01", expiresOn: "2026-10-12", status: "Scheduled", priority: "Normal" },
-  { id: 5, title: "Annual Sports Day Registration", body: "Registrations for the annual sports day will open next week. Event details and eligibility criteria will follow.", audience: "Students", author: "Sports Department", publishedOn: "", expiresOn: "2026-10-28", status: "Draft", priority: "Normal" },
-];
 
 const blankNotice = {
   audience: "Everyone",
   body: "",
   expiresOn: "2026-10-15",
   priority: "Normal" as NoticePriority,
-  publishedOn: "2026-09-28",
+  publishedOn: currentDateInputValue(),
   status: "Draft" as NoticeStatus,
   title: "",
 };
+
+type NoticePage = {
+  data: Notice[];
+  hasMore: boolean;
+  nextCursor: string | null;
+};
+
+function currentDateInputValue() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
 
 function NoticeIcon({ type }: { type: "notice" | "people" | "calendar" | "draft" | "search" | "alert" }) {
   const paths = {
@@ -48,9 +55,17 @@ function NoticeIcon({ type }: { type: "notice" | "people" | "calendar" | "draft"
   return <svg className="size-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{paths[type]}</svg>;
 }
 
-function formatDate(value: string) {
+function formatDate(value: string | null) {
   if (!value) return "Not published";
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Not set"
+    : date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function dateInputValue(value: string | null) {
+  if (!value) return "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : value.slice(0, 10);
 }
 
 function statusClass(status: NoticeStatus) {
@@ -60,12 +75,16 @@ function statusClass(status: NoticeStatus) {
 }
 
 export default function Notices() {
-  const [notices, setNotices] = useState(initialNotices);
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [query, setQuery] = useState("");
   const [audience, setAudience] = useState("All Audiences");
   const [status, setStatus] = useState("All Status");
   const [priority, setPriority] = useState("All Priority");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const cursorRef = useRef<string | undefined>(undefined);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(blankNotice);
@@ -74,8 +93,58 @@ export default function Notices() {
   const [deleteNotice, setDeleteNotice] = useState<Notice | null>(null);
   const { showToast } = useToast();
 
+  const loadNotices = useCallback(async (cursor?: string) => {
+    if (cursor) setLoadingMore(true);
+    else setLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: "10" });
+      if (cursor) params.set("cursor", cursor);
+      const response = await get<NoticePage>(`${API_BASE}${API_ENDPOINTS.NOTICES}?${params.toString()}`, { cache: "no-store" });
+      setNotices((current) => {
+        if (!cursor) return response.data;
+        const known = new Set(current.map((notice) => String(notice.id)));
+        return [...current, ...response.data.filter((notice) => !known.has(String(notice.id)))];
+      });
+      cursorRef.current = response.nextCursor ?? undefined;
+      setHasMore(response.hasMore);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to load notices.", { title: "Notices unavailable", tone: "error" });
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => { void loadNotices(); }, [loadNotices]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || !hasMore) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !loadingMore && cursorRef.current) void loadNotices(cursorRef.current);
+    }, { rootMargin: "240px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loadNotices]);
+
+  useEffect(() => {
+    const removeCreated = onNoticeCreated((notice: NoticeRealtime) => {
+      setNotices((current) => current.some((item) => String(item.id) === String(notice.id)) ? current : [notice, ...current]);
+    });
+    const removeUpdated = onNoticeUpdated((notice: NoticeRealtime) => {
+      setNotices((current) => current.map((item) => item.id === notice.id ? notice : item));
+      setPreviewNotice((current) => current?.id === notice.id ? notice : current);
+    });
+    const removeDeleted = onNoticeDeleted(({ id }) => {
+      setNotices((current) => current.filter((item) => item.id !== id));
+      setPreviewNotice((current) => current?.id === id ? null : current);
+      setDeleteNotice((current) => current?.id === id ? null : current);
+    });
+    return () => { removeCreated(); removeUpdated(); removeDeleted(); };
+  }, []);
+
   const filteredNotices = useMemo(() => notices.filter((notice) => {
-    const matchesSearch = `${notice.title} ${notice.body} ${notice.author}`.toLowerCase().includes(query.toLowerCase());
+    const matchesSearch = `${notice.title} ${notice.body} ${notice.createdBy || ""}`.toLowerCase().includes(query.toLowerCase());
     const matchesAudience = audience === "All Audiences" || notice.audience === audience;
     const matchesStatus = status === "All Status" || notice.status === status;
     const matchesPriority = priority === "All Priority" || notice.priority === priority;
@@ -93,10 +162,9 @@ export default function Notices() {
   }, {})).sort((first, second) => second[1] - first[1]), [notices]);
 
   const refreshNotices = async () => {
-    setLoading(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 650));
-    setLoading(false);
-    showToast(`${filteredNotices.length} notices match the current filters.`, { title: "Notice board updated", tone: "info" });
+    cursorRef.current = undefined;
+    await loadNotices();
+    showToast("Notice board refreshed.", { title: "Notice board updated", tone: "info" });
   };
 
   const clearFilters = () => {
@@ -114,7 +182,7 @@ export default function Notices() {
 
   const openEdit = (notice: Notice) => {
     setEditingId(notice.id);
-    setForm({ audience: notice.audience, body: notice.body, expiresOn: notice.expiresOn, priority: notice.priority, publishedOn: notice.publishedOn || "2026-09-28", status: notice.status, title: notice.title });
+    setForm({ audience: notice.audience, body: notice.body, expiresOn: dateInputValue(notice.expiresOn), priority: notice.priority, publishedOn: dateInputValue(notice.publishedOn), status: notice.status, title: notice.title });
     setEditorOpen(true);
   };
 
@@ -132,31 +200,35 @@ export default function Notices() {
       return;
     }
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 900));
-    if (editingId) {
-      setNotices((current) => current.map((notice) => notice.id === editingId ? { ...notice, ...form } : notice));
-    } else {
-      setNotices((current) => [{ id: Date.now(), author: "Super Administrator", ...form }, ...current]);
-    }
-    setSaving(false);
-    setEditorOpen(false);
-    showToast(`Notice was ${editingId ? "updated" : form.status === "Published" ? "published" : "saved"} successfully.`, { title: editingId ? "Notice updated" : "Notice created" });
+    try {
+      const saved = editingId
+        ? await put<Notice>(`${API_BASE}${API_ENDPOINTS.NOTICES}/${editingId}`, form)
+        : await post<Notice>(`${API_BASE}${API_ENDPOINTS.NOTICES}`, form);
+      setNotices((current) => editingId
+        ? current.map((notice) => notice.id === editingId ? saved : notice)
+        : [saved, ...current.filter((notice) => String(notice.id) !== String(saved.id))]);
+      setEditorOpen(false);
+      showToast(`Notice was ${editingId ? "updated" : form.status === "Published" ? "published" : "saved"} successfully.`, { title: editingId ? "Notice updated" : "Notice created" });
+    } catch (error) { showToast(error instanceof Error ? error.message : "Failed to save notice.", { title: "Notice save failed", tone: "error" }); }
+    finally { setSaving(false); }
   };
 
   const togglePublish = (notice: Notice) => {
     const nextStatus: NoticeStatus = notice.status === "Published" ? "Draft" : "Published";
-    const updated = { ...notice, status: nextStatus, publishedOn: nextStatus === "Published" ? "2026-09-28" : notice.publishedOn };
-    setNotices((current) => current.map((item) => item.id === notice.id ? updated : item));
-    setPreviewNotice((current) => current?.id === notice.id ? updated : current);
-    showToast(`${notice.title} is now ${nextStatus.toLowerCase()}.`, { title: "Notice status updated", tone: "info" });
+    const updated = { ...notice, status: nextStatus, publishedOn: nextStatus === "Published" ? currentDateInputValue() : notice.publishedOn };
+    void put<Notice>(`${API_BASE}${API_ENDPOINTS.NOTICES}/${notice.id}`, updated)
+      .then((saved) => { setNotices((current) => current.map((item) => item.id === saved.id ? saved : item)); setPreviewNotice(saved); showToast(`${notice.title} is now ${nextStatus.toLowerCase()}.`, { title: "Notice status updated", tone: "info" }); })
+      .catch((error) => showToast(error instanceof Error ? error.message : "Failed to update notice status.", { title: "Notice update failed", tone: "error" }));
   };
 
   const confirmDelete = () => {
     if (!deleteNotice) return;
-    setNotices((current) => current.filter((notice) => notice.id !== deleteNotice.id));
-    showToast(`${deleteNotice.title} was removed from the notice board.`, { title: "Notice deleted", tone: "info" });
-    setDeleteNotice(null);
+    void del(`${API_BASE}${API_ENDPOINTS.NOTICES}/${deleteNotice.id}`)
+      .then(() => { setNotices((current) => current.filter((notice) => notice.id !== deleteNotice.id)); showToast(`${deleteNotice.title} was removed from the notice board.`, { title: "Notice deleted", tone: "info" }); setDeleteNotice(null); })
+      .catch((error) => showToast(error instanceof Error ? error.message : "Failed to delete notice.", { title: "Notice deletion failed", tone: "error" }));
   };
+
+  if (loading && notices.length === 0) return <NoticeSkeleton />;
 
   return <div className="min-h-screen dashboard-bg pb-16">
     <Header title="Notices" subtitle="Create, schedule, publish, and manage school-wide communication" />
@@ -201,7 +273,7 @@ export default function Notices() {
       <section className="panel notice-filter-panel">
         <div className="panel-title flex-wrap gap-3"><div className="flex items-center gap-3"><span className="settings-icon grid size-9 place-items-center rounded-xl"><NoticeIcon type="search" /></span><div><div className="font-display text-sm font-bold text-slate-900">Notice Explorer</div><div className="mt-0.5 text-xs text-slate-400">{filteredNotices.length} results found</div></div></div>{hasActiveFilters && <Button variant="outline" className="!min-h-8 !px-3 !py-1.5 text-xs shadow-none" onClick={clearFilters}>Clear filters</Button>}</div>
         <div className="grid gap-3 p-4 sm:grid-cols-2 sm:gap-4 sm:p-5 xl:grid-cols-[1.4fr_1fr_1fr_1fr_auto] xl:items-end">
-          <Input label="Search Notices" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, message, or author..." startIcon={<NoticeIcon type="search" />} />
+          <Input label="Search Notices" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, message, or creator..." startIcon={<NoticeIcon type="search" />} />
           <Dropdown label="Audience" value={audience} onChange={(event) => setAudience(event.target.value)} options={["All Audiences", "Everyone", "Students", "Parents", "Students & Parents", "Staff"].map((value) => ({ label: value, value }))} />
           <Dropdown label="Publication Status" value={status} onChange={(event) => setStatus(event.target.value)} options={["All Status", "Published", "Scheduled", "Draft"].map((value) => ({ label: value, value }))} />
           <Dropdown label="Priority" value={priority} onChange={(event) => setPriority(event.target.value)} options={["All Priority", "High", "Normal"].map((value) => ({ label: value, value }))} />
@@ -226,7 +298,7 @@ export default function Notices() {
                 <div className="notice-meta-tile"><span><NoticeIcon type="people" /></span><div><div>Audience</div><strong>{notice.audience}</strong></div></div>
                 <div className="notice-meta-tile"><span><NoticeIcon type="calendar" /></span><div><div>Published</div><strong>{notice.status === "Draft" ? "Not published" : formatDate(notice.publishedOn)}</strong></div></div>
                 <div className="notice-meta-tile"><span><NoticeIcon type="calendar" /></span><div><div>Expires</div><strong>{formatDate(notice.expiresOn)}</strong></div></div>
-                <div className="notice-meta-tile"><span><NoticeIcon type="draft" /></span><div><div>Author</div><strong>{notice.author}</strong></div></div>
+                <div className="notice-meta-tile"><span><NoticeIcon type="draft" /></span><div><div>Created by</div><strong>{notice.createdBy || "—"}</strong></div></div>
               </div>
             </div>
             <div className="notice-card-footer grid grid-cols-3 gap-2 border-t border-slate-100 bg-slate-50/70 p-3">
@@ -236,6 +308,7 @@ export default function Notices() {
             </div>
           </article>)}
           {!filteredNotices.length && <div className="panel grid min-h-60 place-items-center text-center"><div><div className="mx-auto grid size-16 place-items-center rounded-2xl bg-slate-100 text-slate-400"><NoticeIcon type="notice" /></div><div className="mt-4 font-display text-sm font-bold text-slate-700">No notices found</div><p className="mt-1 text-xs text-slate-400">Adjust the filters or create a new announcement.</p><Button className="mt-4" onClick={openCreate}>Create Notice</Button></div></div>}
+          {hasMore && <div ref={loadMoreRef} className="p-4 text-center text-xs text-slate-400">{loadingMore ? "Loading more notices..." : "Scroll to load more"}</div>}
         </section>
 
         <aside className="space-y-5 xl:sticky xl:top-28">
@@ -261,7 +334,7 @@ export default function Notices() {
         <Dropdown label="Audience *" value={form.audience} onChange={(event) => setForm((current) => ({ ...current, audience: event.target.value }))} options={["Everyone", "Students", "Parents", "Students & Parents", "Staff"].map((value) => ({ label: value, value }))} />
         <Dropdown label="Priority" value={form.priority} onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value as NoticePriority }))} options={[{ label: "Normal Priority", value: "Normal" }, { label: "High Priority", value: "High" }]} />
         <Dropdown label="Publication Status" value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as NoticeStatus }))} options={[{ label: "Save as Draft", value: "Draft" }, { label: "Publish Now", value: "Published" }, { label: "Schedule Publication", value: "Scheduled" }]} />
-        <Input label={form.status === "Scheduled" ? "Scheduled Date *" : "Publish Date"} type="date" value={form.publishedOn} onChange={(event) => setForm((current) => ({ ...current, publishedOn: event.target.value }))} disabled={form.status === "Draft"} />
+        <Input label={form.status === "Scheduled" ? "Scheduled Date *" : "Publish Date"} type="date" value={form.publishedOn || ""} onChange={(event) => setForm((current) => ({ ...current, publishedOn: event.target.value }))} required={form.status !== "Draft"} />
         <Input label="Expiry Date *" type="date" value={form.expiresOn} onChange={(event) => setForm((current) => ({ ...current, expiresOn: event.target.value }))} />
       </div>
     </Popup>
@@ -271,9 +344,47 @@ export default function Notices() {
       onClose={() => setPreviewNotice(null)}
       title="Notice Preview"
       description="This is how the announcement will appear to recipients."
-      footer={<><Button variant="outline" onClick={() => setPreviewNotice(null)}>Close</Button>{previewNotice && <Button variant={previewNotice.status === "Published" ? "warning" : "primary"} onClick={() => togglePublish(previewNotice)}>{previewNotice.status === "Published" ? "Move to Draft" : "Publish Now"}</Button>}</>}
+      footer={
+        <>
+          <Button variant="outline" onClick={() => setPreviewNotice(null)}>Close</Button>
+          {previewNotice && (
+            <Button
+              variant={previewNotice.status === "Published" ? "warning" : "primary"}
+              onClick={() => togglePublish(previewNotice)}
+            >
+              {previewNotice.status === "Published" ? "Move to Draft" : "Publish Now"}
+            </Button>
+          )}
+        </>
+      }
     >
-      {previewNotice && <article className={`notice-preview-card overflow-hidden rounded-2xl border ${previewNotice.priority === "High" ? "border-rose-200" : "border-violet-100"}`}><div className={`p-5 text-white ${previewNotice.priority === "High" ? "bg-rose-600" : "bg-slate-950"}`}><div className="flex items-start gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/15"><NoticeIcon type={previewNotice.priority === "High" ? "alert" : "notice"} /></div><div><div className="font-display text-xl font-bold">{previewNotice.title}</div><div className="mt-2 flex flex-wrap gap-2"><span className="status-neutral">{previewNotice.audience}</span>{previewNotice.priority === "High" && <span className="status-danger">High Priority</span>}</div></div></div></div><div className="notice-preview-body p-5"><p className="text-sm leading-6 text-slate-700">{previewNotice.body}</p><div className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-400"><div className="flex flex-wrap justify-between gap-2"><span>Published by {previewNotice.author}</span><span>Valid until {formatDate(previewNotice.expiresOn)}</span></div></div></div></article>}
+      {previewNotice && (
+        <article className={`notice-preview-card overflow-hidden rounded-2xl border ${previewNotice.priority === "High" ? "border-rose-200" : "border-violet-100"}`}>
+          <div className={`p-5 text-white ${previewNotice.priority === "High" ? "bg-rose-600" : "bg-slate-950"}`}>
+            <div className="flex items-start gap-4">
+              <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/15">
+                <NoticeIcon type={previewNotice.priority === "High" ? "alert" : "notice"} />
+              </div>
+              <div>
+                <div className="font-display text-xl font-bold">{previewNotice.title}</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="status-neutral">{previewNotice.audience}</span>
+                  {previewNotice.priority === "High" && <span className="status-danger">High Priority</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="notice-preview-body p-5">
+            <p className="text-sm leading-6 text-slate-700">{previewNotice.body}</p>
+            <div className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-400">
+              <div className="flex flex-wrap justify-between gap-2">
+                <span>Created by {previewNotice.createdBy || "—"}</span>
+                <span>Valid until {formatDate(previewNotice.expiresOn)}</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      )}
     </Popup>
 
     <Popup

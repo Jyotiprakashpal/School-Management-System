@@ -29,6 +29,7 @@ import adminSettingsRoutes from './routes/adminSettingsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
 import roleRoutes from './routes/roleRoutes.js';
 import documentRoutes from './routes/documentRoutes.js';
+import noticeRoutes from './routes/noticeRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 import { initializeDatabase } from './db-init.js';
 
@@ -106,6 +107,7 @@ app.use('/api/admin-settings', adminSettingsRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/notices', noticeRoutes);
 
 const connectDatabase = async () => {
   try {

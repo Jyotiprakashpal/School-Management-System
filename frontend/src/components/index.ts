@@ -7,6 +7,7 @@ export { default as FileUpload } from "./FileUpload";
 export { default as Input } from "./Input";
 export { default as ISTClock } from "./ISTClock";
 export { default as Loader } from "./Loader";
+export { default as NoticeSkeleton } from "./NoticeSkeleton";
 export { default as PremiumPagination } from "./PremiumPagination";
 export type { PremiumPaginationProps } from "./PremiumPagination";
 export { default as SessionSkeleton } from "./SessionSkeleton";

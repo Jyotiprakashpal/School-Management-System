@@ -17,10 +17,25 @@ export type RoleRealtime = {
   [key: string]: unknown
 }
 
+export type NoticeRealtime = {
+  id: number
+  title: string
+  body: string
+  audience: string
+  createdBy: string | null
+  publishedOn: string | null
+  expiresOn: string
+  status: "Draft" | "Published" | "Scheduled"
+  priority: "High" | "Normal"
+  createdAt: string
+  updatedAt: string
+}
+
 const socket = io(SOCKET_URL, { autoConnect: true })
 socket.on("connect", () => {
   socket.emit("join", "settings")
   socket.emit("join", "roles")
+  socket.emit("join", "notices")
 })
 
 export function onSettingsUpdated(listener: (settings: SettingsUpdated) => void) {
@@ -43,4 +58,19 @@ export function onRoleUpdated(listener: (role: RoleRealtime) => void) {
 export function onRoleDeleted(listener: (payload: { roleId: string }) => void) {
   socket.on("role:deleted", listener)
   return () => socket.off("role:deleted", listener)
+}
+
+export function onNoticeCreated(listener: (notice: NoticeRealtime) => void) {
+  socket.on("notice:created", listener)
+  return () => socket.off("notice:created", listener)
+}
+
+export function onNoticeUpdated(listener: (notice: NoticeRealtime) => void) {
+  socket.on("notice:updated", listener)
+  return () => socket.off("notice:updated", listener)
+}
+
+export function onNoticeDeleted(listener: (payload: { id: number }) => void) {
+  socket.on("notice:deleted", listener)
+  return () => socket.off("notice:deleted", listener)
 }
