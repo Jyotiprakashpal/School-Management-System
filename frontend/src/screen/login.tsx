@@ -3,6 +3,7 @@ import { Button, Input, useToast } from "../components"
 import { get, post } from "../api/methods"
 import { API_BASE, API_ENDPOINTS } from "../api/endpoints"
 import { onSettingsUpdated } from "../api/socket"
+import campusImage from "../assets/school-campus.jpg"
 
 type LoginIconName = "arrow" | "book" | "check" | "eye" | "eyeOff" | "lock" | "mail" | "people" | "person" | "shield" | "spark"
 
@@ -239,8 +240,8 @@ export default function Login({ onLogin }: LoginProps) {
   return (
     <div className="login-screen h-lvh overflow-hidden">
       <main className="grid h-lvh overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(28rem,.9fr)]">
-        <section className="login-visual relative hidden h-full overflow-hidden lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-teal-950/65 to-cyan-900/25" />
+        <section className="login-visual relative hidden h-full overflow-hidden lg:flex lg:flex-col lg:justify-between" style={{ backgroundImage: `url(${campusImage})` }}>
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-950/70 via-teal-950/50 to-cyan-900/15" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/20" />
 
           <div className="relative z-10 flex items-center gap-3 p-8 xl:p-10">
