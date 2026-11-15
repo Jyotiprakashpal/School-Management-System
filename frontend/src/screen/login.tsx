@@ -96,13 +96,31 @@ type LoginResponse = {
 
 type LoginBranding = {
   schoolName: string
+  schoolEmail?: string
+  schoolWebsite: string
   logo: string | null
   academicYear: string
 }
 
 async function getReadableLoginLocation(): Promise<string> {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown location"
-  if (!navigator.geolocation) return timezone
+  const getIpLocation = async () => {
+    try {
+      const response = await fetch("https://ipapi.co/json/", { headers: { Accept: "application/json" } })
+      if (!response.ok) return timezone
+      const result = (await response.json()) as {
+        city?: string
+        region?: string
+        postal?: string
+        country_name?: string
+      }
+      return [result.city, result.region, result.postal, result.country_name].filter(Boolean).join(", ") || timezone
+    } catch {
+      return timezone
+    }
+  }
+
+  if (!navigator.geolocation) return getIpLocation()
 
   try {
     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -144,7 +162,7 @@ async function getReadableLoginLocation(): Promise<string> {
       .filter((part, index, values) => values.indexOf(part) === index)
     return parts.length > 1 ? parts.join(", ") : result.display_name || timezone
   } catch {
-    return timezone
+    return getIpLocation()
   }
 }
 
@@ -159,6 +177,10 @@ export default function Login({ onLogin }: LoginProps) {
   const [sendingRecoveryLink, setSendingRecoveryLink] = useState(false)
   const [branding, setBranding] = useState<LoginBranding | null>(null)
   const { showToast } = useToast()
+  const schoolWebsite = branding?.schoolWebsite
+    ? /^https?:\/\//i.test(branding.schoolWebsite) ? branding.schoolWebsite : `https://${branding.schoolWebsite}`
+    : null
+  const privacyEmail = branding?.schoolEmail ? `mailto:${branding.schoolEmail}?subject=Privacy%20request` : null
 
   useEffect(() => {
     void get<LoginBranding>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`)
@@ -389,7 +411,7 @@ export default function Login({ onLogin }: LoginProps) {
                     Welcome back
                   </div>
                   <p className="mt-1 text-xs leading-5 text-white/65 sm:text-sm">
-                    Sign in to continue to your PAL IT HUB administration workspace.
+                    Sign in to continue to your {branding?.schoolName || "school"} administration workspace.
                   </p>
 
                   <form onSubmit={submit} className="mt-5 space-y-3">
@@ -488,9 +510,8 @@ export default function Login({ onLogin }: LoginProps) {
 
           <footer className="login-brand-footer relative z-10 flex shrink-0 flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-white/10 bg-white/5 px-5 py-2.5 text-xs text-white/45 backdrop-blur-md">
             <span className="login-brand-year">© {branding?.academicYear || new Date().getFullYear()} {branding?.schoolName || "School"}</span>
-            <span>© 2027 PAL IT HUB</span>
-            <span>Privacy</span>
-            <span>Support</span>
+            {privacyEmail ? <a href={privacyEmail} className="transition hover:text-white">Privacy</a> : <span>Privacy</span>}
+            {schoolWebsite ? <a href={schoolWebsite} target="_blank" rel="noreferrer" className="transition hover:text-white">Support</a> : <span>Support</span>}
           </footer>
         </section>
       </main>
