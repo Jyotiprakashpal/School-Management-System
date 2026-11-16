@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Button, Dropdown, Input, useToast } from "../../components";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Dropdown, IncomeVsExpenseSkeleton, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -96,7 +96,8 @@ function progressWidth(value: number, max: number) {
 }
 
 export default function IncomeVsExpense() {
-  const [cashflows, setCashflows] = useState(initialCashflows);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [cashflows, setCashflows] = useState<Cashflow[]>([]);
   const [academicYear, setAcademicYear] = useState("2026–27");
   const [period, setPeriod] = useState("April–September");
   const [account, setAccount] = useState("All Accounts");
@@ -110,6 +111,15 @@ export default function IncomeVsExpense() {
   const [selectedCashflow, setSelectedCashflow] = useState<Cashflow | null>(null);
   const [deletingCashflow, setDeletingCashflow] = useState<Cashflow | null>(null);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const loadIncomeVsExpense = window.setTimeout(() => {
+      setCashflows(initialCashflows);
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => window.clearTimeout(loadIncomeVsExpense);
+  }, []);
 
   const chartData = useMemo(() => monthlyData.map((month) => month.month === "Sep" ? {
     ...month,
@@ -132,6 +142,8 @@ export default function IncomeVsExpense() {
     totals[cashflow.category] = (totals[cashflow.category] ?? 0) + cashflow.amount;
     return totals;
   }, {})).sort((first, second) => second[1] - first[1]), [cashflows]);
+
+  if (initialLoading) return <IncomeVsExpenseSkeleton />;
 
   const refreshDashboard = async () => {
     setLoading(true);

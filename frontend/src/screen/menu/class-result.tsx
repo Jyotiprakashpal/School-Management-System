@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Button, Dropdown, Input, PremiumPagination, useToast } from "../../components";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Button, ClassResultSkeleton, Dropdown, Input, PremiumPagination, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -28,6 +28,8 @@ const gradeFor = (percentage: number) => (gradeScale.find((item) => percentage >
 const gradeBar = (grade: string) => gradeScale.find((item) => item.grade === grade)?.bar ?? "bg-slate-400";
 const initials = (name: string) => name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
 const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+const escapeReportText = (value: string | number) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
+const reportRemark = (record: Ranked) => record.percentage >= 90 ? "Outstanding academic performance. Keep pursuing excellence with the same dedication." : record.percentage >= 75 ? "Very good performance with consistent achievement across the curriculum." : record.percentage >= 60 ? "Good progress. Continued practice will help strengthen overall achievement." : record.passed ? "Satisfactory progress. Focused support in lower-scoring subjects is recommended." : "Additional academic support and focused revision are recommended before the next assessment.";
 
 const buildResults = (exam: string, className: string, section: string): Ranked[] => {
   const seed = classOptions.indexOf(className) * 7 + sectionOptions.indexOf(section) * 3 + examOptions.indexOf(exam) * 5;
@@ -85,6 +87,7 @@ const resetClass = "border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50!
 const medal = ["from-amber-300 to-amber-500", "from-slate-300 to-slate-400", "from-orange-300 to-orange-500"];
 
 export default function ClassResult() {
+  const [initialLoading, setInitialLoading] = useState(true);
   const [exam, setExam] = useState("Half Yearly Examination");
   const [className, setClassName] = useState("Class 10");
   const [section, setSection] = useState("A");
@@ -98,10 +101,19 @@ export default function ClassResult() {
   const [filter, setFilter] = useState<Filter>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+  const [results, setResults] = useState<Ranked[]>([]);
   const { showToast } = useToast();
 
+  useEffect(() => {
+    const loadClassResult = window.setTimeout(() => {
+      setResults(buildResults("Half Yearly Examination", "Class 10", "A"));
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => window.clearTimeout(loadClassResult);
+  }, []);
+
   const stale = exam !== loaded.exam || className !== loaded.className || section !== loaded.section;
-  const results = useMemo(() => buildResults(loaded.exam, loaded.className, loaded.section), [loaded]);
 
   const summary = useMemo(() => {
     const passed = results.filter((r) => r.passed).length;
@@ -124,12 +136,15 @@ export default function ClassResult() {
   const safePage = Math.min(currentPage, totalPages);
   const paged = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
+  if (initialLoading) return <ClassResultSkeleton />;
+
   const changeSelection = (setter: (value: string) => void) => (event: { target: { value: string } }) => setter(event.target.value);
 
   const loadResult = async () => {
     setLoading(true);
     await new Promise((resolve) => window.setTimeout(resolve, 650));
     setLoaded({ exam, className, section });
+    setResults(buildResults(exam, className, section));
     setPublished(false);
     setSearch("");
     setFilter("all");
@@ -164,13 +179,16 @@ export default function ClassResult() {
     const doc = frame.contentDocument;
     if (!doc || !frame.contentWindow) return;
     doc.open();
-    doc.write(`<html><head><title>${title}</title><style>body{font-family:sans-serif;padding:24px;color:#0f172a}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left;font-size:13px}th{background:#f1f5f9}</style></head><body>${body}</body></html>`);
+    doc.write(`<html><head><title>${title}</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#0f172a;background:#fff}h1,h2,p{margin:0}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left;font-size:12px}th{background:#f1f5f9;font-size:10px;text-transform:uppercase;letter-spacing:.06em}.report-sheet{min-height:250mm;border:1px solid #cbd5e1;padding:18px;position:relative}.school-head{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #0f766e;padding-bottom:14px}.brand{display:flex;align-items:center;gap:12px}.brand-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:12px;background:#0f766e;color:#fff;font-size:19px;font-weight:800}.school-name{font-size:23px;font-weight:800;color:#0f172a}.school-copy{margin-top:3px;font-size:10px;color:#64748b}.document-title{text-align:right}.document-title strong{display:block;font-size:15px;text-transform:uppercase;letter-spacing:.12em;color:#0f766e}.document-title span{display:block;margin-top:5px;font-size:10px;color:#64748b}.student-banner{display:flex;align-items:center;gap:14px;margin-top:16px;padding:14px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px}.student-avatar{display:grid;place-items:center;width:48px;height:48px;border-radius:12px;background:#0f766e;color:#fff;font-weight:800}.student-name{font-size:17px;font-weight:800}.student-id{margin-top:4px;font-size:10px;color:#64748b}.result-stamp{margin-left:auto;border:2px solid #059669;border-radius:8px;padding:6px 10px;color:#047857;font-size:11px;font-weight:800;text-transform:uppercase;transform:rotate(-2deg)}.result-stamp.fail{border-color:#e11d48;color:#be123c}.meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.meta-item{border:1px solid #e2e8f0;border-radius:8px;padding:9px}.meta-item span{display:block;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8}.meta-item strong{display:block;margin-top:4px;font-size:10px}.marks-table th{text-align:center;background:#0f766e;color:#fff;border-color:#0f766e}.marks-table td{text-align:center}.marks-table td:first-child{text-align:left;font-weight:700}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.summary-item{text-align:center;border:1px solid #cbd5e1;border-radius:9px;padding:10px;background:#f8fafc}.summary-item strong{display:block;font-size:16px}.summary-item span{display:block;margin-top:4px;font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#64748b}.remarks{margin-top:12px;border-left:4px solid #0f766e;background:#f8fafc;padding:10px 12px;font-size:10px;line-height:1.5}.signatures{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:54px;text-align:center}.signature{border-top:1px solid #64748b;padding-top:6px;font-size:9px;font-weight:700}.document-foot{position:absolute;right:18px;bottom:12px;left:18px;border-top:1px solid #e2e8f0;padding-top:7px;text-align:center;font-size:8px;color:#94a3b8}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.report-sheet{border:0}}</style></head><body>${body}</body></html>`);
     doc.close();
     window.setTimeout(() => { frame.contentWindow?.print(); window.setTimeout(() => frame.remove(), 1000); }, 250);
   };
 
   const printResult = () => printHtml("Class Result", `<h2>${loaded.exam} - Class Result</h2><p>${loaded.className}-${loaded.section} · Average ${summary.average.toFixed(1)}% · Pass rate ${summary.passRate}%</p><table><thead><tr><th>Rank</th><th>Admission No.</th><th>Student</th><th>Total</th><th>%</th><th>Grade</th><th>Result</th></tr></thead><tbody>${results.map((r) => `<tr><td>${r.rank}</td><td>${r.admissionNo}</td><td>${r.name}</td><td>${r.obtained}/${r.maximum}</td><td>${r.percentage}%</td><td>${r.grade}</td><td>${r.passed ? "Passed" : "Failed"}</td></tr>`).join("")}</tbody></table>`);
-  const printReportCard = (r: Ranked) => printHtml("Report Card", `<h2>${r.name} - Report Card</h2><p>${r.admissionNo} · ${loaded.className}-${loaded.section} · ${loaded.exam}</p><table><thead><tr><th>Subject</th><th>Marks</th><th>Result</th></tr></thead><tbody>${r.subjects.map((s) => `<tr><td>${s.name}</td><td>${s.score}/${s.total}</td><td>${s.score >= s.total * 0.35 ? "Pass" : "Fail"}</td></tr>`).join("")}</tbody></table><p><strong>Total ${r.obtained}/${r.maximum} · ${r.percentage}% · Grade ${r.grade} · Rank #${r.rank} · ${r.passed ? "Passed" : "Failed"}</strong></p>`);
+  const printReportCard = (record: Ranked) => {
+    const remarks = reportRemark(record);
+    printHtml("Student Report Card", `<article class="report-sheet"><header class="school-head"><div class="brand"><div class="brand-mark">PI</div><div><div class="school-name">PAL IT HUB</div><div class="school-copy">12 Knowledge Park, Lucknow, Uttar Pradesh · www.pal.education</div></div></div><div class="document-title"><strong>Academic Report Card</strong><span>Session 2027–28</span></div></header><section class="student-banner"><div class="student-avatar">${escapeReportText(initials(record.name))}</div><div><div class="student-name">${escapeReportText(record.name)}</div><div class="student-id">${escapeReportText(record.admissionNo)}</div></div><div class="result-stamp ${record.passed ? "" : "fail"}">${record.passed ? "Promoted" : "Needs Improvement"}</div></section><section class="meta-grid"><div class="meta-item"><span>Examination</span><strong>${escapeReportText(loaded.exam)}</strong></div><div class="meta-item"><span>Class & Section</span><strong>${escapeReportText(`${loaded.className}-${loaded.section}`)}</strong></div><div class="meta-item"><span>Academic Session</span><strong>2027–28</strong></div><div class="meta-item"><span>Admission Number</span><strong>${escapeReportText(record.admissionNo)}</strong></div></section><table class="marks-table"><thead><tr><th>Subject</th><th>Maximum</th><th>Obtained</th><th>Percentage</th><th>Grade</th><th>Status</th></tr></thead><tbody>${record.subjects.map((subject) => { const percentage = (subject.score / subject.total) * 100; const pass = percentage >= 35; return `<tr><td>${escapeReportText(subject.name)}</td><td>${subject.total}</td><td><strong>${subject.score}</strong></td><td>${percentage.toFixed(0)}%</td><td><strong>${gradeFor(percentage)}</strong></td><td>${pass ? "Pass" : "Fail"}</td></tr>`; }).join("")}</tbody></table><section class="summary-grid"><div class="summary-item"><strong>${record.obtained}/${record.maximum}</strong><span>Total Marks</span></div><div class="summary-item"><strong>${record.percentage}%</strong><span>Percentage</span></div><div class="summary-item"><strong>${record.grade}</strong><span>Overall Grade</span></div><div class="summary-item"><strong>#${record.rank}</strong><span>Class Rank</span></div></section><div class="remarks"><strong>Class Teacher's Remarks:</strong> ${escapeReportText(remarks)}</div><section class="signatures"><div class="signature">Class Teacher</div><div class="signature">Parent / Guardian</div><div class="signature">Principal</div></section><footer class="document-foot">Computer-generated academic report · PAL IT HUB School Management System</footer></article>`);
+  };
 
   const stats: { label: string; value: string; copy: string; tone: string; icon: IconType }[] = [
     { label: "Total Students", value: String(results.length), tone: "teal", copy: `${loaded.className}-${loaded.section}`, icon: "users" },
@@ -181,8 +199,34 @@ export default function ClassResult() {
 
   return <div className="class-result-screen min-h-screen dashboard-bg pb-16">
     <Header title="Class Result" subtitle="Analyze performance, review rankings, and publish examination results" />
-    <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
-      <section className="panel overflow-hidden">
+    <main className="mx-auto max-w-[1600px] space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+      <section className="class-result-command-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
+        <span className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full border border-white/10 bg-white/10" />
+        <span className="pointer-events-none absolute -bottom-28 left-1/3 size-60 rounded-full bg-white/5" />
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-white/80"><ResultIcon type="chart" className="size-4" />Performance command center</div>
+            <div className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-white/60">{loaded.className}-{loaded.section} · {published ? "Published result" : "Draft result"}</div>
+            <h1 className="mt-1 max-w-2xl font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{loaded.exam}</h1>
+            <p className="mt-2 max-w-xl text-xs leading-5 text-white/70 sm:text-sm sm:leading-6">Review rankings, subject performance, grade distribution, and publication readiness from one clear results workspace.</p>
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:flex">
+              <Button variant="outline" onClick={exportCsv} icon={<ResultIcon type="download" className="size-4" />} className="w-full !min-h-11 !border-white/15 !bg-white/10 text-white !shadow-none hover:!bg-white/20 sm:w-auto">Export CSV</Button>
+              <Button onClick={() => setPublishOpen(true)} disabled={published || stale} icon={<ResultIcon type="publish" className="size-4" />} className="w-full !min-h-11 !bg-white !text-(--app-accent-dark) shadow-xl hover:!bg-white/90 disabled:!bg-white/40 sm:w-auto">{published ? "Published" : "Publish Result"}</Button>
+            </div>
+          </div>
+          <div className="class-result-topper-card rounded-2xl border border-white/15 bg-white/10 p-4 shadow-xl backdrop-blur-sm sm:p-5">
+            <div className="flex items-center gap-3">
+              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-amber-300 to-amber-500 text-slate-900 shadow-lg"><ResultIcon type="trophy" /></span>
+              <div className="min-w-0 flex-1"><div className="text-[0.62rem] font-bold uppercase tracking-widest text-white/60">Class topper</div><div className="mt-1 truncate font-display text-lg font-bold">{topper.name}</div><div className="truncate text-xs text-white/65">{topper.admissionNo}</div></div>
+              <div className="text-right"><div className="font-display text-3xl font-extrabold">#1</div><div className="text-[0.58rem] uppercase tracking-wider text-white/55">Rank</div></div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2">{[["Marks", `${topper.obtained}/${topper.maximum}`], ["Score", `${topper.percentage}%`], ["Grade", topper.grade]].map(([label, value]) => <div key={label} className="rounded-xl bg-white/8 p-2.5 text-center ring-1 ring-white/10"><div className="font-display text-sm font-bold">{value}</div><div className="mt-1 text-[0.55rem] font-bold uppercase tracking-wider text-white/55">{label}</div></div>)}</div>
+            {results.length > 2 && <div className="mt-3 grid grid-cols-2 gap-2">{results.slice(1, 3).map((record, index) => <button key={record.admissionNo} type="button" onClick={() => setSelectedRecord(record)} className="flex min-w-0 items-center gap-2 rounded-xl bg-white/8 p-2 text-left ring-1 ring-white/10 transition hover:bg-white/15"><span className={`grid size-7 shrink-0 place-items-center rounded-lg bg-linear-to-br text-[0.65rem] font-bold text-slate-900 ${medal[index + 1]}`}>#{record.rank}</span><span className="min-w-0"><span className="block truncate text-xs font-bold">{record.name}</span><span className="text-[0.62rem] text-white/60">{record.percentage}%</span></span></button>)}</div>}
+          </div>
+        </div>
+      </section>
+
+      <section className="class-result-filter-panel panel overflow-hidden">
         <PanelHead icon="chart" title="Result Filters" subtitle="Pick the exam and class to analyse" action={<span className={stale ? "status-warning" : published ? "status-success" : "status-warning"}>{stale ? "Selection changed" : published ? "Published" : "Draft Result"}</span>} />
         <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3.5 p-3.5 sm:gap-x-4 sm:p-5 md:grid-cols-4 xl:grid-cols-[1.3fr_1fr_.7fr_auto] [&>:first-child]:col-span-2 xl:[&>:first-child]:col-span-1 md:[&>:first-child]:col-span-2 [&>:last-child]:col-span-2 md:[&>:last-child]:col-span-4 xl:[&>:last-child]:col-span-1">
           <Dropdown label="Examination" value={exam} onChange={changeSelection(setExam)} options={examOptions.map((value) => ({ label: value, value }))} />
@@ -202,40 +246,21 @@ export default function ClassResult() {
         </article>)}
       </section>
 
-      <div className="grid items-start gap-4 sm:gap-5 xl:grid-cols-[1.25fr_.75fr]">
-        <div className="space-y-4 sm:space-y-5">
-          <section className="relative overflow-hidden rounded-2xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-4 text-white shadow-lg sm:p-5">
-            <div className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full bg-white/10" aria-hidden="true" />
-            <div className="relative flex items-center gap-3 sm:gap-4">
-              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25 sm:size-14"><ResultIcon type="trophy" className="size-6" /></span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[0.65rem] font-bold uppercase tracking-widest text-white/70">Class topper</p>
-                <h2 className="font-display truncate text-lg font-bold sm:text-xl">{topper.name}</h2>
-                <p className="truncate text-xs text-white/80">{topper.admissionNo} · {topper.percentage}% · Grade {topper.grade}</p>
-              </div>
-              <div className="shrink-0 text-right"><div className="font-display text-3xl font-bold">#1</div><div className="text-[0.62rem] text-white/70">Class Rank</div></div>
-            </div>
-            <div className="relative mt-4 grid grid-cols-3 gap-2 sm:gap-3">
-              {[["Marks", `${topper.obtained}/${topper.maximum}`], ["Percentage", `${topper.percentage}%`], ["Grade", topper.grade]].map(([label, value]) => <div key={label} className="rounded-xl bg-white/12 p-2.5 text-center ring-1 ring-white/15 sm:p-3"><div className="font-display text-sm font-bold sm:text-lg">{value}</div><div className="mt-0.5 text-[0.6rem] uppercase tracking-wider text-white/70">{label}</div></div>)}
-            </div>
-            {results.length > 2 && <div className="relative mt-3 grid grid-cols-2 gap-2 sm:gap-3">{results.slice(1, 3).map((r, i) => <button key={r.admissionNo} type="button" onClick={() => setSelectedRecord(r)} className="flex min-w-0 items-center gap-2.5 rounded-xl bg-white/10 p-2.5 text-left ring-1 ring-white/15 transition hover:bg-white/20 active:scale-[.98]"><span className={`grid size-8 shrink-0 place-items-center rounded-lg bg-linear-to-br text-xs font-bold text-slate-900 ${medal[i + 1]}`}>#{r.rank}</span><span className="min-w-0"><span className="block truncate text-xs font-bold">{r.name}</span><span className="block text-[0.65rem] text-white/70">{r.percentage}%</span></span></button>)}</div>}
-          </section>
-
-          <section className="panel overflow-hidden">
-            <PanelHead icon="chart" title="Subject Performance" subtitle="Class average per subject" />
-            <div className="grid gap-3.5 p-4 sm:grid-cols-2 sm:gap-x-6 sm:p-5">
-              {summary.subjectAverages.map((item) => <div key={item.name}>
+      <div className="grid items-start gap-4 sm:gap-5 xl:grid-cols-[1fr_1.15fr]">
+        <section className="class-result-analysis-panel panel overflow-hidden">
+          <PanelHead icon="chart" title="Subject Performance" subtitle="Class average per subject" />
+          <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
+              {summary.subjectAverages.map((item) => <div key={item.name} className="class-result-analysis-item rounded-xl border border-slate-100 bg-slate-50/60 p-3">
                 <div className="mb-1.5 flex items-center justify-between text-xs"><span className="font-semibold text-slate-600">{item.name}</span><strong className="text-slate-800">{item.average.toFixed(1)}%</strong></div>
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${gradeBar(gradeFor(item.average))} transition-all`} style={{ width: `${item.average}%` }} /></div>
               </div>)}
-            </div>
-          </section>
-        </div>
+          </div>
+        </section>
 
-        <section className="panel overflow-hidden">
+        <section className="class-result-analysis-panel panel overflow-hidden">
           <PanelHead icon="chart" title="Grade Distribution" subtitle="Students grouped by final grade" />
-          <div className="space-y-3 p-4 sm:p-5">
-            {summary.distribution.map((item) => <div key={item.grade} className="flex items-center gap-3">
+          <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
+            {summary.distribution.map((item) => <div key={item.grade} className="class-result-analysis-item flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
               <span className={`grid size-8 shrink-0 place-items-center rounded-lg text-xs font-bold text-white ${item.bar}`}>{item.grade}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between text-xs"><span className="text-slate-500">{item.min}%+</span><strong className="text-slate-800">{item.count} student{item.count === 1 ? "" : "s"}</strong></div>
@@ -246,7 +271,7 @@ export default function ClassResult() {
         </section>
       </div>
 
-      <section className="panel overflow-hidden">
+      <section className="class-result-students-panel panel overflow-hidden">
         <PanelHead icon="users" title="Student Results" subtitle={`${loaded.exam} · ${loaded.className}-${loaded.section}`} action={
           <div className="flex flex-wrap gap-2 max-sm:grid max-sm:grid-cols-2 max-sm:[&>*]:min-w-0 max-sm:[&>:last-child]:col-span-2">
             <Button variant="outline" className="min-h-9 px-3 py-2" onClick={printResult} icon={<ResultIcon type="print" className="size-4" />}>Print</Button>
@@ -269,7 +294,7 @@ export default function ClassResult() {
         </div>
 
         {paged.length ? <ul className="divide-y divide-slate-100">
-          {paged.map((r) => <li key={r.admissionNo} className="class-result-row grid gap-3 p-3.5 transition hover:bg-slate-50/60 sm:p-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] lg:items-center lg:gap-5">
+          {paged.map((r) => <li key={r.admissionNo} className="class-result-row class-result-premium-row grid gap-3 p-3.5 transition hover:bg-slate-50/60 sm:p-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] lg:items-center lg:gap-5">
             <div className="flex min-w-0 items-center gap-3">
               <span className={`grid size-10 shrink-0 place-items-center rounded-xl font-display text-xs font-bold ${r.rank <= 3 ? `bg-linear-to-br text-slate-900 shadow-sm ${medal[r.rank - 1]}` : "bg-slate-100 text-slate-500"}`}>#{r.rank}</span>
               <div className="min-w-0 flex-1"><h3 className="font-display truncate text-sm font-bold text-slate-900">{r.name}</h3><p className="truncate text-xs text-slate-500">{r.admissionNo}</p></div>
@@ -311,23 +336,47 @@ export default function ClassResult() {
       onClose={() => setSelectedRecord(null)}
       title="Student Report Card"
       description={`${selectedRecord?.name ?? ""} · ${loaded.exam}`}
+      panelClassName="sm:max-w-4xl"
+      bodyClassName="report-card-modal-body sm:!px-7 sm:!py-6"
       footer={<><Button variant="outline" onClick={() => setSelectedRecord(null)}>Close</Button>{selectedRecord && <Button onClick={() => printReportCard(selectedRecord)} icon={<ResultIcon type="print" className="size-4" />}>Print Report Card</Button>}</>}
     >
-      {selectedRecord && <div className="space-y-5">
-        <div className="flex items-center gap-3 rounded-2xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark))] p-4 text-white sm:gap-4 sm:p-5">
-          <div className="font-display grid size-12 shrink-0 place-items-center rounded-2xl bg-white/15 text-base font-bold sm:size-14 sm:text-lg">{initials(selectedRecord.name)}</div>
-          <div className="min-w-0 flex-1"><h3 className="font-display truncate text-base font-bold sm:text-lg">{selectedRecord.name}</h3><p className="truncate text-xs text-white/75">{selectedRecord.admissionNo} · {loaded.className}-{loaded.section}</p></div>
-          <div className="shrink-0 text-right"><div className="font-display text-2xl font-bold">{selectedRecord.percentage}%</div><div className="text-[0.62rem] text-white/70">Grade {selectedRecord.grade}</div></div>
+      {selectedRecord && <article className="professional-report-card overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <header className="report-card-school-head flex flex-col gap-4 border-b-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="flex items-center gap-3">
+            <span className="font-display grid size-12 shrink-0 place-items-center rounded-2xl bg-(--app-accent-dark) text-base font-extrabold text-white shadow-lg">PI</span>
+            <div><div className="font-display text-xl font-extrabold tracking-tight text-slate-950">PAL IT HUB</div><div className="mt-0.5 text-[0.65rem] text-slate-500">12 Knowledge Park, Lucknow · www.pal.education</div></div>
+          </div>
+          <div className="sm:text-right"><div className="font-display text-sm font-extrabold uppercase tracking-[0.15em] text-(--app-accent-dark)">Academic Report Card</div><div className="mt-1 text-[0.65rem] font-semibold text-slate-400">Academic Session 2027–28</div></div>
+        </header>
+
+        <div className="p-4 sm:p-5">
+          <section className="report-card-student flex items-center gap-3 rounded-2xl border p-3 sm:gap-4 sm:p-4">
+            <div className="font-display grid size-12 shrink-0 place-items-center rounded-2xl bg-(--app-accent-dark) text-base font-bold text-white sm:size-14 sm:text-lg">{initials(selectedRecord.name)}</div>
+            <div className="min-w-0 flex-1"><h3 className="font-display truncate text-base font-extrabold text-slate-950 sm:text-lg">{selectedRecord.name}</h3><p className="mt-0.5 truncate text-xs text-slate-500">{selectedRecord.admissionNo}</p></div>
+            <span className={`report-card-result-stamp shrink-0 rounded-lg border-2 px-2.5 py-1.5 text-[0.6rem] font-extrabold uppercase tracking-wider sm:px-3 sm:text-xs ${selectedRecord.passed ? "border-emerald-500 text-emerald-700" : "border-rose-500 text-rose-700"}`}>{selectedRecord.passed ? "Promoted" : "Needs Improvement"}</span>
+          </section>
+
+          <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Examination", loaded.exam], ["Class & Section", `${loaded.className}-${loaded.section}`], ["Academic Session", "2027–28"], ["Admission Number", selectedRecord.admissionNo]].map(([label, value]) => <div key={label} className="report-card-meta rounded-xl border border-slate-100 p-2.5 sm:p-3"><dt className="text-[0.55rem] font-bold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-1 truncate text-xs font-bold text-slate-800" title={value}>{value}</dd></div>)}</dl>
+
+          <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+            <table className="report-card-marks w-full min-w-[38rem] text-xs">
+              <thead><tr><th>Subject</th><th>Maximum</th><th>Obtained</th><th>Percentage</th><th>Grade</th><th>Status</th></tr></thead>
+              <tbody>{selectedRecord.subjects.map((subject) => {
+                const percentage = (subject.score / subject.total) * 100;
+                const pass = percentage >= 35;
+                return <tr key={subject.name}><td>{subject.name}</td><td>{subject.total}</td><td className="font-bold">{subject.score}</td><td>{percentage.toFixed(0)}%</td><td><span className={`inline-grid size-7 place-items-center rounded-lg text-[0.65rem] font-bold text-white ${gradeBar(gradeFor(percentage))}`}>{gradeFor(percentage)}</span></td><td><span className={pass ? "status-success" : "status-danger"}>{pass ? "Pass" : "Fail"}</span></td></tr>;
+              })}</tbody>
+            </table>
+          </div>
+
+          <section className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Total Marks", `${selectedRecord.obtained}/${selectedRecord.maximum}`], ["Percentage", `${selectedRecord.percentage}%`], ["Overall Grade", selectedRecord.grade], ["Class Rank", `#${selectedRecord.rank}`]].map(([label, value]) => <div key={label} className="report-card-summary rounded-xl border border-slate-100 p-3 text-center"><div className="font-display text-base font-extrabold text-slate-950">{value}</div><div className="mt-1 text-[0.55rem] font-bold uppercase tracking-wider text-slate-400">{label}</div></div>)}</section>
+
+          <div className="report-card-remarks mt-4 rounded-r-xl border-l-4 p-3 text-xs leading-5 text-slate-600"><strong className="text-slate-800">Class Teacher’s Remarks:</strong> {reportRemark(selectedRecord)}</div>
+
+          <section className="mt-10 grid grid-cols-3 gap-5 text-center sm:mt-12 sm:gap-10">{["Class Teacher", "Parent / Guardian", "Principal"].map((label) => <div key={label} className="border-t border-slate-400 pt-2 text-[0.6rem] font-bold text-slate-500 sm:text-xs">{label}</div>)}</section>
         </div>
-        <div className="divide-y divide-slate-100 rounded-xl border border-slate-100">{selectedRecord.subjects.map((subject) => {
-          const pass = subject.score >= subject.total * 0.35;
-          return <div key={subject.name} className="px-4 py-3 text-xs">
-            <div className="flex items-center justify-between gap-3"><span className="font-semibold text-slate-700">{subject.name}</span><div className="flex items-center gap-3"><span className="text-slate-500">{subject.score} / {subject.total}</span><span className={pass ? "status-success" : "status-danger"}>{pass ? "Pass" : "Fail"}</span></div></div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${gradeBar(gradeFor((subject.score / subject.total) * 100))}`} style={{ width: `${(subject.score / subject.total) * 100}%` }} /></div>
-          </div>;
-        })}</div>
-        <div className="grid grid-cols-3 gap-3 text-center">{[["Total", `${selectedRecord.obtained}/${selectedRecord.maximum}`], ["Rank", `#${selectedRecord.rank}`], ["Result", selectedRecord.passed ? "Passed" : "Failed"]].map(([label, value]) => <div key={label} className="rounded-xl bg-slate-50 p-3"><div className="font-display text-sm font-bold text-slate-900">{value}</div><div className="mt-1 text-[0.6rem] uppercase tracking-wider text-slate-400">{label}</div></div>)}</div>
-      </div>}
+        <footer className="border-t border-slate-100 px-4 py-2.5 text-center text-[0.58rem] text-slate-400">Computer-generated academic report · PAL IT HUB School Management System</footer>
+      </article>}
     </Popup>
   </div>;
 }

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Button, Dropdown, Input, useToast } from "../../components";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Dropdown, Input, SalaryManagementSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -65,12 +65,13 @@ function progressWidth(value: number, max: number) {
 }
 
 export default function SalaryManagement() {
-  const [payroll, setPayroll] = useState(initialPayroll);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [payroll, setPayroll] = useState<Payroll[]>([]);
   const [month, setMonth] = useState("September 2026");
   const [department, setDepartment] = useState("All Departments");
   const [status, setStatus] = useState("All Status");
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null);
@@ -82,12 +83,28 @@ export default function SalaryManagement() {
   const [bulkPaymentOpen, setBulkPaymentOpen] = useState(false);
   const { showToast } = useToast();
 
+  useEffect(() => {
+    const loadSalaryManagement = window.setTimeout(() => {
+      setPayroll(initialPayroll);
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => window.clearTimeout(loadSalaryManagement);
+  }, []);
+
   const visiblePayroll = useMemo(() => payroll.filter((item) => {
     const matchesSearch = `${item.name} ${item.employeeId} ${item.designation}`.toLowerCase().includes(query.toLowerCase());
     const matchesDepartment = department === "All Departments" || item.department === department;
     const matchesStatus = status === "All Status" || item.status === status;
     return matchesSearch && matchesDepartment && matchesStatus;
   }), [department, payroll, query, status]);
+
+  const departmentTotals = useMemo(() => Object.entries(payroll.reduce<Record<string, number>>((totals, item) => {
+    totals[item.department] = (totals[item.department] ?? 0) + netSalary(item);
+    return totals;
+  }, {})).sort((first, second) => second[1] - first[1]), [payroll]);
+
+  if (initialLoading) return <SalaryManagementSkeleton />;
 
   const grossPayroll = payroll.reduce((sum, item) => sum + item.basic + item.allowances, 0);
   const deductions = payroll.reduce((sum, item) => sum + item.deductions, 0);
@@ -98,15 +115,10 @@ export default function SalaryManagement() {
   const pendingCount = payroll.filter((item) => item.status === "Pending").length;
   const paymentProgress = Math.round((paidCount / payroll.length) * 100);
   const processedAmount = payroll.filter((item) => item.status === "Processed").reduce((sum, item) => sum + netSalary(item), 0);
-  const departmentTotals = useMemo(() => Object.entries(payroll.reduce<Record<string, number>>((totals, item) => {
-    totals[item.department] = (totals[item.department] ?? 0) + netSalary(item);
-    return totals;
-  }, {})).sort((first, second) => second[1] - first[1]), [payroll]);
-
   const loadPayroll = async () => {
-    setLoading(true);
+    setRefreshing(true);
     await new Promise((resolve) => window.setTimeout(resolve, 700));
-    setLoading(false);
+    setRefreshing(false);
     showToast(`${month} payroll has been loaded.`, { title: "Payroll updated", tone: "info" });
   };
 
@@ -247,7 +259,7 @@ export default function SalaryManagement() {
           <Dropdown label="Salary Month" value={month} onChange={(event) => setMonth(event.target.value)} options={["September 2026", "August 2026", "July 2026"].map((value) => ({ label: value, value }))} />
           <Dropdown label="Department" value={department} onChange={(event) => setDepartment(event.target.value)} options={["All Departments", "Academics", "Administration", "Finance", "Transport"].map((value) => ({ label: value, value }))} />
           <Dropdown label="Payment Status" value={status} onChange={(event) => setStatus(event.target.value)} options={["All Status", "Pending", "Processed", "Paid"].map((value) => ({ label: value, value }))} />
-          <Button className="w-full whitespace-nowrap sm:w-auto sm:px-3 lg:px-4" onClick={loadPayroll} isLoading={loading} loadingText="Loading...">View Payroll</Button>
+          <Button className="w-full whitespace-nowrap sm:w-auto sm:px-3 lg:px-4" onClick={loadPayroll} isLoading={refreshing} loadingText="Loading...">View Payroll</Button>
         </div>
       </section>
 

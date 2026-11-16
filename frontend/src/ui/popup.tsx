@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react"
 
 type PopupProps = {
+  bodyClassName?: string
   children: ReactNode
   description?: string
   footer?: ReactNode
@@ -8,10 +9,12 @@ type PopupProps = {
   icon?: ReactNode
   onClose: () => void
   open: boolean
+  panelClassName?: string
   title: string
 }
 
 export default function Popup({
+  bodyClassName = "",
   children,
   description,
   footer,
@@ -19,6 +22,7 @@ export default function Popup({
   icon,
   onClose,
   open,
+  panelClassName = "",
   title,
 }: PopupProps) {
   const onCloseRef = useRef(onClose)
@@ -34,8 +38,11 @@ export default function Popup({
     }
     const previousOverflow = document.body.style.overflow
     const previousPaddingRight = document.body.style.paddingRight
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
-    const bodyPaddingRight = Number.parseFloat(window.getComputedStyle(document.body).paddingRight) || 0
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth
+    const bodyPaddingRight =
+      Number.parseFloat(window.getComputedStyle(document.body).paddingRight) ||
+      0
 
     if (scrollbarWidth > 0) {
       document.body.style.paddingRight = `${bodyPaddingRight + scrollbarWidth}px`
@@ -64,7 +71,9 @@ export default function Popup({
         aria-label="Close dialog"
         onClick={onClose}
       />
-      <section className="premium-modal relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white sm:max-w-2xl sm:rounded-3xl">
+      <section
+        className={`premium-modal relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white sm:rounded-3xl ${panelClassName || "sm:max-w-2xl"}`}
+      >
         <header className="popup-header flex shrink-0 items-start gap-3 px-4 py-4 text-white sm:gap-4 sm:py-5 sm:px-6">
           <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/20 backdrop-blur-sm">
             {icon ?? (
@@ -114,7 +123,9 @@ export default function Popup({
             </svg>
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5 ${bodyClassName}`}
+        >
           {children}
         </div>
         {footer && (

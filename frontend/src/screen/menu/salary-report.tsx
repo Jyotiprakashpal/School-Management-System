@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Button, Dropdown, useToast } from "../../components";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Dropdown, SalaryReportSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -24,7 +24,7 @@ type EmployeeSalary = {
   status: "Paid" | "Pending";
 };
 
-const monthlyPayroll: MonthlyPayroll[] = [
+const initialMonthlyPayroll: MonthlyPayroll[] = [
   { id: 1, month: "April 2026", employees: 6, gross: 202000, deductions: 10800, net: 191200, paid: 191200, status: "Complete" },
   { id: 2, month: "May 2026", employees: 6, gross: 202000, deductions: 10800, net: 191200, paid: 191200, status: "Complete" },
   { id: 3, month: "June 2026", employees: 6, gross: 204500, deductions: 11100, net: 193400, paid: 193400, status: "Complete" },
@@ -33,7 +33,7 @@ const monthlyPayroll: MonthlyPayroll[] = [
   { id: 6, month: "September 2026", employees: 6, gross: 214700, deductions: 10500, net: 204200, paid: 45200, status: "Partial" },
 ];
 
-const employeeSalaries: EmployeeSalary[] = [
+const initialEmployeeSalaries: EmployeeSalary[] = [
   { id: 1, employeeId: "EMP-26-1001", name: "Raj Kumar", department: "Administration", gross: 48000, net: 45200, status: "Paid" },
   { id: 2, employeeId: "EMP-26-1002", name: "Priya Sharma", department: "Academics", gross: 31700, net: 30100, status: "Pending" },
   { id: 3, employeeId: "EMP-26-1003", name: "Ravi Verma", department: "Academics", gross: 33500, net: 31750, status: "Pending" },
@@ -88,21 +88,41 @@ function progressWidth(value: number, max: number) {
 }
 
 export default function SalaryReport() {
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [monthlyPayroll, setMonthlyPayroll] = useState<MonthlyPayroll[]>([]);
+  const [employeeSalaries, setEmployeeSalaries] = useState<EmployeeSalary[]>([]);
   const [academicYear, setAcademicYear] = useState("2026–27");
   const [period, setPeriod] = useState("April–September");
   const [department, setDepartment] = useState("All Departments");
   const [paymentStatus, setPaymentStatus] = useState("All Status");
-  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState<"CSV" | "PDF" | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<MonthlyPayroll | null>(null);
   const [printing, setPrinting] = useState(false);
   const { showToast } = useToast();
 
+  useEffect(() => {
+    const loadSalaryReport = window.setTimeout(() => {
+      setMonthlyPayroll(initialMonthlyPayroll);
+      setEmployeeSalaries(initialEmployeeSalaries);
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => window.clearTimeout(loadSalaryReport);
+  }, []);
+
   const visibleEmployees = useMemo(() => employeeSalaries.filter((employee) => {
     const matchesDepartment = department === "All Departments" || employee.department === department;
     const matchesStatus = paymentStatus === "All Status" || employee.status === paymentStatus;
     return matchesDepartment && matchesStatus;
-  }), [department, paymentStatus]);
+  }), [department, employeeSalaries, paymentStatus]);
+
+  const departmentTotals = useMemo(() => Object.entries(employeeSalaries.reduce<Record<string, number>>((totals, employee) => {
+    totals[employee.department] = (totals[employee.department] ?? 0) + employee.net;
+    return totals;
+  }, {})).sort((first, second) => second[1] - first[1]), [employeeSalaries]);
+
+  if (initialLoading) return <SalaryReportSkeleton />;
 
   const totalGross = monthlyPayroll.reduce((sum, item) => sum + item.gross, 0);
   const totalDeductions = monthlyPayroll.reduce((sum, item) => sum + item.deductions, 0);
@@ -111,15 +131,11 @@ export default function SalaryReport() {
   const pendingPayroll = totalNet - totalPaid;
   const paymentCompletion = Math.round(totalPaid / totalNet * 100);
   const maxPayroll = Math.max(...monthlyPayroll.map((item) => item.gross));
-  const departmentTotals = useMemo(() => Object.entries(employeeSalaries.reduce<Record<string, number>>((totals, employee) => {
-    totals[employee.department] = (totals[employee.department] ?? 0) + employee.net;
-    return totals;
-  }, {})).sort((first, second) => second[1] - first[1]), []);
 
   const loadReport = async () => {
-    setLoading(true);
+    setRefreshing(true);
     await new Promise((resolve) => window.setTimeout(resolve, 700));
-    setLoading(false);
+    setRefreshing(false);
     showToast(`${period} salary analytics have been refreshed.`, { title: "Report updated", tone: "info" });
   };
 
@@ -321,7 +337,7 @@ export default function SalaryReport() {
           <Dropdown label="Report Period" value={period} onChange={(event) => setPeriod(event.target.value)} options={["April–September", "September 2026", "Quarter 2", "Full Academic Year"].map((value) => ({ label: value, value }))} />
           <Dropdown label="Department" value={department} onChange={(event) => setDepartment(event.target.value)} options={["All Departments", "Academics", "Administration", "Finance", "Transport"].map((value) => ({ label: value, value }))} />
           <Dropdown label="Payment Status" value={paymentStatus} onChange={(event) => setPaymentStatus(event.target.value)} options={["All Status", "Paid", "Pending"].map((value) => ({ label: value, value }))} />
-          <Button className="w-full sm:col-span-2 xl:col-span-1 xl:w-auto" onClick={loadReport} isLoading={loading} loadingText="Loading report...">Apply Filters</Button>
+          <Button className="w-full sm:col-span-2 xl:col-span-1 xl:w-auto" onClick={loadReport} isLoading={refreshing} loadingText="Loading report...">Apply Filters</Button>
         </div>
       </section>
 

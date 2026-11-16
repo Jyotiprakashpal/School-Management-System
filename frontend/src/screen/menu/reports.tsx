@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Button, Dropdown, Input, useToast } from "../../components";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Dropdown, Input, ReportsSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -153,16 +153,26 @@ async function saveReportFile(report: GeneratedReport) {
 }
 
 export default function Reports() {
+  const [initialLoading, setInitialLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All Categories");
   const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
   const [configuration, setConfiguration] = useState(blankConfiguration);
-  const [generatedReports, setGeneratedReports] = useState(initialGenerated);
+  const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>([]);
   const [generating, setGenerating] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [deletingReport, setDeletingReport] = useState<GeneratedReport | null>(null);
   const [historyFilter, setHistoryFilter] = useState("All Reports");
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const loadReports = window.setTimeout(() => {
+      setGeneratedReports(initialGenerated);
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => window.clearTimeout(loadReports);
+  }, []);
 
   const filteredTemplates = useMemo(() => templates.filter((report) => {
     const matchesSearch = `${report.title} ${report.description}`.toLowerCase().includes(query.toLowerCase());
@@ -172,6 +182,8 @@ export default function Reports() {
   const filteredHistory = generatedReports.filter((report) => historyFilter === "All Reports" || report.status === historyFilter);
   const readyReports = generatedReports.filter((report) => report.status === "Ready").length;
   const scheduledReports = generatedReports.filter((report) => report.status === "Scheduled").length;
+
+  if (initialLoading) return <ReportsSkeleton />;
 
   const openConfiguration = (report: ReportTemplate) => {
     setSelectedTemplate(report);

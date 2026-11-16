@@ -1,5 +1,11 @@
-import { useMemo, useState, type ReactNode } from "react"
-import { Button, Dropdown, Input, useToast } from "../../components"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
+import {
+  Button,
+  Dropdown,
+  ExpensesSkeleton,
+  Input,
+  useToast,
+} from "../../components"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
 
@@ -214,7 +220,8 @@ function progressWidth(value: number, max: number) {
 }
 
 export default function Expenses() {
-  const [expenses, setExpenses] = useState(initialExpenses)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [expenses, setExpenses] = useState<Expense[]>([])
   const [query, setQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("All Categories")
   const [statusFilter, setStatusFilter] = useState("All Status")
@@ -229,6 +236,15 @@ export default function Expenses() {
   const [deleteExpense, setDeleteExpense] = useState<Expense | null>(null)
   const { showToast } = useToast()
   const monthlyBudget = 25000
+
+  useEffect(() => {
+    const loadExpenses = window.setTimeout(() => {
+      setExpenses(initialExpenses)
+      setInitialLoading(false)
+    }, 1000)
+
+    return () => window.clearTimeout(loadExpenses)
+  }, [])
 
   const visibleExpenses = useMemo(
     () =>
@@ -286,6 +302,8 @@ export default function Expenses() {
       ).sort((first, second) => second[1] - first[1]),
     [expenses],
   )
+
+  if (initialLoading) return <ExpensesSkeleton />
 
   const refreshExpenses = async () => {
     setLoading(true)

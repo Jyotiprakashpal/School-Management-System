@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { AdmitCardPrint, Button, Dropdown, Input, useToast } from "../../components";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AdmitCardPrint, Button, Dropdown, ExamScheduleSkeleton, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -95,9 +95,10 @@ const whenStyle: Record<Exclude<When, "All">, { badge: string; strip: string; ti
 };
 
 export default function ExamSchedule() {
+  const [initialLoading, setInitialLoading] = useState(true);
   const [exam, setExam] = useState(HY);
   const [classFilter, setClassFilter] = useState("Class 10-A");
-  const [schedules, setSchedules] = useState(initialSchedules);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [query, setQuery] = useState("");
   const [when, setWhen] = useState<When>("All");
   const [editorOpen, setEditorOpen] = useState(false);
@@ -107,6 +108,15 @@ export default function ExamSchedule() {
   const [deleteSchedule, setDeleteSchedule] = useState<Schedule | null>(null);
   const [admitCardOpen, setAdmitCardOpen] = useState(false);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const loadExamSchedule = window.setTimeout(() => {
+      setSchedules(initialSchedules);
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => window.clearTimeout(loadExamSchedule);
+  }, []);
 
   const scoped = useMemo(() => schedules.filter((schedule) => schedule.exam === exam && schedule.className === classFilter).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)), [schedules, exam, classFilter]);
   const visible = scoped.filter((schedule) => {
@@ -141,6 +151,8 @@ export default function ExamSchedule() {
     { label: "Rooms Used", value: roomCount, tone: "amber", copy: "Across this exam", icon: "room" as IconType },
     { label: "Invigilators", value: staffCount, tone: "violet", copy: "Assigned staff", icon: "user" as IconType },
   ];
+
+  if (initialLoading) return <ExamScheduleSkeleton />;
 
   const openCreate = () => { setEditingId(null); setForm({ ...blankSchedule, className: classFilter }); setEditorOpen(true); };
   const openEdit = (schedule: Schedule) => {
@@ -229,10 +241,41 @@ export default function ExamSchedule() {
 
   const setField = (field: keyof typeof blankSchedule, value: string) => setForm((current) => ({ ...current, [field]: value }));
 
-  return <div className="min-h-screen dashboard-bg pb-16">
+  return <div className="exam-schedule-screen min-h-screen dashboard-bg pb-16">
     <Header title="Exam Schedule" subtitle="Plan examination dates, rooms, timings, and invigilation duties" />
-    <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
-      <section className="panel overflow-hidden">
+    <main className="mx-auto max-w-[1600px] space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+      <section className="exam-schedule-command-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
+        <span className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full border border-white/10 bg-white/10" />
+        <span className="pointer-events-none absolute -bottom-28 left-1/3 size-60 rounded-full bg-white/5" />
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-white/80"><ScheduleIcon type="calendar" className="size-4" />Examination command center</div>
+            <div className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Session 2027–28 · {classFilter}</div>
+            <h1 className="mt-1 max-w-2xl font-display text-2xl font-extrabold tracking-tight sm:text-4xl">{exam}</h1>
+            <p className="mt-2 max-w-xl text-xs leading-5 text-white/70 sm:text-sm sm:leading-6">Coordinate papers, rooms, timings, and invigilation from one conflict-aware schedule.</p>
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:flex">
+              <Button onClick={openCreate} icon={<ScheduleIcon type="plus" className="size-4" />} className="w-full !min-h-11 !bg-white !text-(--app-accent-dark) shadow-xl hover:!bg-white/90 sm:w-auto">Add Schedule</Button>
+              <Button variant="outline" onClick={printSchedule} icon={<ScheduleIcon type="print" className="size-4" />} className="w-full !min-h-11 !border-white/15 !bg-white/10 text-white !shadow-none hover:!bg-white/20 sm:w-auto">Print Plan</Button>
+            </div>
+          </div>
+          <div className="exam-schedule-next-card rounded-2xl border border-white/15 bg-white/10 p-4 shadow-xl backdrop-blur-sm sm:p-5">
+            {next ? <>
+              <div className="flex items-start justify-between gap-4">
+                <div><div className="text-[0.65rem] font-bold uppercase tracking-widest text-white/60">Next paper · {dayLabel(next.date)}</div><div className="mt-1 font-display text-xl font-extrabold">{next.subject}</div><div className="mt-1 text-xs text-white/70">{classFilter} · {next.room}</div></div>
+                <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-center ring-1 ring-white/20"><div><div className="font-display text-xl font-bold leading-none">{parse(next.date).getDate()}</div><div className="mt-1 text-[0.55rem] font-bold uppercase tracking-wider text-white/75">{parse(next.date).toLocaleDateString("en-IN", { month: "short" })}</div></div></div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-white/8 p-3 ring-1 ring-white/10"><div className="text-[0.58rem] font-bold uppercase tracking-wider text-white/55">Time</div><div className="mt-1 text-xs font-bold">{clock(next.startTime)} – {clock(next.endTime)}</div></div>
+                <div className="rounded-xl bg-white/8 p-3 ring-1 ring-white/10"><div className="text-[0.58rem] font-bold uppercase tracking-wider text-white/55">Invigilator</div><div className="mt-1 truncate text-xs font-bold">{next.invigilator}</div></div>
+              </div>
+              <div className="mt-4 flex justify-between text-[0.65rem] font-semibold text-white/75"><span>Exam progress</span><span>{completed}/{scoped.length} completed</span></div>
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-white shadow-sm transition-all duration-500" style={{ width: `${progress}%` }} /></div>
+            </> : <div className="grid min-h-44 place-items-center text-center"><div><ScheduleIcon type="calendar" className="mx-auto size-8 text-white/60" /><div className="mt-3 font-display text-sm font-bold">No upcoming paper</div><p className="mt-1 text-xs text-white/60">Add a schedule to begin planning.</p></div></div>}
+          </div>
+        </div>
+      </section>
+
+      <section className="exam-schedule-filter-panel panel overflow-hidden">
         <PanelHead icon="calendar" title="Schedule Filters" subtitle="Choose an examination and class" action={<span className="status-info">Session 2027–28</span>} />
         <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3.5 p-3.5 sm:gap-x-4 sm:p-5 [&>:first-child]:col-span-2 sm:[&>:first-child]:col-span-1">
           <Dropdown label="Examination" value={exam} onChange={(event) => { setExam(event.target.value); setWhen("All"); }} options={exams.map((value) => ({ label: value, value }))} />
@@ -250,24 +293,8 @@ export default function ExamSchedule() {
         </article>)}
       </section>
 
-      {next && <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-4 text-white shadow-lg sm:p-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 size-44 rounded-full bg-white/10 blur-2xl" />
-        <div className="relative flex flex-wrap items-center gap-x-5 gap-y-4">
-          <div className="grid size-16 shrink-0 place-items-center rounded-2xl bg-white/15 text-center ring-1 ring-white/25 backdrop-blur-sm"><div><div className="font-display text-2xl font-bold leading-none">{parse(next.date).getDate()}</div><div className="mt-1 text-[0.62rem] font-bold uppercase tracking-wider text-white/80">{parse(next.date).toLocaleDateString("en-IN", { month: "short" })}</div></div></div>
-          <div className="min-w-0 flex-1 basis-56">
-            <div className="text-[0.65rem] font-bold uppercase tracking-widest text-white/70">Next paper · {dayLabel(next.date)}</div>
-            <h2 className="font-display mt-1 truncate text-xl font-bold sm:text-2xl">{next.subject}</h2>
-            <p className="mt-1 text-xs text-white/80">{clock(next.startTime)} – {clock(next.endTime)} · {next.room} · {next.invigilator}</p>
-          </div>
-          <div className="w-full sm:w-52">
-            <div className="flex justify-between text-[0.65rem] font-semibold text-white/80"><span>Exam progress</span><span>{completed}/{scoped.length} done</span></div>
-            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white transition-all duration-500" style={{ width: `${progress}%` }} /></div>
-          </div>
-        </div>
-      </section>}
-
       <div className="grid items-start gap-4 sm:gap-5 xl:grid-cols-[1fr_20rem]">
-        <section className="panel overflow-hidden">
+        <section className="exam-schedule-board panel overflow-hidden">
           <PanelHead icon="calendar" title={exam} subtitle={`${classFilter} · ${scoped.length} papers · ${examDays} days`} action={<Button onClick={openCreate} icon={<ScheduleIcon type="plus" className="size-4" />} className="max-sm:w-full">Add Schedule</Button>} />
           <div className="space-y-3 border-b border-slate-100 p-3.5 sm:p-5">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2.5 sm:gap-3">
@@ -292,7 +319,7 @@ export default function ExamSchedule() {
               return <div key={date} className="flex flex-col max-sm:overflow-hidden max-sm:rounded-2xl max-sm:border max-sm:border-slate-200 max-sm:bg-white max-sm:shadow-lg max-sm:shadow-slate-900/5 sm:flex-row sm:gap-4">
                 <div className={`grid h-16 w-14 shrink-0 place-items-center rounded-2xl text-center ring-1 relative max-sm:flex max-sm:h-auto max-sm:w-full max-sm:items-center max-sm:justify-between max-sm:overflow-hidden max-sm:rounded-none max-sm:px-4 max-sm:py-2.5 max-sm:text-white max-sm:ring-0 sm:w-16 max-sm:bg-[linear-gradient(90deg,var(--app-sidebar-start),var(--app-accent-dark)_55%,var(--app-accent))] ${state.tile}`}><span aria-hidden="true" className="pointer-events-none absolute -right-6 -top-8 size-24 rounded-full bg-white/15 sm:hidden" /><div className="relative max-sm:flex max-sm:items-baseline max-sm:gap-2"><div className="text-[0.6rem] font-bold uppercase tracking-wider opacity-80">{parse(date).toLocaleDateString("en-IN", { weekday: "short" })}</div><div className="font-display text-xl font-bold leading-tight">{parse(date).getDate()}</div><div className="text-[0.6rem] font-bold uppercase tracking-wider opacity-80">{parse(date).toLocaleDateString("en-IN", { month: "short" })}</div></div><span className="relative inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider ring-1 ring-white/30 backdrop-blur-sm sm:hidden">{whenOf(items[0]) === "Today" && <span className="size-1.5 animate-pulse rounded-full bg-white" />}{items.length} {items.length === 1 ? "paper" : "papers"}</span></div>
                 <ul className="min-w-0 flex-1 space-y-2.5 max-sm:bg-slate-50/70 max-sm:p-2.5">
-                  {items.map((schedule) => <li key={schedule.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md sm:p-4">
+                  {items.map((schedule) => <li key={schedule.id} className="exam-schedule-paper rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md sm:p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0"><h3 className="font-display truncate text-sm font-bold text-slate-900">{schedule.subject}</h3><p className="mt-0.5 text-xs text-slate-500">{clock(schedule.startTime)} – {clock(schedule.endTime)} · {durationLabel(schedule)}</p></div>
                       <span className={`${whenStyle[whenOf(schedule)].badge} shrink-0`}>{whenOf(schedule) === "Upcoming" ? dayLabel(schedule.date) : whenOf(schedule)}</span>

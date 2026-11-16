@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Button, Dropdown, Input, PremiumPagination, useToast } from "../../components";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Button, Dropdown, Input, PremiumPagination, SubjectsSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -60,7 +60,8 @@ function PanelHead({ icon, title, subtitle, action }: { icon: IconType; title: s
 const resetClass = "border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! active:scale-95";
 
 export default function Subjects() {
-  const [subjects, setSubjects] = useState(initialSubjects);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"" | SubjectType>("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -72,6 +73,15 @@ export default function Subjects() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const loadSubjects = window.setTimeout(() => {
+      setSubjects(initialSubjects);
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => window.clearTimeout(loadSubjects);
+  }, []);
 
   const typeCounts = useMemo(() => Object.fromEntries(types.map((t) => [t, subjects.filter((s) => s.type === t).length])) as Record<SubjectType, number>, [subjects]);
   const totalTeachers = subjects.reduce((sum, s) => sum + s.teachers, 0);
@@ -152,9 +162,35 @@ export default function Subjects() {
     { label: "Active Subjects", value: activeCount, copy: "Available for mapping", tone: "violet", icon: "check" },
   ];
 
+  if (initialLoading) return <SubjectsSkeleton />;
+
   return <div className="subjects-screen min-h-screen dashboard-bg pb-16">
     <Header title="Subjects" subtitle="Build the academic catalog and manage class coverage" />
-    <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+    <main className="mx-auto max-w-[1600px] space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+      <section className="subjects-command-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
+        <span className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full border border-white/10 bg-white/10" />
+        <span className="pointer-events-none absolute -bottom-28 left-1/3 size-60 rounded-full bg-white/5" />
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-white/80"><SubjectIcon type="catalog" className="size-4" />Academic catalog</div>
+            <div className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Curriculum foundation</div>
+            <h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Shape a complete subject portfolio.</h1>
+            <p className="mt-2 max-w-xl text-xs leading-5 text-white/70 sm:text-sm sm:leading-6">Organize curriculum areas, class coverage, teacher assignments, and mapping availability from one focused catalog.</p>
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:flex">
+              <Button onClick={openCreate} icon={<SubjectIcon type="plus" className="size-4" />} className="w-full !min-h-11 !bg-white !text-(--app-accent-dark) shadow-xl hover:!bg-white/90 sm:w-auto">Add Subject</Button>
+              <Button variant="outline" onClick={exportCsv} icon={<SubjectIcon type="download" className="size-4" />} className="w-full !min-h-11 !border-white/15 !bg-white/10 text-white !shadow-none hover:!bg-white/20 sm:w-auto">Export CSV</Button>
+            </div>
+          </div>
+          <div className="subjects-portfolio-card rounded-2xl border border-white/15 bg-white/10 p-4 shadow-xl backdrop-blur-sm sm:p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div><div className="text-[0.65rem] font-bold uppercase tracking-widest text-white/60">Teaching assignments</div><div className="mt-1 font-display text-3xl font-extrabold">{totalTeachers}</div><div className="mt-0.5 text-xs text-white/60">Across {subjects.length} catalog subjects</div></div>
+              <span className="grid size-12 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/15"><SubjectIcon type="teacher" /></span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">{types.map((type) => <div key={type} className="rounded-xl bg-white/8 px-3 py-2.5 ring-1 ring-white/10"><div className="text-[0.58rem] font-bold uppercase tracking-wider text-white/55">{type}</div><div className="mt-1 text-sm font-bold">{typeCounts[type]} subjects</div></div>)}</div>
+          </div>
+        </div>
+      </section>
+
       <section className="grid auto-rows-fr grid-cols-[repeat(2,minmax(0,1fr))] gap-2.5 sm:gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))] [&>article]:h-full">
         {stats.map((stat) => <article key={stat.label} className={`admission-summary-card admission-summary-${stat.tone} relative overflow-hidden rounded-2xl p-3 shadow-sm sm:p-5`}>
           <div className="flex items-start justify-between gap-2 sm:gap-3">
@@ -165,18 +201,7 @@ export default function Subjects() {
         </article>)}
       </section>
 
-      <section className="relative overflow-hidden rounded-2xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-4 text-white shadow-lg sm:p-5">
-        <div className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full bg-white/10" aria-hidden="true" />
-        <div className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><SubjectIcon type="teacher" /></span>
-            <div className="min-w-0"><p className="text-[0.65rem] font-bold uppercase tracking-widest text-white/70">Teaching staff</p><h2 className="font-display text-base font-bold sm:text-lg">{totalTeachers} teacher assignments across {subjects.length} subjects</h2></div>
-          </div>
-          <div className="flex flex-wrap gap-1.5">{types.map((t) => <span key={t} className="rounded-full bg-white/15 px-2.5 py-1 text-[0.7rem] font-semibold ring-1 ring-white/20">{t} · {typeCounts[t]}</span>)}</div>
-        </div>
-      </section>
-
-      <section className="panel overflow-hidden">
+      <section className="subjects-catalog-panel panel overflow-hidden">
         <PanelHead icon="catalog" title="Subject Catalog" subtitle={`${filtered.length} of ${subjects.length} subjects`} action={
           <div className="flex gap-2 max-sm:w-full max-sm:[&>*]:flex-1">
             <Button variant="outline" onClick={exportCsv} icon={<SubjectIcon type="download" className="size-4" />}>Export</Button>
@@ -202,7 +227,7 @@ export default function Subjects() {
           {paged.map((subject) => {
             const meta = typeMeta[subject.type];
             const active = subject.status === "Active";
-            return <article key={subject.id} className={`subject-card flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${active ? "" : "opacity-80"}`}>
+            return <article key={subject.id} className={`subject-card subjects-premium-card flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${active ? "" : "opacity-80"}`}>
               <div className={`h-1.5 bg-linear-to-r ${meta.strip}`} />
               <div className="flex flex-1 flex-col gap-3.5 p-4">
                 <div className="flex items-start gap-3">

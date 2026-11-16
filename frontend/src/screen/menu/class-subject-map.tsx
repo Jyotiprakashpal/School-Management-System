@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Button, Dropdown, Input, useToast } from "../../components";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Button, ClassSubjectMapSkeleton, Dropdown, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -69,6 +69,7 @@ const blankMapping = { subject: "", code: "", teacher: UNASSIGNED, periods: "1",
 const initials = (name: string) => name.split(" ").map((part) => part[0]).join("").slice(0, 2);
 
 export default function ClassSubjectMap() {
+  const [initialLoading, setInitialLoading] = useState(true);
   const [className, setClassName] = useState("UKG");
   const [section, setSection] = useState("A");
   const [year, setYear] = useState("2027–28");
@@ -83,6 +84,14 @@ export default function ClassSubjectMap() {
   const [copyOpen, setCopyOpen] = useState(false);
   const [copyFrom, setCopyFrom] = useState({ className: "Nursery", section: "A" });
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const loadClassSubjectMap = window.setTimeout(() => {
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => window.clearTimeout(loadClassSubjectMap);
+  }, []);
 
   const key = keyOf(className, section, year);
   const label = `${className}-${section}`;
@@ -193,10 +202,40 @@ export default function ClassSubjectMap() {
     { label: "Unassigned", value: unassigned, tone: "violet", copy: unassigned ? "Need a teacher" : "All covered", icon: "link" as IconType },
   ];
 
+  if (initialLoading) return <ClassSubjectMapSkeleton />;
+
   return <div className="class-subject-map-screen min-h-screen dashboard-bg pb-16">
     <Header title="Class-Subject Map" subtitle="Assign subjects, teachers, and weekly periods to each class" />
-    <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
-      <section className="panel overflow-hidden">
+    <main className="mx-auto max-w-[1600px] space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+      <section className="class-map-command-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
+        <span className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full border border-white/10 bg-white/10" />
+        <span className="pointer-events-none absolute -bottom-28 left-1/3 size-60 rounded-full bg-white/5" />
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-white/80"><MapIcon type="link" className="size-4" />Curriculum command center</div>
+            <div className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-white/60">{year} · Section {section}</div>
+            <h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{className} Curriculum</h1>
+            <p className="mt-2 max-w-xl text-xs leading-5 text-white/70 sm:text-sm sm:leading-6">Build a balanced weekly curriculum, connect every subject with the right teacher, and keep timetable capacity visible.</p>
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:flex">
+              <Button onClick={() => { setForm(blankMapping); setAddOpen(true); }} icon={<MapIcon type="plus" className="size-4" />} className="w-full !min-h-11 !bg-white !text-(--app-accent-dark) shadow-xl hover:!bg-white/90 sm:w-auto">Add Subject</Button>
+              <Button variant="outline" onClick={() => { setCopyFrom({ className: classes.find((value) => value !== className) ?? "Nursery", section }); setCopyOpen(true); }} icon={<MapIcon type="copy" className="size-4" />} className="w-full !min-h-11 !border-white/15 !bg-white/10 text-white !shadow-none hover:!bg-white/20 sm:w-auto">Copy Curriculum</Button>
+            </div>
+          </div>
+          <div className="class-map-health-card rounded-2xl border border-white/15 bg-white/10 p-4 shadow-xl backdrop-blur-sm sm:p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div><div className="text-[0.65rem] font-bold uppercase tracking-widest text-white/60">Weekly capacity</div><div className="mt-1 font-display text-3xl font-extrabold">{totalPeriods}<span className="text-base font-semibold text-white/50"> / {WEEK_CAPACITY}</span></div></div>
+              <span className="grid size-12 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/15"><MapIcon type="clock" /></span>
+            </div>
+            <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/15"><div className={`h-full rounded-full shadow-sm ${overCapacity ? "bg-rose-300" : "bg-white"}`} style={{ width: `${capacityPercent}%` }} /></div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-white/8 p-3 ring-1 ring-white/10"><div className="text-[0.58rem] font-bold uppercase tracking-wider text-white/55">Mapped</div><div className="mt-1 text-lg font-bold">{mappings.length} subjects</div></div>
+              <div className="rounded-xl bg-white/8 p-3 ring-1 ring-white/10"><div className="text-[0.58rem] font-bold uppercase tracking-wider text-white/55">Coverage</div><div className="mt-1 text-lg font-bold">{unassigned ? `${unassigned} open` : "Complete"}</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="class-map-setup-panel panel overflow-hidden">
         <PanelHead icon="link" title="Class Mapping Setup" subtitle="Pick a class to view or edit its curriculum" action={<span className={dirty ? "status-warning" : "status-success"}>{dirty ? "Unsaved changes" : "All changes saved"}</span>} />
         <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3.5 p-3.5 sm:gap-x-4 sm:p-5 xl:grid-cols-[1fr_1fr_1fr_auto] [&>:last-child]:min-w-0 [&>:last-child]:px-3">
           <Dropdown label="Class" value={className} onChange={(event) => setClassName(event.target.value)} options={classes.map((value) => ({ label: value, value }))} />
@@ -217,7 +256,7 @@ export default function ClassSubjectMap() {
       </section>
 
       <div className="grid items-start gap-4 sm:gap-5 xl:grid-cols-[1fr_20rem]">
-        <section className="panel overflow-hidden">
+        <section className="class-map-curriculum-panel panel overflow-hidden">
           <PanelHead icon="book" title={`${label} Curriculum`} subtitle={`${year} · ${mappings.length} subjects · ${totalPeriods} periods/week`} action={<div className="flex gap-2 max-sm:w-full max-sm:[&>button]:flex-1"><Button variant="outline" onClick={exportCsv} disabled={!mappings.length} icon={<MapIcon type="download" className="size-4" />}>Export</Button><Button onClick={() => { setForm(blankMapping); setAddOpen(true); }} icon={<MapIcon type="plus" className="size-4" />}>Add Subject</Button></div>} />
 
           <div className="space-y-3 border-b border-slate-100 p-3.5 sm:p-5">
@@ -233,7 +272,7 @@ export default function ClassSubjectMap() {
           <ul className="grid gap-2.5 p-3.5 sm:p-5">
             {filtered.map((mapping) => {
               const isUnassigned = mapping.teacher === UNASSIGNED;
-              return <li key={mapping.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md sm:grid sm:grid-cols-[minmax(10rem,13rem)_minmax(0,1fr)_auto_auto] sm:items-center sm:gap-x-3 sm:px-4 sm:py-3">
+              return <li key={mapping.id} className="class-map-subject-row rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md sm:grid sm:grid-cols-[minmax(10rem,13rem)_minmax(0,1fr)_auto_auto] sm:items-center sm:gap-x-3 sm:px-4 sm:py-3">
                 <div className="flex items-center gap-3">
                   <span className={`grid size-10 shrink-0 place-items-center rounded-xl ring-1 ${mapping.type === "Required" ? "bg-sky-50 text-sky-600 ring-sky-100" : "bg-amber-50 text-amber-600 ring-amber-100"}`}><MapIcon type="book" /></span>
                   <div className="min-w-0 flex-1">
