@@ -2,126 +2,30 @@ import { useEffect, useState } from "react"
 import {
   AdmissionEnquirySkeleton,
   Button,
+  DeleteConfirmationPopup,
   Dropdown,
   Input,
   PremiumPagination,
   useToast,
 } from "../../components"
 import Header from "../../ui/header"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { del, get, post, put } from "../../api/methods"
 
 type Enquiry = {
+  studentId?: string
   address: string
   className: string
   fatherName: string
   fee: string
+  revenue: number
   formNumber: string
   mobile: string
   name: string
+  remarks: string
   status: "Form Issued" | "Admitted"
 }
 
-const initialEnquiries: Enquiry[] = [
-  {
-    name: "Karan Kumar",
-    fatherName: "Rahul Kumar",
-    mobile: "000000002652",
-    className: "UKG",
-    formNumber: "FORM-26-1003",
-    fee: "₹150",
-    address: "12 Knowledge Park, Lucknow, Uttar Pradesh",
-    status: "Form Issued",
-  },
-  {
-    name: "Ravi Kumar",
-    fatherName: "Rahul Kumar",
-    mobile: "8601XXXXXX",
-    className: "UKG",
-    formNumber: "ADM-26-1023",
-    fee: "₹150",
-    address: "Gomti Nagar, Lucknow, Uttar Pradesh",
-    status: "Admitted",
-  },
-  {
-    name: "Rahul Kumar",
-    fatherName: "Kamta Prasad",
-    mobile: "7CXXXXXXXXX",
-    className: "Nursery",
-    formNumber: "FORM-26-1004",
-    fee: "₹50",
-    address: "Indira Nagar, Lucknow, Uttar Pradesh",
-    status: "Form Issued",
-  },
-  {
-    name: "Ananya Sharma",
-    fatherName: "Vikas Sharma",
-    mobile: "9876543210",
-    className: "Class 2",
-    formNumber: "FORM-26-1005",
-    fee: "₹150",
-    address: "Aliganj, Lucknow, Uttar Pradesh",
-    status: "Form Issued",
-  },
-  {
-    name: "Aarav Singh",
-    fatherName: "Rohit Singh",
-    mobile: "9123456780",
-    className: "Class 1",
-    formNumber: "ADM-26-1024",
-    fee: "₹150",
-    address: "Hazratganj, Lucknow, Uttar Pradesh",
-    status: "Admitted",
-  },
-  {
-    name: "Meera Patel",
-    fatherName: "Nitin Patel",
-    mobile: "9988776655",
-    className: "LKG",
-    formNumber: "FORM-26-1006",
-    fee: "₹150",
-    address: "Mahanagar, Lucknow, Uttar Pradesh",
-    status: "Form Issued",
-  },
-  {
-    name: "Kabir Verma",
-    fatherName: "Amit Verma",
-    mobile: "9090909090",
-    className: "Class 3",
-    formNumber: "FORM-26-1007",
-    fee: "₹150",
-    address: "Jankipuram, Lucknow, Uttar Pradesh",
-    status: "Form Issued",
-  },
-  {
-    name: "Ishita Khan",
-    fatherName: "Sameer Khan",
-    mobile: "9812345678",
-    className: "UKG",
-    formNumber: "ADM-26-1025",
-    fee: "₹150",
-    address: "Chowk, Lucknow, Uttar Pradesh",
-    status: "Admitted",
-  },
-  {
-    name: "Vivaan Das",
-    fatherName: "Sanjay Das",
-    mobile: "9765432109",
-    className: "Class 2",
-    formNumber: "FORM-26-1008",
-    fee: "₹150",
-    address: "Vikas Nagar, Lucknow, Uttar Pradesh",
-    status: "Form Issued",
-  },
-  {
-    name: "Sara Ali",
-    fatherName: "Imran Ali",
-    mobile: "9654321098",
-    className: "Nursery",
-    formNumber: "FORM-26-1009",
-    fee: "₹150",
-    address: "Aminabad, Lucknow, Uttar Pradesh",
-    status: "Form Issued",
-  },
-]
 
 const emptyForm = {
   studentName: "",
@@ -131,6 +35,48 @@ const emptyForm = {
   address: "",
   remarks: "",
 }
+
+type AdmissionEnquiryResponse = {
+  studentId: string
+  name: string
+  fatherName: string | null
+  mobileNumber: string
+  classInterested: string
+  address: string | null
+  remarks: string | null
+  revenue: number | string
+  status: "Form Issued" | "Admitted"
+  createdAt: string
+}
+
+type AdmissionEnquiryListResponse = {
+  data: AdmissionEnquiryResponse[]
+  total: number
+}
+
+type SchoolClassResponse = {
+  id: number
+  name: string
+  active: boolean
+  createdBy: string | null
+  createdAt: string
+  updatedAt: string
+  updatedBy: string | null
+}
+
+const toEnquiry = (item: AdmissionEnquiryResponse): Enquiry => ({
+  studentId: item.studentId,
+  name: item.name,
+  fatherName: item.fatherName || "—",
+  mobile: item.mobileNumber,
+  className: item.classInterested,
+  formNumber: item.studentId,
+  revenue: Number(item.revenue) || 0,
+  fee: `₹${Number(item.revenue) || 0}`,
+  address: item.address || "—",
+  remarks: item.remarks || "",
+  status: item.status,
+})
 
 function SectionIcon({ type }: { type: "form" | "list" | "price" }) {
   const path =
@@ -215,7 +161,7 @@ function AdmissionPrintForm({
 }: {
   enquiry: Enquiry
   onBack: () => void
-  onTakeAdmission: () => void
+  onTakeAdmission: () => void | Promise<void>
 }) {
   const terms = [
     "Admission will be confirmed only after verification of original documents and successful payment of admission fees.",
@@ -404,9 +350,15 @@ function AdmissionPrintForm({
 
 export default function AdmissionEnquiry() {
   const [form, setForm] = useState(emptyForm)
-  const [enquiries, setEnquiries] = useState(initialEnquiries)
+  const [mobileInputError, setMobileInputError] = useState(false)
+  const [enquiries, setEnquiries] = useState<Enquiry[]>([])
+  const [classes, setClasses] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [admittingId, setAdmittingId] = useState<string | null>(null)
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null)
+  const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Enquiry | null>(null)
   const [updatingPrice, setUpdatingPrice] = useState(false)
   const [formPrice, setFormPrice] = useState("150")
   const [search, setSearch] = useState("")
@@ -417,21 +369,42 @@ export default function AdmissionEnquiry() {
   const { showToast } = useToast()
 
   useEffect(() => {
-    const finishLoading = () => setLoading(false)
-    const dataLoadFallback = window.setTimeout(finishLoading, 800)
-    if (!navigator.onLine) finishLoading()
-    window.addEventListener("offline", finishLoading)
-    return () => {
-      window.clearTimeout(dataLoadFallback)
-      window.removeEventListener("offline", finishLoading)
+    let active = true
+    const loadEnquiries = async () => {
+      try {
+        const [enquiryResponse, classResponse] = await Promise.all([
+          get<AdmissionEnquiryListResponse>(
+            `${API_BASE}${API_ENDPOINTS.ADMISSION_ENQUIRIES}?page=1&limit=100`,
+          ),
+          get<SchoolClassResponse[]>(`${API_BASE}${API_ENDPOINTS.CLASSES}`),
+        ])
+        if (active) {
+          setEnquiries(enquiryResponse.data.map(toEnquiry))
+          setClasses(classResponse.filter((item) => item.active).map((item) => item.name))
+        }
+      } catch (error) {
+        if (active) {
+          showToast(
+            error instanceof Error ? error.message : "Unable to load admission enquiries.",
+            { title: "Could not load enquiries", tone: "error" },
+          )
+        }
+      } finally {
+        if (active) setLoading(false)
+      }
     }
-  }, [])
+    void loadEnquiries()
+    return () => {
+      active = false
+    }
+  }, [showToast])
 
   const updateField = (field: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [field]: value }))
   const admittedCount = enquiries.filter(
     (enquiry) => enquiry.status === "Admitted",
   ).length
+  const classOptions = [...new Set([form.className, ...classes].filter(Boolean))]
   const filteredEnquiries = enquiries.filter((enquiry) => {
     const matchesSearch =
       !search ||
@@ -462,18 +435,65 @@ export default function AdmissionEnquiry() {
       })
       return
     }
+    if (!/^\d{10}$/.test(form.mobile)) {
+      showToast("Enter a valid 10-digit mobile number.", {
+        title: "Invalid mobile number",
+        tone: "error",
+      })
+      return
+    }
     setSaving(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 900))
-    const nextFormNumber = `FORM-26-${1004 + enquiries.length}`
+    if (editingStudentId) {
+      try {
+        const updated = await put<AdmissionEnquiryResponse>(
+          `${API_BASE}${API_ENDPOINTS.ADMISSION_ENQUIRIES}/${encodeURIComponent(editingStudentId)}`,
+          {
+            name: form.studentName,
+            fatherName: form.fatherName,
+            mobileNumber: form.mobile,
+            classInterested: form.className,
+            address: form.address,
+            remarks: form.remarks,
+            revenue: Number(formPrice) || 0,
+          },
+        )
+        setEnquiries((current) => current.map((item) => item.studentId === editingStudentId ? toEnquiry(updated) : item))
+        setForm(emptyForm)
+        setEditingStudentId(null)
+        showToast("Admission enquiry updated successfully.", { title: "Enquiry updated" })
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "Unable to update enquiry.", { title: "Could not update enquiry", tone: "error" })
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+    try {
+    const created = await post<AdmissionEnquiryResponse>(
+      `${API_BASE}${API_ENDPOINTS.ADMISSION_ENQUIRIES}`,
+      {
+        name: form.studentName,
+        fatherName: form.fatherName,
+        mobileNumber: form.mobile,
+        classInterested: form.className,
+        address: form.address,
+        remarks: form.remarks,
+        revenue: Number(formPrice) || 0,
+      },
+    )
+    const nextFormNumber = created.studentId
     setEnquiries((current) => [
       {
+        studentId: nextFormNumber,
         name: form.studentName,
         fatherName: form.fatherName || "—",
         mobile: form.mobile,
         className: form.className,
         formNumber: nextFormNumber,
+        revenue: Number(formPrice) || 0,
         fee: `₹${formPrice}`,
         address: form.address || "—",
+        remarks: form.remarks,
         status: "Form Issued",
       },
       ...current,
@@ -484,6 +504,50 @@ export default function AdmissionEnquiry() {
     showToast(`${form.studentName}'s admission enquiry has been recorded.`, {
       title: "Enquiry saved successfully",
     })
+    } catch (error) {
+      setSaving(false)
+      showToast(
+        error instanceof Error ? error.message : "Unable to save enquiry.",
+        { title: "Could not save enquiry", tone: "error" },
+      )
+    }
+  }
+
+  const editEnquiry = (enquiry: Enquiry) => {
+    if (!enquiry.studentId || enquiry.status === "Admitted") return
+    setEditingStudentId(enquiry.studentId)
+    setForm({
+      studentName: enquiry.name,
+      fatherName: enquiry.fatherName === "—" ? "" : enquiry.fatherName,
+      mobile: enquiry.mobile,
+      className: enquiry.className,
+      address: enquiry.address === "—" ? "" : enquiry.address,
+      remarks: enquiry.remarks,
+    })
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const deleteEnquiry = (enquiry: Enquiry) => {
+    if (!enquiry.studentId || enquiry.status === "Admitted") return
+    setDeleteTarget(enquiry)
+  }
+
+  const confirmDeleteEnquiry = async () => {
+    if (!deleteTarget) return
+    const enquiry = deleteTarget
+    const studentId = enquiry.studentId
+    if (!studentId) return
+    setDeletingStudentId(studentId)
+    try {
+      await del(`${API_BASE}${API_ENDPOINTS.ADMISSION_ENQUIRIES}/${encodeURIComponent(studentId)}`)
+      setEnquiries((current) => current.filter((item) => item.studentId !== studentId))
+      setDeleteTarget(null)
+      showToast("The enquiry was deleted.", { title: "Enquiry deleted", tone: "error" })
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to delete enquiry.", { title: "Could not delete enquiry", tone: "error" })
+    } finally {
+      setDeletingStudentId(null)
+    }
   }
 
   const updatePrice = async () => {
@@ -495,17 +559,23 @@ export default function AdmissionEnquiry() {
     })
   }
 
-  const takeAdmission = (enquiry: Enquiry) => {
-    setEnquiries((current) =>
-      current.map((item) =>
-        item.formNumber === enquiry.formNumber
-          ? { ...item, status: "Admitted" }
-          : item,
-      ),
-    )
-    showToast(`${enquiry.name} is now marked as admitted.`, {
-      title: "Admission completed",
-    })
+  const takeAdmission = async (enquiry: Enquiry) => {
+    if (!enquiry.studentId) return
+    setAdmittingId(enquiry.studentId)
+    try {
+      const updated = await put<AdmissionEnquiryResponse>(
+        `${API_BASE}${API_ENDPOINTS.ADMISSION_ENQUIRIES}/${encodeURIComponent(enquiry.studentId)}`,
+        { status: "Admitted" },
+      )
+      setEnquiries((current) =>
+        current.map((item) => item.studentId === enquiry.studentId ? { ...item, status: updated.status } : item),
+      )
+      showToast(`${enquiry.name} is now marked as admitted.`, { title: "Admission completed" })
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to update admission status.", { title: "Could not complete admission", tone: "error" })
+    } finally {
+      setAdmittingId(null)
+    }
   }
 
   if (loading) return <AdmissionEnquirySkeleton />
@@ -515,8 +585,8 @@ export default function AdmissionEnquiry() {
       <AdmissionPrintForm
         enquiry={printEnquiry}
         onBack={() => setPrintEnquiry(null)}
-        onTakeAdmission={() => {
-          takeAdmission(printEnquiry)
+        onTakeAdmission={async () => {
+          await takeAdmission(printEnquiry)
           setPrintEnquiry(null)
         }}
       />
@@ -619,7 +689,7 @@ export default function AdmissionEnquiry() {
             },
             {
               label: "Form Collected",
-              value: `₹${enquiries.length * Number(formPrice)}`,
+              value: `₹${enquiries.reduce((total, enquiry) => total + enquiry.revenue, 0)}`,
               tone: "violet",
               icon: "price" as const,
               helper: "Total form revenue",
@@ -659,7 +729,7 @@ export default function AdmissionEnquiry() {
                 </span>
                 <div>
                   <h2 className="font-display text-sm font-bold text-slate-900">
-                    New Enquiry
+                    {editingStudentId ? "Edit Enquiry" : "New Enquiry"}
                   </h2>
                   <p className="mt-0.5 text-xs text-slate-500">
                     Capture prospective student details
@@ -685,10 +755,17 @@ export default function AdmissionEnquiry() {
                 />
                 <Input
                   label="Mobile Number *"
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={form.mobile}
-                  onChange={(event) =>
-                    updateField("mobile", event.target.value)
-                  }
+                  onChange={(event) => {
+                    const rawValue = event.target.value
+                    setMobileInputError(/\D/.test(rawValue))
+                    updateField("mobile", rawValue.replace(/\D/g, "").slice(0, 10))
+                  }}
+                  hint={mobileInputError ? "Only numbers are allowed." : form.mobile.length > 0 && form.mobile.length < 10 ? "Mobile number must contain 10 digits." : undefined}
+                  className={mobileInputError || (form.mobile.length > 0 && form.mobile.length < 10) ? "border-rose-300! focus:border-rose-400!" : ""}
                   placeholder="10-digit mobile number"
                 />
                 <Dropdown
@@ -698,14 +775,7 @@ export default function AdmissionEnquiry() {
                     updateField("className", event.target.value)
                   }
                   placeholder="Select class"
-                  options={[
-                    "Nursery",
-                    "LKG",
-                    "UKG",
-                    "Class 1",
-                    "Class 2",
-                    "Class 3",
-                  ].map((item) => ({ label: item, value: item }))}
+                  options={classOptions.map((item) => ({ label: item, value: item }))}
                 />
                 <label className="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
                   <span className="form-label">Address</span>
@@ -730,13 +800,18 @@ export default function AdmissionEnquiry() {
                   />
                 </label>
               </div>
-              <div className="admission-form-footer flex justify-center border-t p-5">
+              <div className="admission-form-footer flex justify-center gap-3 border-t p-5 [&>button+button]:ml-1">
+                {editingStudentId && (
+                  <Button variant="outline" onClick={() => { setEditingStudentId(null); setForm(emptyForm) }} disabled={saving}>
+                    Cancel Edit
+                  </Button>
+                )}
                 <Button
                   onClick={saveEnquiry}
                   isLoading={saving}
                   loadingText="Saving enquiry..."
                 >
-                  Save Enquiry
+                  {editingStudentId ? "Update Enquiry" : "Save Enquiry"}
                 </Button>
               </div>
             </section>
@@ -959,12 +1034,17 @@ export default function AdmissionEnquiry() {
                       Print Form
                     </Button>
                     {enquiry.status !== "Admitted" && (
-                      <Button
-                        variant="success"
-                        onClick={() => takeAdmission(enquiry)}
-                      >
-                        Take Admission
-                      </Button>
+                      <>
+                        <Button variant="outline" onClick={() => editEnquiry(enquiry)} disabled={Boolean(deletingStudentId)}>
+                          Edit
+                        </Button>
+                        <Button variant="danger" onClick={() => void deleteEnquiry(enquiry)} isLoading={deletingStudentId === enquiry.studentId}>
+                          Delete
+                        </Button>
+                        <Button variant="success" onClick={() => void takeAdmission(enquiry)} isLoading={admittingId === enquiry.studentId}>
+                          Take Admission
+                        </Button>
+                      </>
                     )}
                   </div>
                 </article>
@@ -988,6 +1068,21 @@ export default function AdmissionEnquiry() {
           </section>
         </div>
       </main>
+      <DeleteConfirmationPopup
+        open={Boolean(deleteTarget)}
+        record={deleteTarget ? {
+          name: deleteTarget.name,
+          reference: deleteTarget.formNumber,
+          context: deleteTarget.className,
+          status: deleteTarget.status,
+          statusTone: "warning",
+        } : null}
+        title="Delete Admission Enquiry"
+        description="Review this enquiry before permanently removing it."
+        confirmLabel="Yes, Delete"
+        onCancel={() => !deletingStudentId && setDeleteTarget(null)}
+        onConfirm={() => void confirmDeleteEnquiry()}
+      />
     </div>
   )
 }

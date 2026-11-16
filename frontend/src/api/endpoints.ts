@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
   NOTICES: "/notices",
   
   STUDENTS: "/students",
+  CLASSES: "/classes",
   ADMISSIONS: "/admissions",
   ADMISSION_ENQUIRIES: "/admission-enquiries",
   ATTENDANCE: "/attendance",

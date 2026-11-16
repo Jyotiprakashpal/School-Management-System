@@ -8,6 +8,8 @@ export interface AdmissionEnquiry {
   classInterested: string;
   address: string | null;
   remarks: string | null;
+  revenue: number;
+  status: "Form Issued" | "Admitted";
   createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -20,6 +22,7 @@ export interface CreateAdmissionEnquiryDto {
   classInterested: string;
   address?: string;
   remarks?: string;
+  revenue?: number;
   createdBy?: string;
 }
 
@@ -30,6 +33,8 @@ export interface UpdateAdmissionEnquiryDto {
   classInterested?: string;
   address?: string;
   remarks?: string;
+  revenue?: number;
+  status?: "Form Issued" | "Admitted";
 }
 
 export interface AdmissionEnquiryQuery {
@@ -46,7 +51,7 @@ function toEnquiryResponse(enquiry: EnquiryRow): AdmissionEnquiry {
 }
 
 const selectEnquiryColumns = sql`
-  "studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, "createdBy", "createdAt", "updatedAt"
+  "studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, revenue, status, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const admissionEnquiryRepository = {
@@ -60,10 +65,20 @@ export const admissionEnquiryRepository = {
         "classInterested" VARCHAR(50) NOT NULL,
         address TEXT,
         remarks TEXT,
+        revenue NUMERIC(12, 2) NOT NULL DEFAULT 0,
+        status VARCHAR(20) NOT NULL DEFAULT 'Form Issued',
         "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
+    `;
+    await sql`
+      ALTER TABLE admission_enquiries
+      ADD COLUMN IF NOT EXISTS revenue NUMERIC(12, 2) NOT NULL DEFAULT 0
+    `;
+    await sql`
+      ALTER TABLE admission_enquiries
+      ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Form Issued'
     `;
     // Create sequence for auto-generating student IDs
     await sql`
@@ -121,8 +136,8 @@ export const admissionEnquiryRepository = {
   async create(data: CreateAdmissionEnquiryDto): Promise<AdmissionEnquiry> {
     const studentId = await this.generateStudentId();
     const [enquiry] = await sql<EnquiryRow[]>`
-      INSERT INTO admission_enquiries ("studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, "createdBy")
-      VALUES (${studentId}, ${data.name.trim()}, ${data.fatherName?.trim() || null}, ${data.mobileNumber.trim()}, ${data.classInterested.trim()}, ${data.address?.trim() || null}, ${data.remarks?.trim() || null}, ${data.createdBy || null})
+      INSERT INTO admission_enquiries ("studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, revenue, "createdBy")
+      VALUES (${studentId}, ${data.name.trim()}, ${data.fatherName?.trim() || null}, ${data.mobileNumber.trim()}, ${data.classInterested.trim()}, ${data.address?.trim() || null}, ${data.remarks?.trim() || null}, ${Math.max(0, Number(data.revenue) || 0)}, ${data.createdBy || null})
       RETURNING ${selectEnquiryColumns}
     `;
     return toEnquiryResponse(enquiry);
@@ -138,7 +153,9 @@ export const admissionEnquiryRepository = {
       mobileNumber: data.mobileNumber ?? current.mobileNumber,
       classInterested: data.classInterested ?? current.classInterested,
       address: data.address ?? current.address,
-      remarks: data.remarks ?? current.remarks
+      remarks: data.remarks ?? current.remarks,
+      revenue: data.revenue ?? current.revenue,
+      status: data.status ?? current.status
     };
 
     const [enquiry] = await sql<EnquiryRow[]>`
@@ -149,6 +166,8 @@ export const admissionEnquiryRepository = {
            "classInterested" = ${next.classInterested.trim()},
            address = ${next.address?.trim() || null},
            remarks = ${next.remarks?.trim() || null},
+           revenue = ${Math.max(0, Number(next.revenue) || 0)},
+           status = ${next.status},
            "updatedAt" = NOW()
        WHERE "studentId" = ${studentId}
        RETURNING ${selectEnquiryColumns}

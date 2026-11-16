@@ -1,4 +1,5 @@
 export { default as Button } from "./Button"
+export { default as DeleteConfirmationPopup } from "./DeleteConfirmationPopup"
 export type { ButtonVariant } from "./Button"
 export { default as ClassResultSkeleton } from "./ClassResultSkeleton"
 export { default as AttendanceReportSkeleton } from "./AttendanceReportSkeleton"

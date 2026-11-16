@@ -43,7 +43,7 @@ interface PaginatedEnquiries {
 
 const validateEnquiryBody = (body: Partial<CreateAdmissionEnquiryDto>): string | null => {
   if (typeof body.name !== 'string' || !body.name.trim()) return 'Student name is required';
-  if (typeof body.mobileNumber !== 'string' || !body.mobileNumber.trim()) return 'Mobile number is required';
+  if (typeof body.mobileNumber !== 'string' || !/^\d{10}$/.test(body.mobileNumber.trim())) return 'Enter a valid 10-digit mobile number';
   if (typeof body.classInterested !== 'string' || !body.classInterested.trim()) return 'Class interested in is required';
   return null;
 };
@@ -90,7 +90,7 @@ export const getEnquiryByStudentId = async (req: Request<{ studentId: string }>,
 
 export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error: string }, CreateAdmissionEnquiryDto>, res: Response<AdmissionEnquiry | { error: string }>) => {
   try {
-    const { name, fatherName, mobileNumber, classInterested, address, remarks } = req.body;
+    const { name, fatherName, mobileNumber, classInterested, address, remarks, revenue } = req.body;
 
     const validationError = validateEnquiryBody(req.body);
     if (validationError) {
@@ -108,7 +108,8 @@ export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error:
       mobileNumber,
       classInterested,
       address,
-      remarks
+      remarks,
+      revenue
     });
 
     // Emit real-time event
@@ -140,19 +141,23 @@ export const updateEnquiry = async (req: Request<{ studentId: string }, Admissio
       return res.status(400).json({ error: 'Student ID is required' });
     }
 
-    const { name, fatherName, mobileNumber, classInterested, address, remarks } = req.body;
+    const { name, fatherName, mobileNumber, classInterested, address, remarks, revenue, status } = req.body;
+
+    if (status !== undefined && status !== 'Form Issued' && status !== 'Admitted') {
+      return res.status(400).json({ error: 'Invalid enquiry status' });
+    }
 
     if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
       return res.status(400).json({ error: 'Student name must be a non-empty string' });
     }
-    if (mobileNumber !== undefined && (typeof mobileNumber !== 'string' || !mobileNumber.trim())) {
-      return res.status(400).json({ error: 'Mobile number must be a non-empty string' });
+    if (mobileNumber !== undefined && (typeof mobileNumber !== 'string' || !/^\d{10}$/.test(mobileNumber.trim()))) {
+      return res.status(400).json({ error: 'Mobile number must be a valid 10-digit number' });
     }
     if (classInterested !== undefined && (typeof classInterested !== 'string' || !classInterested.trim())) {
       return res.status(400).json({ error: 'Class interested in must be a non-empty string' });
     }
 
-    const enquiry = await admissionEnquiryRepository.update(studentId, { name, fatherName, mobileNumber, classInterested, address, remarks });
+    const enquiry = await admissionEnquiryRepository.update(studentId, { name, fatherName, mobileNumber, classInterested, address, remarks, revenue, status });
 
     if (!enquiry) {
       return res.status(404).json({ error: 'Enquiry not found' });
