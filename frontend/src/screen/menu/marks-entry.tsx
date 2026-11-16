@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Button, Dropdown, Input, useToast } from "../../components";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Button, Dropdown, Input, MarksEntrySkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -81,12 +81,13 @@ function PanelHead({ icon, title, subtitle, action }: { icon: IconType; title: s
 const resetClass = "border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! active:scale-95";
 
 export default function MarksEntry() {
+  const [initialLoading, setInitialLoading] = useState(true);
   const [exam, setExam] = useState("Half Yearly Examination");
   const [className, setClassName] = useState("Class 10");
   const [section, setSection] = useState("A");
   const [subject, setSubject] = useState("Mathematics");
   const [maximumMarks, setMaximumMarks] = useState("100");
-  const [records, setRecords] = useState(() => buildRoster("Class 10", "A", "Mathematics"));
+  const [records, setRecords] = useState<MarkRecord[]>([]);
   const [loadedKey, setLoadedKey] = useState("Class 10-A-Mathematics");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -96,6 +97,15 @@ export default function MarksEntry() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const loadMarksEntry = window.setTimeout(() => {
+      setRecords(buildRoster("Class 10", "A", "Mathematics"));
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => window.clearTimeout(loadMarksEntry);
+  }, []);
 
   const selectionKey = `${className}-${section}-${subject}`;
   const stale = selectionKey !== loadedKey;
@@ -207,16 +217,18 @@ export default function MarksEntry() {
 
   const maxCount = Math.max(1, ...summary.distribution.map((item) => item.count));
 
+  if (initialLoading) return <MarksEntrySkeleton />;
+
   return <div className="marks-entry-screen min-h-screen dashboard-bg pb-16">
     <Header title="Marks Entry" subtitle="Enter, validate, and review examination marks by subject" />
-    <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
-      <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_58%,var(--app-accent))] p-3 shadow-xl shadow-slate-900/10 sm:p-5">
+    <main className="mx-auto max-w-[1600px] space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+      <section className="marks-command-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
         <span className="pointer-events-none absolute -right-14 -top-20 size-64 rounded-full bg-white/10 blur-2xl" />
         <span className="pointer-events-none absolute -bottom-20 left-1/3 size-52 rounded-full bg-white/5 blur-2xl" />
-        <div className="relative flex flex-wrap items-center gap-3 px-1 py-2 sm:gap-4 sm:px-2">
+        <div className="relative flex flex-wrap items-center gap-3 sm:gap-4">
           <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-sm sm:size-14"><MarksIcon type="marks" className="size-6" /></span>
           <div className="min-w-0 flex-1 basis-52">
-            <div className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-white/65">Active marks workspace</div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[0.62rem] font-bold uppercase tracking-[0.16em] text-white/75">Assessment command center</div>
             <div className="font-display mt-1 truncate text-xl font-bold text-white sm:text-2xl">{subject}</div>
             <div className="mt-1 truncate text-xs text-white/75">{exam} · {className}-{section} · Maximum {maximum}</div>
           </div>
@@ -232,7 +244,7 @@ export default function MarksEntry() {
           </div>
           <span className={`shrink-0 ${stale ? "status-warning" : dirty ? "status-warning" : saved ? "status-success" : "status-info"}`}>{stale ? "Selection changed" : dirty ? "Unsaved changes" : saved ? "Saved" : "Up to date"}</span>
         </div>
-        <div className="relative mt-3 grid grid-cols-2 items-end gap-x-3 gap-y-3.5 rounded-2xl border border-white/60 bg-white p-3.5 shadow-2xl shadow-slate-950/15 sm:gap-x-4 sm:gap-y-4 sm:p-5 md:grid-cols-4 xl:grid-cols-[1.3fr_1fr_.7fr_1fr_.7fr_auto] [&>:first-child]:col-span-2 xl:[&>:first-child]:col-span-1 md:[&>:nth-child(4)]:col-span-2 xl:[&>:nth-child(4)]:col-span-1 [&>:last-child]:col-span-2 md:[&>:last-child]:col-span-1 [&>:last-child]:self-end">
+        <div className="marks-filter-surface relative mt-5 grid grid-cols-2 items-end gap-x-3 gap-y-3.5 rounded-2xl border border-white/60 bg-white p-3.5 shadow-2xl shadow-slate-950/15 sm:gap-x-4 sm:gap-y-4 sm:p-5 md:grid-cols-4 xl:grid-cols-[1.3fr_1fr_.7fr_1fr_.7fr_auto] [&>:first-child]:col-span-2 xl:[&>:first-child]:col-span-1 md:[&>:nth-child(4)]:col-span-2 xl:[&>:nth-child(4)]:col-span-1 [&>:last-child]:col-span-2 md:[&>:last-child]:col-span-1 [&>:last-child]:self-end">
           <div className="sm:col-span-2 xl:col-span-1"><Dropdown label="Examination" value={exam} onChange={(event) => setExam(event.target.value)} options={["Half Yearly Examination", "Unit Test 2", "Annual Examination"].map((value) => ({ label: value, value }))} /></div>
           <Dropdown label="Class" value={className} onChange={(event) => setClassName(event.target.value)} options={classOptions.map((value) => ({ label: value, value }))} />
           <Dropdown label="Section" value={section} onChange={(event) => setSection(event.target.value)} options={sectionOptions.map((value) => ({ label: value, value }))} />
@@ -254,7 +266,7 @@ export default function MarksEntry() {
       </section>
 
       <div className="grid items-start gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_17rem]">
-        <section className="panel overflow-hidden ring-1 ring-slate-200/50">
+        <section className="marks-register-panel panel overflow-hidden ring-1 ring-slate-200/50">
           <PanelHead icon="marks" title={`${subject} Marks`} subtitle={`${exam} · ${className}-${section}`} action={
             <div className="flex flex-wrap gap-2 max-sm:grid max-sm:grid-cols-3 max-sm:[&>*]:min-w-0">
               <Button variant="outline" className="min-h-9 px-3 py-2" onClick={exportCsv} icon={<MarksIcon type="download" className="size-4" />}>Export</Button>
@@ -286,7 +298,7 @@ export default function MarksEntry() {
               const has = record.marks !== "";
               const grade = has ? gradeFor(Number(record.marks), maximum) : "";
               const percent = has ? Math.min(100, Math.round((Number(record.marks) / maximum) * 100)) : 0;
-              return <li key={record.admissionNo} className={`relative grid gap-3 overflow-hidden rounded-2xl border bg-white p-3.5 shadow-sm transition duration-200 hover:-translate-y-px hover:shadow-md sm:p-4 lg:grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-5 ${has ? Number(record.marks) < passMark ? "border-red-100" : "border-slate-200/80" : "border-amber-200/80"}`}>
+              return <li key={record.admissionNo} className={`marks-premium-row relative grid gap-3 overflow-hidden rounded-2xl border bg-white p-3.5 shadow-sm transition duration-200 hover:-translate-y-px hover:shadow-md sm:p-4 lg:grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-5 ${has ? Number(record.marks) < passMark ? "border-red-100" : "border-slate-200/80" : "border-amber-200/80"}`}>
                 <span className={`absolute inset-y-0 left-0 w-1 ${has ? Number(record.marks) < passMark ? "bg-red-400" : "bg-(--app-accent)" : "bg-amber-400"}`} />
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,var(--app-accent),var(--app-accent-dark))] text-xs font-bold text-white shadow-md shadow-slate-900/10 ring-2 ring-white">{initials(record.name)}</span>
@@ -324,7 +336,7 @@ export default function MarksEntry() {
           </footer>
         </section>
 
-        <aside className="panel overflow-hidden xl:sticky xl:top-24">
+        <aside className="marks-distribution-panel panel overflow-hidden xl:sticky xl:top-24">
           <PanelHead icon="average" title="Grade Distribution" subtitle="Live from entered marks" />
           <div className="marks-grade-summary border-b border-slate-100 bg-[linear-gradient(135deg,var(--app-accent-faint),white)] p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">

@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Button, Dropdown, Input, useToast } from "../../components";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Button, Dropdown, ExamsSkeleton, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -81,7 +81,8 @@ function PanelHead({ icon, title, subtitle, action }: { icon: IconType; title: s
 }
 
 export default function Exams() {
-  const [exams, setExams] = useState(initialExams);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [exams, setExams] = useState<Exam[]>([]);
   const [search, setSearch] = useState("");
   const [sessionFilter, setSessionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | ExamStatus>("");
@@ -92,6 +93,15 @@ export default function Exams() {
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Exam | null>(null);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const loadExams = window.setTimeout(() => {
+      setExams(initialExams);
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => window.clearTimeout(loadExams);
+  }, []);
 
   const counts = useMemo(() => ({
     all: exams.length,
@@ -176,9 +186,44 @@ export default function Exams() {
     { label: "Completed", value: counts.Completed, copy: "Results ready", tone: "violet", icon: "check" },
   ];
 
-  return <div className="min-h-screen dashboard-bg pb-16">
+  if (initialLoading) return <ExamsSkeleton />;
+
+  return <div className="exams-screen min-h-screen dashboard-bg pb-16">
     <Header title="Examinations" subtitle="Create exams, manage schedules, and track examination status" />
-    <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+    <main className="mx-auto max-w-[1600px] space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+      <section className="exams-command-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
+        <span className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full border border-white/10 bg-white/10" />
+        <span className="pointer-events-none absolute -bottom-28 left-1/3 size-60 rounded-full bg-white/5" />
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-white/80"><ExamIcon type="exam" className="size-4" />Examination command center</div>
+            <div className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Academic Session 2027–28</div>
+            <h1 className="mt-1 max-w-2xl font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Plan every assessment with confidence.</h1>
+            <p className="mt-2 max-w-xl text-xs leading-5 text-white/70 sm:text-sm sm:leading-6">Create examination cycles, coordinate participating classes, track live progress, and move completed exams toward results.</p>
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:flex">
+              <Button onClick={openCreate} icon={<ExamIcon type="plus" className="size-4" />} className="w-full !min-h-11 !bg-white !text-(--app-accent-dark) shadow-xl hover:!bg-white/90 sm:w-auto">Create Exam</Button>
+              <Button variant="outline" onClick={exportCsv} icon={<ExamIcon type="download" className="size-4" />} className="w-full !min-h-11 !border-white/15 !bg-white/10 text-white !shadow-none hover:!bg-white/20 sm:w-auto">Export CSV</Button>
+            </div>
+          </div>
+          {spotlight && (() => {
+            const progress = progressOf(spotlight);
+            return <div className="exams-spotlight-card rounded-2xl border border-white/15 bg-white/10 p-4 shadow-xl backdrop-blur-sm sm:p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0"><div className="text-[0.62rem] font-bold uppercase tracking-widest text-white/60">{spotlight.status === "Active" ? "Happening now" : "Next examination"}</div><div className="mt-1 truncate font-display text-xl font-extrabold">{spotlight.name}</div><div className="mt-1 text-xs text-white/65">{spotlight.term} · {spotlight.session}</div></div>
+                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/15"><ExamIcon type={spotlight.status === "Active" ? "clock" : "calendar"} /></span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-white/8 p-3 ring-1 ring-white/10"><div className="text-[0.55rem] font-bold uppercase tracking-wider text-white/55">Schedule</div><div className="mt-1 text-xs font-bold">{shortDate(spotlight.startDate)} – {shortDate(spotlight.endDate)}</div></div>
+                <div className="rounded-xl bg-white/8 p-3 ring-1 ring-white/10"><div className="text-[0.55rem] font-bold uppercase tracking-wider text-white/55">Classes</div><div className="mt-1 truncate text-xs font-bold">{spotlight.classes}</div></div>
+              </div>
+              <div className="mt-4 flex justify-between text-[0.65rem] font-semibold text-white/70"><span>{progress.label}</span><span>{progress.percent}%</span></div>
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-white shadow-sm transition-all" style={{ width: `${progress.percent}%` }} /></div>
+              <Button variant="outline" className="mt-4 w-full !min-h-9 !border-white/15 !bg-white/10 text-white !shadow-none hover:!bg-white/20" onClick={() => setSelectedExam(spotlight)} icon={<ExamIcon type="eye" className="size-4" />}>View Examination</Button>
+            </div>;
+          })()}
+        </div>
+      </section>
+
       <section className="grid auto-rows-fr grid-cols-[repeat(2,minmax(0,1fr))] gap-2.5 sm:gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))] [&>article]:h-full">
         {stats.map((stat) => <article key={stat.label} className={`admission-summary-card admission-summary-${stat.tone} relative overflow-hidden rounded-2xl p-3 shadow-sm sm:p-5`}>
           <div className="flex items-start justify-between gap-2 sm:gap-3">
@@ -189,26 +234,7 @@ export default function Exams() {
         </article>)}
       </section>
 
-      {spotlight && (() => {
-        const progress = progressOf(spotlight);
-        return <section className="relative overflow-hidden rounded-2xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-4 text-white shadow-lg sm:p-5">
-          <div className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full bg-white/10" aria-hidden="true" />
-          <div className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><ExamIcon type={spotlight.status === "Active" ? "clock" : "calendar"} /></span>
-              <div className="min-w-0">
-                <p className="text-[0.65rem] font-bold uppercase tracking-widest text-white/70">{spotlight.status === "Active" ? "Happening now" : "Next up"}</p>
-                <h2 className="font-display truncate text-base font-bold sm:text-lg">{spotlight.name}</h2>
-                <p className="text-xs text-white/80">{shortDate(spotlight.startDate)} – {shortDate(spotlight.endDate)} · {spotlight.classes} · {progress.label}</p>
-              </div>
-            </div>
-            <Button variant="outline" className="max-sm:w-full! border-white/40! bg-white/15! text-white! hover:bg-white/25!" onClick={() => setSelectedExam(spotlight)} icon={<ExamIcon type="eye" className="size-4" />}>View Details</Button>
-          </div>
-          <div className="relative mt-4 h-1.5 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white transition-all" style={{ width: `${progress.percent}%` }} /></div>
-        </section>;
-      })()}
-
-      <section className="panel overflow-hidden">
+      <section className="exams-directory-panel panel overflow-hidden">
         <PanelHead icon="exam" title="Exam Directory" subtitle={`${filteredExams.length} of ${exams.length} examination records`} action={
           <div className="flex gap-2 max-sm:w-full max-sm:[&>*]:flex-1">
             <Button variant="outline" onClick={exportCsv} icon={<ExamIcon type="download" className="size-4" />}>Export</Button>
@@ -236,7 +262,7 @@ export default function Exams() {
           {filteredExams.map((exam) => {
             const meta = statusMeta[exam.status];
             const progress = progressOf(exam);
-            return <article key={exam.id} className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+            return <article key={exam.id} className="exam-premium-card group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
               <div className={`h-1.5 bg-linear-to-r ${meta.strip}`} />
               <div className="flex flex-1 flex-col gap-3.5 p-4">
                 <div className="flex items-start gap-3">

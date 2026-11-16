@@ -1533,6 +1533,74 @@
   color: #93c5fd;
 }
 
+[data-theme] .exams-command-hero,
+[data-theme] .exams-skeleton-hero {
+  border: 1px solid color-mix(in srgb, var(--app-accent) 68%, white);
+  background:
+    radial-gradient(circle at 84% 5%, color-mix(in srgb, var(--app-accent) 72%, white), transparent 20rem),
+    linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark));
+  box-shadow: 0 24px 54px color-mix(in srgb, var(--app-accent) 22%, transparent);
+}
+
+[data-theme] .exams-directory-panel {
+  border-color: color-mix(in srgb, var(--app-accent) 10%, white);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--app-dark-end) 7%, transparent);
+}
+
+[data-theme] .exam-premium-card {
+  border-color: color-mix(in srgb, var(--app-accent) 10%, white);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--app-accent-faint) 65%, transparent), transparent 11rem),
+    white;
+}
+
+[data-theme] .exam-premium-card:hover {
+  border-color: color-mix(in srgb, var(--app-accent) 25%, white);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--app-dark-end) 10%, transparent);
+}
+
+[data-theme="dark"] .exams-directory-panel {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .exam-premium-card {
+  border-color: #334155;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(45 212 191 / 5%), transparent 11rem),
+    #111a2a;
+}
+
+[data-theme="dark"] .exams-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .exams-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .exams-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .exams-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .exams-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .exams-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
 [data-theme] .exam-schedule-command-hero {
   border: 1px solid color-mix(in srgb, var(--app-accent) 68%, white);
   background:
@@ -2063,6 +2131,85 @@
   background: linear-gradient(135deg, #132523, #0d1624);
 }
 
+[data-theme] .marks-command-hero,
+[data-theme] .marks-entry-skeleton-hero {
+  border: 1px solid color-mix(in srgb, var(--app-accent) 68%, white);
+  background:
+    radial-gradient(circle at 84% 5%, color-mix(in srgb, var(--app-accent) 72%, white), transparent 20rem),
+    linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark));
+  box-shadow: 0 24px 54px color-mix(in srgb, var(--app-accent) 22%, transparent);
+}
+
+[data-theme] .marks-register-panel,
+[data-theme] .marks-distribution-panel {
+  border-color: color-mix(in srgb, var(--app-accent) 10%, white);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--app-dark-end) 7%, transparent);
+}
+
+[data-theme] .marks-premium-row {
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--app-accent-faint) 55%, transparent), transparent 12rem),
+    white;
+}
+
+[data-theme] .marks-premium-row:hover {
+  border-color: color-mix(in srgb, var(--app-accent) 24%, white);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--app-dark-end) 9%, transparent);
+}
+
+[data-theme="dark"] .marks-filter-surface {
+  border-color: #334155;
+  background: #111a2a;
+}
+
+[data-theme="dark"] .marks-register-panel,
+[data-theme="dark"] .marks-distribution-panel {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .marks-premium-row {
+  border-color: #334155;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(45 212 191 / 5%), transparent 12rem),
+    #111a2a;
+}
+
+[data-theme="dark"] .marks-entry-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .marks-entry-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .marks-entry-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .marks-entry-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .marks-entry-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .marks-entry-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .marks-entry-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
 [data-theme="dark"] .marks-register-toolbar .bg-white {
   background-color: #111a2a;
 }
@@ -2126,6 +2273,49 @@
 [data-theme="dark"] .attendance-register-filters {
   border-color: #263244;
   background: #0d1624;
+}
+
+.attendance-report-skeleton-hero {
+  background: linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark) 60%, var(--app-accent));
+  box-shadow: 0 18px 38px rgb(15 23 42 / 14%);
+}
+
+[data-theme="dark"] .attendance-report-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .attendance-report-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .attendance-report-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .attendance-report-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .attendance-report-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .attendance-report-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .attendance-report-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .attendance-report-skeleton .border-slate-100 {
+  border-color: #263244;
 }
 
 [data-theme="dark"] .attendance-risk-alert {
@@ -2251,6 +2441,49 @@
 
 [data-theme="dark"] .daily-attendance-summary-metrics .bg-slate-100 {
   background-color: #1e293b;
+}
+
+.daily-attendance-skeleton-hero {
+  background: linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark) 60%, var(--app-accent));
+  box-shadow: 0 18px 38px rgb(15 23 42 / 14%);
+}
+
+[data-theme="dark"] .daily-attendance-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .daily-attendance-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .daily-attendance-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .daily-attendance-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .daily-attendance-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .daily-attendance-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .daily-attendance-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .daily-attendance-skeleton .border-slate-100 {
+  border-color: #263244;
 }
 
 .finance-transaction-card {
@@ -2676,6 +2909,15 @@
     radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--app-accent-soft) 62%, transparent), transparent 28rem),
     radial-gradient(circle at 100% 35%, color-mix(in srgb, var(--app-accent-soft) 38%, transparent), transparent 24rem),
     linear-gradient(145deg, white, var(--app-accent-faint));
+}
+
+[data-theme] .admission-enquiry-hero,
+[data-theme] .admission-enquiry-skeleton-hero {
+  border: 1px solid color-mix(in srgb, var(--app-accent) 68%, white);
+  background:
+    radial-gradient(circle at 82% 5%, color-mix(in srgb, var(--app-accent) 72%, white), transparent 20rem),
+    linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark));
+  box-shadow: 0 22px 48px color-mix(in srgb, var(--app-accent) 22%, transparent);
 }
 
 [data-theme] .admission-summary-card {
@@ -3524,6 +3766,44 @@
     #080e1a;
 }
 
+[data-theme="dark"] .admission-enquiry-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .admission-enquiry-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .admission-enquiry-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .admission-enquiry-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .admission-enquiry-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .admission-enquiry-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .admission-enquiry-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .admission-enquiry-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
 [data-theme="dark"] .admission-summary-card,
 [data-theme="dark"] .admission-summary-teal,
 [data-theme="dark"] .admission-summary-green,
@@ -3737,6 +4017,117 @@
   color: #fda4af;
 }
 
+.fee-deletion-skeleton-hero {
+  background: linear-gradient(135deg, #3f0d18, #991b1b 55%, #ea580c);
+  box-shadow: 0 18px 38px rgb(69 10 10 / 18%);
+}
+
+[data-theme="dark"] .fee-deletion-log-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(248 113 113 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .fee-deletion-log-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .fee-deletion-log-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .fee-deletion-log-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .fee-deletion-log-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .fee-deletion-log-skeleton .skeleton-block-strong {
+  background: #3f3445;
+}
+
+[data-theme="dark"] .fee-deletion-log-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .fee-deletion-log-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
+.whatsapp-reminder-skeleton-hero {
+  background: linear-gradient(135deg, #043c32, #087f5b 55%, #25d366);
+  box-shadow: 0 18px 38px rgb(4 60 50 / 18%);
+}
+
+.whatsapp-reminder-preview-skeleton {
+  border-color: #b7e4d1;
+  background: #e8f5e9;
+  box-shadow: 0 10px 28px rgb(6 95 70 / 8%);
+}
+
+.whatsapp-reminder-preview-skeleton > div:first-child {
+  background: #075e54;
+}
+
+.whatsapp-reminder-preview-skeleton > div:last-child > div {
+  background: #dcf8c6;
+}
+
+[data-theme="dark"] .whatsapp-reminder-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(52 211 153 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .whatsapp-reminder-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .whatsapp-reminder-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .whatsapp-reminder-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .whatsapp-reminder-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .whatsapp-reminder-skeleton .skeleton-block-strong {
+  background: #2d4545;
+}
+
+[data-theme="dark"] .whatsapp-reminder-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .whatsapp-reminder-skeleton .border-slate-100,
+[data-theme="dark"] .whatsapp-reminder-skeleton .divide-slate-100 {
+  border-color: #263244;
+}
+
+[data-theme="dark"] .whatsapp-reminder-preview-skeleton {
+  border-color: #2b4b45;
+  background: #0b141a;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 24%);
+}
+
+[data-theme="dark"] .whatsapp-reminder-preview-skeleton > div:last-child > div {
+  background: #005c4b;
+}
+
 [data-theme="dark"] .whatsapp-panel-icon,
 [data-theme="dark"] .whatsapp-recipient-avatar {
   background: #143b32;
@@ -3905,6 +4296,49 @@
   background: transparent;
 }
 
+.quick-fee-collect-skeleton-hero {
+  background: linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark) 58%, var(--app-accent));
+  box-shadow: 0 18px 38px rgb(15 23 42 / 14%);
+}
+
+[data-theme="dark"] .quick-fee-collect-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .quick-fee-collect-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .quick-fee-collect-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .quick-fee-collect-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .quick-fee-collect-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .quick-fee-collect-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .quick-fee-collect-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .quick-fee-collect-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
 [data-theme="dark"] .quick-fee-filters {
   border-color: #263244;
   background: linear-gradient(180deg, #121d2e, #0f1828);
@@ -3995,6 +4429,50 @@
 
 [data-theme="dark"] .quick-fee-method .text-slate-500 {
   color: #94a3b8;
+}
+
+.fee-collection-skeleton-hero,
+.fee-collection-account-skeleton {
+  background: linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark) 58%, var(--app-accent));
+  box-shadow: 0 18px 38px rgb(15 23 42 / 14%);
+}
+
+[data-theme="dark"] .fee-collection-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .fee-collection-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .fee-collection-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .fee-collection-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .fee-collection-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .fee-collection-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .fee-collection-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .fee-collection-skeleton .border-slate-100 {
+  border-color: #263244;
 }
 
 [data-theme="dark"] .fee-collection-student-card {
@@ -4133,6 +4611,50 @@
 
 [data-theme="dark"] .fee-collection-receipt-remarks {
   color: #aebbd0;
+}
+
+.fee-structure-skeleton-hero,
+.fee-structure-preview-skeleton {
+  background: linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark) 58%, var(--app-accent));
+  box-shadow: 0 18px 38px rgb(15 23 42 / 14%);
+}
+
+[data-theme="dark"] .fee-structure-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .fee-structure-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .fee-structure-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .fee-structure-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .fee-structure-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .fee-structure-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .fee-structure-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .fee-structure-skeleton .border-slate-100 {
+  border-color: #263244;
 }
 
 [data-theme="dark"] .fee-structure-form-step,
@@ -5355,6 +5877,203 @@ html[data-theme="dark"] .student-premium-cards td:last-child {
 @keyframes toast-exit {
   from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   to { opacity: 0; transform: translate3d(1.25rem, 0, 0) scale(.96); }
+}
+
+.new-admission-skeleton-hero {
+  background: linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark) 60%, var(--app-accent));
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--app-dark-end) 16%, transparent);
+}
+
+[data-theme="dark"] .new-admission-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--app-accent) 8%, transparent), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .new-admission-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .new-admission-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .new-admission-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .new-admission-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .new-admission-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .new-admission-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
+.all-students-skeleton-hero {
+  background: linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark) 58%, var(--app-accent));
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--app-dark-end) 16%, transparent);
+}
+
+[data-theme="dark"] .all-students-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--app-accent) 8%, transparent), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .all-students-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .all-students-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .all-students-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .all-students-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .all-students-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .all-students-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .all-students-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
+.passed-out-archive-skeleton-hero {
+  background: linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark) 58%, var(--app-accent));
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--app-dark-end) 16%, transparent);
+}
+
+[data-theme="dark"] .passed-out-archive-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--app-accent) 8%, transparent), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .passed-out-archive-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .passed-out-archive-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .passed-out-archive-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .passed-out-archive-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .passed-out-archive-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .passed-out-archive-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .passed-out-archive-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
+[data-theme="dark"] .passed-out-archive-filters {
+  border-color: #263244;
+  background: #0d1624;
+}
+
+[data-theme="dark"] .passed-out-archive-profile {
+  background: color-mix(in srgb, var(--app-accent) 10%, #111a2a);
+  --tw-ring-color: color-mix(in srgb, var(--app-accent) 26%, transparent);
+}
+
+.promotion-skeleton-hero {
+  background: linear-gradient(135deg, var(--app-sidebar-start), var(--app-accent-dark) 58%, var(--app-accent));
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--app-dark-end) 16%, transparent);
+}
+
+[data-theme="dark"] .promotion-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--app-accent) 8%, transparent), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .promotion-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .promotion-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .promotion-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .promotion-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .promotion-skeleton .skeleton-block-strong {
+  background: #383653;
+}
+
+[data-theme="dark"] .promotion-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .promotion-skeleton .border-slate-100 {
+  border-color: #263244;
+}
+
+[data-theme="dark"] .promotion-filters {
+  border-color: #263244;
+  background: #0d1624;
+}
+
+[data-theme="dark"] .promotion-target-select {
+  border-color: #334155;
+  background: #0a1322;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .promotion-history {
+  border-color: #263244;
+}
+
+[data-theme="dark"] .promotion-history > li {
+  border-color: #6b4d2d;
+  background: linear-gradient(90deg, rgb(120 53 15 / 12%), transparent);
 }
 
 @keyframes skeleton-shimmer {

@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
+  AdmissionEnquirySkeleton,
   Button,
   Dropdown,
   Input,
@@ -257,7 +258,9 @@ function AdmissionPrintForm({
               className="max-sm:size-10 max-sm:min-h-10 max-sm:rounded-xl max-sm:!p-0"
               icon={<PrintActionIcon type="user" />}
             >
-              <span className="max-sm:sr-only">Take Admission with this Form</span>
+              <span className="max-sm:sr-only">
+                Take Admission with this Form
+              </span>
             </Button>
           )}
         </div>
@@ -402,6 +405,7 @@ function AdmissionPrintForm({
 export default function AdmissionEnquiry() {
   const [form, setForm] = useState(emptyForm)
   const [enquiries, setEnquiries] = useState(initialEnquiries)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [updatingPrice, setUpdatingPrice] = useState(false)
   const [formPrice, setFormPrice] = useState("150")
@@ -411,6 +415,17 @@ export default function AdmissionEnquiry() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const { showToast } = useToast()
+
+  useEffect(() => {
+    const finishLoading = () => setLoading(false)
+    const dataLoadFallback = window.setTimeout(finishLoading, 800)
+    if (!navigator.onLine) finishLoading()
+    window.addEventListener("offline", finishLoading)
+    return () => {
+      window.clearTimeout(dataLoadFallback)
+      window.removeEventListener("offline", finishLoading)
+    }
+  }, [])
 
   const updateField = (field: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [field]: value }))
@@ -493,6 +508,8 @@ export default function AdmissionEnquiry() {
     })
   }
 
+  if (loading) return <AdmissionEnquirySkeleton />
+
   if (printEnquiry)
     return (
       <AdmissionPrintForm
@@ -512,6 +529,68 @@ export default function AdmissionEnquiry() {
         subtitle={`${enquiries.length} active admission enquiries`}
       />
       <main className="admission-enquiry-main space-y-5 p-4 sm:p-6 xl:p-8">
+        <section className="admission-enquiry-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
+          <div className="pointer-events-none absolute -right-16 -top-24 size-72 rounded-full border border-white/10 bg-white/5" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 size-56 rounded-full border-[36px] border-white/5" />
+          <div className="relative grid items-center gap-6 lg:grid-cols-[1fr_25rem]">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-white/85 backdrop-blur">
+                <span className="size-1.5 rounded-full bg-emerald-300 shadow-[0_0_0_4px_rgb(110_231_183_/_0.12)]" />
+                Admissions pipeline
+              </div>
+              <h1 className="mt-4 max-w-2xl font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
+                Turn every enquiry into a confident enrollment
+              </h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-white/72">
+                Capture prospective families, issue forms, and follow each
+                applicant through admission from one focused workspace.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-2xl shadow-black/10 backdrop-blur-md">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-white/70">Conversion progress</span>
+                <span>
+                  {Math.round((admittedCount / enquiries.length) * 100)}%
+                </span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-white transition-all duration-500"
+                  style={{
+                    width: `${(admittedCount / enquiries.length) * 100}%`,
+                  }}
+                />
+              </div>
+              <div className="mt-4 grid grid-cols-3 divide-x divide-white/10 text-center">
+                <div>
+                  <div className="font-display text-xl font-bold">
+                    {enquiries.length}
+                  </div>
+                  <div className="mt-0.5 text-[0.62rem] text-white/60">
+                    Enquiries
+                  </div>
+                </div>
+                <div>
+                  <div className="font-display text-xl font-bold">
+                    {enquiries.length - admittedCount}
+                  </div>
+                  <div className="mt-0.5 text-[0.62rem] text-white/60">
+                    Follow-ups
+                  </div>
+                </div>
+                <div>
+                  <div className="font-display text-xl font-bold">
+                    {admittedCount}
+                  </div>
+                  <div className="mt-0.5 text-[0.62rem] text-white/60">
+                    Admitted
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {[
             {
