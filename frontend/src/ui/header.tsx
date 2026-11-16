@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Button, ISTClock } from "../components"
+import { getAuthUser, onAuthUserChanged, type AuthUser } from "../auth/session"
+import { onCurrentUserUpdated } from "../api/socket"
 
 type HeaderProps = {
   title: string
@@ -9,6 +11,19 @@ type HeaderProps = {
 }
 
 type NotificationKind = "attendance" | "fee" | "notice" | "system"
+
+function roleLabel(role: string) {
+  return role.replace(/([a-z])([A-Z])/g, "$1 $2")
+}
+
+function initials(user: AuthUser | null) {
+  return (user?.name || user?.username || "U")
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+}
 
 const initialNotifications = [
   {
@@ -180,6 +195,7 @@ export default function Header({
   action,
   onAction,
 }: HeaderProps) {
+  const [user, setUser] = useState<AuthUser | null>(() => getAuthUser())
   const [notifications, setNotifications] = useState(initialNotifications)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notificationFilter, setNotificationFilter] =
@@ -187,6 +203,9 @@ export default function Header({
   const [profileOpen, setProfileOpen] = useState(false)
   const notificationRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => onAuthUserChanged(() => setUser(getAuthUser())), [])
+  useEffect(() => onCurrentUserUpdated(setUser), [])
   const unreadCount = notifications.filter((item) => item.unread).length
   const visibleNotifications =
     notificationFilter === "unread"
@@ -445,15 +464,15 @@ export default function Header({
             }}
           >
             <span className="profile-avatar grid size-8 place-items-center rounded-full border font-display text-xs font-bold shadow-sm sm:size-9">
-              S
+              {initials(user)}
             </span>
             <span className="hidden min-w-0 text-left xl:block">
               <span className="block truncate text-xs font-bold text-slate-800">
-                Super Administrator
+                {user?.name || user?.username || "User"}
               </span>
               <span className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-slate-500">
                 <span className="size-1.5 rounded-full bg-emerald-500" />
-                Super Admin
+                {user ? roleLabel(user.role) : "Account"}
               </span>
             </span>
           </Button>
@@ -468,11 +487,11 @@ export default function Header({
               <div className="bg-gradient-to-br from-teal-50 to-white p-4">
                 <div className="flex items-center gap-3">
                   <span className="profile-avatar grid size-12 shrink-0 place-items-center rounded-2xl border font-display text-base font-extrabold shadow-md">
-                    SA
+                    {initials(user)}
                   </span>
                   <div className="min-w-0">
                     <div className="truncate font-display text-sm font-bold text-slate-900">
-                      Super Administrator
+                      {user?.name || user?.username || "User"}
                     </div>
                     <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-emerald-700">
                       <span className="size-1.5 rounded-full bg-emerald-500" />
@@ -484,11 +503,11 @@ export default function Header({
               <dl className="grid gap-3 border-t border-slate-100 p-4 text-xs">
                 <div className="flex items-center justify-between gap-4">
                   <dt className="text-slate-400">Username</dt>
-                  <dd className="font-bold text-slate-700">superadmin</dd>
+                  <dd className="font-bold text-slate-700">{user?.username || "—"}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <dt className="text-slate-400">Role</dt>
-                  <dd className="font-bold text-slate-700">Super Admin</dd>
+                  <dd className="font-bold text-slate-700">{user ? roleLabel(user.role) : "—"}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <dt className="text-slate-400">Academic session</dt>

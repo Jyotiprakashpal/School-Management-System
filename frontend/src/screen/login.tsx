@@ -3,6 +3,7 @@ import { Button, Input, useToast } from "../components"
 import { get, post } from "../api/methods"
 import { API_BASE, API_ENDPOINTS } from "../api/endpoints"
 import { onSettingsUpdated } from "../api/socket"
+import { storeAuthUser, type AuthUser } from "../auth/session"
 
 type LoginIconName = "arrow" | "book" | "check" | "eye" | "eyeOff" | "lock" | "mail" | "people" | "person" | "shield" | "spark"
 
@@ -86,7 +87,7 @@ function LoginIcon({
 }
 
 type LoginProps = {
-  onLogin: () => void
+  onLogin: (user: AuthUser) => void
 }
 
 type LoginResponse = {
@@ -200,11 +201,13 @@ export default function Login({ onLogin }: LoginProps) {
         rememberMe,
         location,
       })
+      console.log("Login response:", response)
       const storage = rememberMe ? window.localStorage : window.sessionStorage
       storage.setItem("pal-auth-token", response.token)
       const otherStorage = rememberMe ? window.sessionStorage : window.localStorage
       otherStorage.removeItem("pal-auth-token")
-      onLogin()
+      storeAuthUser(response.user, rememberMe)
+      onLogin(response.user)
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Unable to sign in. Please try again.", {
         title: "Sign in failed",

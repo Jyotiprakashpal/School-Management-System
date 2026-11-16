@@ -410,9 +410,9 @@ export const terminateSession = async (req: Request<{ id: string }>, res: Respon
       return res.status(400).json({ error: 'Invalid session ID' });
     }
 
-    const terminated = await userSessionRepository.terminate(id);
-    if (!terminated) return res.status(404).json({ error: 'Session not found' });
-    getIO(req).to('users').emit('user:session_terminated', { id });
+    const token = await userSessionRepository.terminate(id);
+    if (!token) return res.status(404).json({ error: 'Session not found' });
+    getIO(req).to('users').emit('user:session_terminated', { id, token });
     res.json({ message: 'Session terminated successfully' });
   } catch (error) {
     console.error('Terminate session error:', error);

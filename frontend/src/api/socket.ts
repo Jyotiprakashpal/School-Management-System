@@ -1,5 +1,6 @@
 import { io } from "socket.io-client"
 import { SOCKET_URL } from "./endpoints"
+import { getAuthUser, storeAuthUser, type AuthUser } from "../auth/session"
 
 export type SettingsUpdated = {
   schoolName: string
@@ -36,7 +37,27 @@ socket.on("connect", () => {
   socket.emit("join", "settings")
   socket.emit("join", "roles")
   socket.emit("join", "notices")
+  socket.emit("join", "users")
 })
+
+export function onCurrentUserUpdated(listener: (user: AuthUser) => void) {
+  const handleUpdate = (user: AuthUser) => {
+    if (getAuthUser()?.id !== user.id) return
+    storeAuthUser(user, Boolean(window.localStorage.getItem("pal-auth-token")))
+    listener(user)
+  }
+  socket.on("user:updated", handleUpdate)
+  return () => {
+    socket.off("user:updated", handleUpdate)
+  }
+}
+
+export function onSessionTerminated(listener: (payload: { id: number; token: string }) => void) {
+  socket.on("user:session_terminated", listener)
+  return () => {
+    socket.off("user:session_terminated", listener)
+  }
+}
 
 export function onSettingsUpdated(listener: (settings: SettingsUpdated) => void) {
   socket.on("settings:updated", listener)

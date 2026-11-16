@@ -90,3 +90,7 @@ export const del = <T>(url: string, options?: Omit<RequestOptions, "method" | "b
   request<T>(url, { ...options, method: "DELETE" })
 
 export { del as delete }
+
+export function getToken(): string | null {
+  return window.localStorage.getItem("pal-auth-token") ?? window.sessionStorage.getItem("pal-auth-token")
+}

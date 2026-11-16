@@ -64,8 +64,12 @@ export const userSessionRepository = {
     return { data: rows.slice(0, pageSize), hasMore: rows.length > pageSize };
   },
 
-  async terminate(id: number): Promise<boolean> {
-    const result = await sql`DELETE FROM user_sessions WHERE id = ${id}`;
-    return result.count > 0;
+  async terminate(id: number): Promise<string | null> {
+    const [session] = await sql<{ token: string }[]>`
+      DELETE FROM user_sessions
+      WHERE id = ${id}
+      RETURNING token
+    `;
+    return session?.token || null;
   },
 };

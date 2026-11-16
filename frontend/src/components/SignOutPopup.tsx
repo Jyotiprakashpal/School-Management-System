@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Popup from "../ui/popup";
 import { getCurrentDeviceInfo, getLoginTime } from "../utils/device";
 import Button from "./Button";
+import { getAuthUser, type AuthUser } from "../auth/session";
 
 type IconName = "arrow" | "device" | "lock" | "shield" | "user";
 
@@ -27,6 +28,9 @@ type SignOutPopupProps = {
 export default function SignOutPopup({ onCancel, onClose, onConfirm, open }: SignOutPopupProps) {
   const device = getCurrentDeviceInfo();
   const loginTime = getLoginTime();
+  const user: AuthUser | null = getAuthUser();
+  const userInitials = (user?.name || user?.username || "U").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+  const role = user?.role.replace(/([a-z])([A-Z])/g, "$1 $2") || "Account";
 
   return <Popup
     open={open}
@@ -43,12 +47,12 @@ export default function SignOutPopup({ onCancel, onClose, onConfirm, open }: Sig
     <div className="space-y-3">
       <div className="signout-account flex items-center gap-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-slate-50 to-white p-4">
         <div className="relative shrink-0">
-          <div className="profile-avatar grid size-14 place-items-center rounded-2xl border font-display text-lg font-extrabold shadow-lg">SA</div>
+          <div className="profile-avatar grid size-14 place-items-center rounded-2xl border font-display text-lg font-extrabold shadow-lg">{userInitials}</div>
           <span className="signout-status absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full border-2 border-white bg-emerald-500 text-white"><Icon name="shield" className="size-2.5" /></span>
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-display text-sm font-bold text-slate-900">Super Administrator</div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span className="flex items-center gap-1"><Icon name="user" className="size-3" />superadmin</span><span className="status-info">Super Admin</span></div>
+          <div className="font-display text-sm font-bold text-slate-900">{user?.name || user?.username || "User"}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span className="flex items-center gap-1"><Icon name="user" className="size-3" />{user?.username || "—"}</span><span className="status-info">{role}</span></div>
         </div>
       </div>
 
