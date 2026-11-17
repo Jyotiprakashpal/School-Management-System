@@ -126,22 +126,32 @@ async function getReadableLoginLocation(): Promise<string> {
   try {
     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false,
-        timeout: 5000,
-        maximumAge: 300000,
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
       })
     })
     const { latitude, longitude } = position.coords
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1&accept-language=en`,
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1&namedetails=1&accept-language=en`,
       { headers: { Accept: "application/json" } },
     )
     if (!response.ok) return timezone
     const result = (await response.json()) as {
       display_name?: string
+      name?: string
+      namedetails?: {
+        name?: string
+      }
       address?: {
         house_number?: string
         road?: string
+        amenity?: string
+        building?: string
+        office?: string
+        commercial?: string
+        shop?: string
+        industrial?: string
         neighbourhood?: string
         suburb?: string
         quarter?: string
@@ -155,21 +165,26 @@ async function getReadableLoginLocation(): Promise<string> {
       }
     }
     const address = result.address || {}
+    const place = address.amenity || address.office || address.commercial || address.building || address.shop || address.industrial
     const locality = address.neighbourhood || address.suburb || address.quarter || address.village || address.town || address.city_district || address.city
     const city = address.city || address.town || address.village || address.state
     const street = [address.house_number, address.road].filter(Boolean).join(" ")
-    const parts = [street, locality, city, address.postcode, address.country]
+    const parts = [place, street, locality, city, address.postcode, address.country]
       .filter(Boolean)
       .filter((part, index, values) => values.indexOf(part) === index)
-    return parts.length > 1 ? parts.join(", ") : result.display_name || timezone
+    const formattedAddress = result.display_name || (parts.length > 1 ? parts.join(", ") : timezone)
+    const landmark = result.name || result.namedetails?.name || place
+    return landmark && !formattedAddress.toLowerCase().includes(landmark.toLowerCase())
+      ? `${landmark}, ${formattedAddress}`
+      : formattedAddress
   } catch {
     return getIpLocation()
   }
 }
 
 export default function Login({ onLogin }: LoginProps) {
-  const [username, setUsername] = useState("admin")
-  const [password, setPassword] = useState("Admin@1234")
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
