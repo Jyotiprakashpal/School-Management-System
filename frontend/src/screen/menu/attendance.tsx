@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react"
 import {
   Button,
   DailyAttendanceSkeleton,
+  DatePicker,
   Dropdown,
   Input,
   useToast,
@@ -554,15 +555,7 @@ export default function Attendance() {
                 value,
               }))}
             />
-            <Input
-              label="Attendance Date"
-              type="date"
-              value={date}
-              max={todayIso()}
-              onChange={(event) =>
-                event.target.value && setDate(event.target.value)
-              }
-            />
+            <DatePicker label="Attendance Date" value={date} onChange={setDate} />
           </div>
         </section>
 

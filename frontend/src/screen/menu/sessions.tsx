@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Button, Input, SessionSkeleton, useToast } from "../../components";
+import { Button, DatePicker, Input, SessionSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
@@ -185,8 +185,8 @@ export default function Sessions() {
                 <div className="sm:col-span-2 xl:col-span-1">
                   <Input id="session-name" label="Session name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. 2028–29" />
                 </div>
-                <Input id="session-start" label="Start date" type="date" value={form.startDate} onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))} />
-                <Input id="session-end" label="End date" type="date" value={form.endDate} onChange={(event) => setForm((current) => ({ ...current, endDate: event.target.value }))} />
+                <DatePicker id="session-start" label="Start date" value={form.startDate} onChange={(value) => setForm((current) => ({ ...current, startDate: value }))} />
+                <DatePicker id="session-end" label="End date" value={form.endDate} onChange={(value) => setForm((current) => ({ ...current, endDate: value }))} />
               </div>
             </div>
             <div className="session-create-footer flex flex-col gap-3 border-t border-slate-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
@@ -245,7 +245,7 @@ export default function Sessions() {
     <Popup open={Boolean(editingSession)} onClose={() => !saving && setEditingSession(null)} title="Edit Academic Session" description={editingSession?.name} footer={<><Button variant="outline" onClick={() => setEditingSession(null)} disabled={saving}>Cancel</Button><Button onClick={updateSession} isLoading={saving} loadingText="Updating session...">Update Session</Button></>}>
       <div className="space-y-4">
         <Input label="Session Name *" value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} />
-        <div className="grid gap-4 sm:grid-cols-2"><Input label="Start Date *" type="date" value={editForm.startDate} onChange={(event) => setEditForm((current) => ({ ...current, startDate: event.target.value }))} /><Input label="End Date *" type="date" value={editForm.endDate} onChange={(event) => setEditForm((current) => ({ ...current, endDate: event.target.value }))} /></div>
+        <div className="grid gap-4 sm:grid-cols-2"><DatePicker label="Start Date" required value={editForm.startDate} onChange={(value) => setEditForm((current) => ({ ...current, startDate: value }))} /><DatePicker label="End Date" required value={editForm.endDate} onChange={(value) => setEditForm((current) => ({ ...current, endDate: value }))} /></div>
         {editingSession?.current && <div className="session-edit-warning rounded-xl border border-amber-100 bg-amber-50 p-4 text-xs leading-5 text-amber-800">You are editing the current session. Date changes affect the active academic year across the application.</div>}
       </div>
     </Popup>

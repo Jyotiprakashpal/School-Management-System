@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import {
   Button,
+  DatePicker,
   Dropdown,
   Input,
   StaffManagementSkeleton,
@@ -1026,17 +1027,7 @@ export default function StaffManagement() {
             }
             placeholder="name@school.edu"
           />
-          <Input
-            label="Joining Date *"
-            type="date"
-            value={form.joiningDate}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                joiningDate: event.target.value,
-              }))
-            }
-          />
+          <DatePicker label="Joining Date" required value={form.joiningDate} onChange={(value) => setForm((current) => ({ ...current, joiningDate: value }))} />
           <Input
             label="Monthly Salary (₹) *"
             type="number"

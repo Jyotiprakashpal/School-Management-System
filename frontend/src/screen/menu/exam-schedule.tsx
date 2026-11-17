@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { AdmitCardPrint, Button, Dropdown, ExamScheduleSkeleton, Input, useToast } from "../../components";
+import { AdmitCardPrint, Button, DatePicker, Dropdown, ExamScheduleSkeleton, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -377,7 +377,7 @@ export default function ExamSchedule() {
       footer={<><Button variant="outline" onClick={() => setEditorOpen(false)} disabled={saving}>Cancel</Button><Button onClick={saveSchedule} isLoading={saving} loadingText="Saving...">{editingId ? "Update" : "Add Schedule"}</Button></>}
     >
       <div className="grid grid-cols-2 items-start gap-x-3 gap-y-3.5 sm:gap-x-4 sm:gap-y-4 [&>*]:min-w-0 max-sm:[&>:nth-child(-n+4)]:col-span-2 max-sm:[&>:nth-child(7)]:col-span-2 max-sm:[&>:nth-child(8)]:col-span-2">
-        <Input label="Exam Date *" type="date" value={form.date} onChange={(event) => setField("date", event.target.value)} />
+        <DatePicker label="Exam Date" required value={form.date} onChange={(value) => setField("date", value)} />
         <Dropdown label="Subject *" value={form.subject} onChange={(event) => setField("subject", event.target.value)} placeholder="Select subject" options={subjects.map((value) => ({ label: value, value }))} />
         <Dropdown label="Class & Section" value={form.className} onChange={(event) => setField("className", event.target.value)} options={classOptions.map((value) => ({ label: value, value }))} />
         <Input label="Maximum Marks" type="number" min="1" value={form.maxMarks} onChange={(event) => setField("maxMarks", event.target.value)} />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Dropdown, Input, ReportsSkeleton, useToast } from "../../components";
+import { Button, DatePicker, Dropdown, Input, ReportsSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -358,8 +358,8 @@ export default function Reports() {
         <div className="flex items-center gap-4 rounded-2xl border border-violet-100 bg-violet-50 p-4"><div className="grid size-12 shrink-0 place-items-center rounded-xl bg-white text-violet-600 shadow-sm"><ReportIcon type={selectedTemplate.type} /></div><div><div className="font-display text-sm font-bold text-slate-900">{selectedTemplate.title}</div><div className="mt-1 text-xs text-slate-500">{selectedTemplate.category} · Supports {selectedTemplate.format}</div></div></div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2"><Input label="Report Name *" value={configuration.reportName} onChange={(event) => setConfiguration((current) => ({ ...current, reportName: event.target.value }))} /></div>
-          <Input label="From Date *" type="date" value={configuration.fromDate} onChange={(event) => setConfiguration((current) => ({ ...current, fromDate: event.target.value }))} />
-          <Input label="To Date *" type="date" value={configuration.toDate} onChange={(event) => setConfiguration((current) => ({ ...current, toDate: event.target.value }))} />
+          <DatePicker label="From Date" required value={configuration.fromDate} onChange={(value) => setConfiguration((current) => ({ ...current, fromDate: value }))} />
+          <DatePicker label="To Date" required value={configuration.toDate} onChange={(value) => setConfiguration((current) => ({ ...current, toDate: value }))} />
           <Dropdown label="Class Scope" value={configuration.className} onChange={(event) => setConfiguration((current) => ({ ...current, className: event.target.value }))} options={["All Classes", "UKG-A", "Class 8-A", "Class 9-A", "Class 10-A"].map((value) => ({ label: value, value }))} />
           <Dropdown label="Output Format" value={configuration.format} onChange={(event) => setConfiguration((current) => ({ ...current, format: event.target.value }))} options={[{ label: "PDF Document", value: "PDF" }, { label: "CSV Spreadsheet", value: "CSV" }]} />
           <div className="sm:col-span-2"><Dropdown label="Report Frequency" value={configuration.period} onChange={(event) => setConfiguration((current) => ({ ...current, period: event.target.value }))} options={["Run Once", "Every Week", "Every Month"].map((value) => ({ label: value, value }))} /></div>

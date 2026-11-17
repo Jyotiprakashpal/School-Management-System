@@ -481,6 +481,10 @@
     box-shadow: 0 18px 45px rgb(15 23 42 / 14%), 0 3px 10px rgb(15 23 42 / 6%);
   }
   .calendar-caption { @apply border border-slate-100 bg-white/75 shadow-sm backdrop-blur-sm; }
+  .calendar-picker-button { @apply inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-sm font-extrabold text-slate-900 transition hover:bg-teal-50 hover:text-teal-700; }
+  .calendar-picker-menu { @apply absolute top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl shadow-slate-900/15; }
+  .calendar-picker-option { @apply block w-full rounded-lg px-2.5 py-2 text-left text-xs font-bold text-slate-700 transition hover:bg-teal-50 hover:text-teal-700; }
+  .calendar-picker-option-active { @apply bg-teal-600 text-white hover:bg-teal-700 hover:text-white; }
   .calendar-nav { @apply grid size-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-600; }
   .calendar-day { @apply grid aspect-square min-h-8 place-items-center rounded-xl text-xs font-semibold text-slate-600 transition duration-150 hover:-translate-y-0.5 hover:bg-teal-50 hover:text-teal-700; }
   .calendar-day-outside { @apply text-slate-300; }
@@ -490,6 +494,7 @@
     animation: date-dialog-enter 260ms cubic-bezier(.2,.8,.2,1) both;
     box-shadow: 0 30px 100px rgb(15 23 42 / 35%), 0 8px 24px rgb(15 23 42 / 14%);
   }
+  .calendar-actions > button { @apply min-w-0; }
   .attendance-progress { @apply h-2 w-full appearance-none overflow-hidden rounded-full bg-slate-100; }
   .attendance-progress::-webkit-progress-bar { @apply rounded-full bg-slate-100; }
   .attendance-progress::-webkit-progress-value { @apply rounded-full bg-emerald-500; }

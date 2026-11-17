@@ -8,17 +8,25 @@ import {
   NewAdmissionSkeleton,
   useToast,
 } from "../../components"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { post } from "../../api/methods"
+import { getAuthUser } from "../../auth/session"
 import Header from "../../ui/header"
 
 type FormState = Record<string, string>
 
-const initialForm: FormState = {
-  admissionNo: "ADM-26-1022",
+const createAdmissionNo = () => {
+  const year = String(new Date().getFullYear()).slice(-2)
+  return `ADM-${year}-${String(Date.now()).slice(-6)}`
+}
+
+const createInitialForm = (): FormState => ({
+  admissionNo: createAdmissionNo(),
   academicYear: "2027–28",
   status: "Active",
   nationality: "Indian",
   transportFee: "0",
-}
+})
 
 const options = (values: string[]) =>
   values.map((value) => ({ label: value, value }))
@@ -169,11 +177,11 @@ function DatePickerField({
               onClick={() => setOpen(false)}
               aria-label="Close date picker"
             />
-            <section className="date-picker-dialog relative z-10 w-full overflow-hidden rounded-t-3xl bg-white sm:max-w-sm sm:rounded-3xl">
+            <section style={{ width: "calc(100vw - 2rem)", maxWidth: "24rem" }} className="date-picker-dialog relative z-10 box-border overflow-hidden rounded-3xl border border-white/80 bg-white">
               <div className="p-3 sm:p-4">
                 <Calendar selected={draftDate} onSelect={setDraftDate} />
               </div>
-              <footer className="flex gap-2 border-t border-slate-100 bg-slate-50/80 px-4 py-4 sm:justify-end">
+              <div className="calendar-actions box-border grid w-full max-w-full grid-cols-2 gap-2 rounded-b-3xl border-t border-slate-200 bg-slate-50/90 px-4 py-4">
                 <Button
                   variant="outline"
                   className="flex-1 sm:flex-none"
@@ -190,7 +198,7 @@ function DatePickerField({
                 >
                   Use this date
                 </Button>
-              </footer>
+              </div>
             </section>
           </div>,
           document.body,
@@ -200,7 +208,7 @@ function DatePickerField({
 }
 
 export default function NewAdmission() {
-  const [form, setForm] = useState<FormState>(initialForm)
+  const [form, setForm] = useState<FormState>(createInitialForm)
   const [savingMode, setSavingMode] = useState<"save" | "print" | null>(null)
   const [studentPhoto, setStudentPhoto] = useState("")
   const [loading, setLoading] = useState(true)
@@ -310,14 +318,53 @@ export default function NewAdmission() {
       return
     }
     setSavingMode(mode)
-    await new Promise((resolve) => window.setTimeout(resolve, 1100))
-    setSavingMode(null)
-    showToast(
-      `${form.fullName}'s admission has been registered${
-        mode === "print" ? " and the print form is ready" : ""
-      }.`,
-      { title: "Admission saved successfully" },
-    )
+    try {
+      const user = getAuthUser()
+      await post(`${API_BASE}${API_ENDPOINTS.ADMISSIONS}`, {
+        admissionNo: form.admissionNo.trim(),
+        formNumber: form.formNumber?.trim() || undefined,
+        fullName: form.fullName.trim(),
+        fatherName: form.fatherName?.trim() || undefined,
+        motherName: form.motherName?.trim() || undefined,
+        dateOfBirth: form.dateOfBirth || undefined,
+        gender: form.gender || undefined,
+        bloodGroup: form.bloodGroup || undefined,
+        aadhaar: form.aadhaar?.trim() || undefined,
+        pen: form.pen?.trim() || undefined,
+        className: form.className || undefined,
+        section: form.section || undefined,
+        status: form.status || "Active",
+        admissionDate: form.admissionDate || undefined,
+        category: form.category || undefined,
+        religion: form.religion || undefined,
+        nationality: form.nationality?.trim() || undefined,
+        academicYear: form.academicYear?.trim() || undefined,
+        mobile: form.mobile?.trim() || undefined,
+        altMobile: form.altMobile?.trim() || undefined,
+        email: form.email?.trim() || undefined,
+        address: form.address?.trim() || undefined,
+        pinCode: form.pinCode?.trim() || undefined,
+        district: form.district?.trim() || undefined,
+        state: form.state?.trim() || undefined,
+        transportFee: Math.max(0, Number(form.transportFee) || 0),
+        studentPhoto: studentPhoto || undefined,
+        remarks: form.remarks?.trim() || undefined,
+        createdBy: user?.username || undefined,
+      })
+      showToast(
+        `${form.fullName}'s admission has been registered${
+          mode === "print" ? " and the print form is ready" : ""
+        }.`,
+        { title: "Admission saved successfully" },
+      )
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Unable to save admission.",
+        { title: "Admission save failed", tone: "error" },
+      )
+    } finally {
+      setSavingMode(null)
+    }
   }
 
   if (loading) return <NewAdmissionSkeleton />
@@ -703,7 +750,7 @@ export default function NewAdmission() {
           <Button
             variant="outline"
             className="new-admission-cancel min-h-11 border-rose-200! text-rose-600! hover:bg-rose-50! sm:min-h-10"
-            onClick={() => setForm(initialForm)}
+            onClick={() => setForm(createInitialForm())}
             disabled={Boolean(savingMode)}
           >
             Cancel

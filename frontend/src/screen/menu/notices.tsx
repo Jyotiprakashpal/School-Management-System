@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Dropdown, Input, NoticeSkeleton, useToast } from "../../components";
+import { Button, DatePicker, Dropdown, Input, NoticeSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
@@ -334,8 +334,8 @@ export default function Notices() {
         <Dropdown label="Audience *" value={form.audience} onChange={(event) => setForm((current) => ({ ...current, audience: event.target.value }))} options={["Everyone", "Students", "Parents", "Students & Parents", "Staff"].map((value) => ({ label: value, value }))} />
         <Dropdown label="Priority" value={form.priority} onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value as NoticePriority }))} options={[{ label: "Normal Priority", value: "Normal" }, { label: "High Priority", value: "High" }]} />
         <Dropdown label="Publication Status" value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as NoticeStatus }))} options={[{ label: "Save as Draft", value: "Draft" }, { label: "Publish Now", value: "Published" }, { label: "Schedule Publication", value: "Scheduled" }]} />
-        <Input label={form.status === "Scheduled" ? "Scheduled Date *" : "Publish Date"} type="date" value={form.publishedOn || ""} onChange={(event) => setForm((current) => ({ ...current, publishedOn: event.target.value }))} required={form.status !== "Draft"} />
-        <Input label="Expiry Date *" type="date" value={form.expiresOn} onChange={(event) => setForm((current) => ({ ...current, expiresOn: event.target.value }))} />
+        <DatePicker label={form.status === "Scheduled" ? "Scheduled Date" : "Publish Date"} required={form.status !== "Draft"} value={form.publishedOn || ""} onChange={(value) => setForm((current) => ({ ...current, publishedOn: value }))} />
+        <DatePicker label="Expiry Date" required value={form.expiresOn} onChange={(value) => setForm((current) => ({ ...current, expiresOn: value }))} />
       </div>
     </Popup>
 

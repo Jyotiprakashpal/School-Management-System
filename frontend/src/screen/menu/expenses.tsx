@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import {
   Button,
+  DatePicker,
   Dropdown,
   ExpensesSkeleton,
   Input,
@@ -981,14 +982,7 @@ export default function Expenses() {
             }
             placeholder="Vendor or recipient name"
           />
-          <Input
-            label="Expense Date *"
-            type="date"
-            value={form.date}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, date: event.target.value }))
-            }
-          />
+          <DatePicker label="Expense Date" required value={form.date} onChange={(value) => setForm((current) => ({ ...current, date: value }))} />
           <Dropdown
             label="Payment Mode"
             value={form.mode}

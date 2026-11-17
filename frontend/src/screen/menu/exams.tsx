@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Button, Dropdown, ExamsSkeleton, Input, useToast } from "../../components";
+import { Button, DatePicker, Dropdown, ExamsSkeleton, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -312,8 +312,8 @@ export default function Exams() {
         <Dropdown label="Academic Year" value={form.session} onChange={(event) => setField("session", event.target.value)} options={["2026–27", "2027–28"].map((value) => ({ label: value, value }))} />
         <Dropdown label="Participating Classes" value={form.classes} onChange={(event) => setField("classes", event.target.value)} options={["All Classes", "Class 1–5", "Class 6–10", "Class 1–10"].map((value) => ({ label: value, value }))} />
         <Dropdown label="Status" value={form.status} onChange={(event) => setField("status", event.target.value)} options={statuses.map((value) => ({ label: value, value }))} />
-        <Input label="Start Date *" type="date" value={form.startDate} onChange={(event) => setField("startDate", event.target.value)} />
-        <Input label="End Date *" type="date" value={form.endDate} onChange={(event) => setField("endDate", event.target.value)} />
+        <DatePicker label="Start Date" required value={form.startDate} onChange={(value) => setField("startDate", value)} />
+        <DatePicker label="End Date" required value={form.endDate} onChange={(value) => setField("endDate", value)} />
         {form.startDate && form.endDate && form.endDate >= form.startDate && <p className="rounded-xl bg-(--app-accent-faint) px-3 py-2 text-xs font-medium text-(--app-accent-dark) sm:col-span-2">Exam runs for {dayDiff(form.startDate, form.endDate) + 1} day{dayDiff(form.startDate, form.endDate) ? "s" : ""}.</p>}
       </div>
     </Popup>

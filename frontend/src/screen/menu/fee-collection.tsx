@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import {
   Button,
+  DatePicker,
   Dropdown,
   FeeCollectionSkeleton,
   Input,
@@ -1005,13 +1006,7 @@ export default function FeeCollection() {
                       options={modeOptions}
                       placeholder="Select mode"
                     />
-                    <Input
-                      label="Payment Date"
-                      type="date"
-                      max={today()}
-                      value={paymentDate}
-                      onChange={(event) => setPaymentDate(event.target.value)}
-                    />
+                    <DatePicker label="Payment Date" value={paymentDate} onChange={setPaymentDate} />
                     {needsReference && (
                       <div className="col-span-2">
                         <Input

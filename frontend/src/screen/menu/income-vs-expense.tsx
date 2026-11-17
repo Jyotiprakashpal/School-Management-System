@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Dropdown, IncomeVsExpenseSkeleton, Input, useToast } from "../../components";
+import { Button, DatePicker, Dropdown, IncomeVsExpenseSkeleton, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -324,7 +324,7 @@ export default function IncomeVsExpense() {
         <Dropdown label="Transaction Type" value={form.type} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value as CashflowType, category: "" }))} options={[{ label: "Income", value: "Income" }, { label: "Expense", value: "Expense" }]} />
         <Input label="Amount (₹) *" type="number" min="1" value={form.amount} onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} placeholder="0" />
         <Dropdown label="Category *" value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} placeholder="Select category" options={(form.type === "Income" ? ["Tuition Fees", "Transport Fees", "Examination Fees", "Admission Fees", "Other Income"] : ["Maintenance", "Utilities", "Academic", "Transport", "Office", "Events"]).map((value) => ({ label: value, value }))} />
-        <Input label="Transaction Date *" type="date" value={form.date} onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))} />
+        <DatePicker label="Transaction Date" required value={form.date} onChange={(value) => setForm((current) => ({ ...current, date: value }))} />
         <div className="sm:col-span-2"><Input label="Description *" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Describe this transaction" /></div>
         <Dropdown label="Payment Mode" value={form.mode} onChange={(event) => setForm((current) => ({ ...current, mode: event.target.value }))} options={["Cash", "UPI", "Card", "Bank Transfer", "Cheque"].map((value) => ({ label: value, value }))} />
         <Input label="Reference Number" value={form.reference} onChange={(event) => setForm((current) => ({ ...current, reference: event.target.value }))} placeholder="Generated automatically if blank" />
