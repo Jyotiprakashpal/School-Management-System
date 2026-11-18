@@ -6,3 +6,9 @@ export const isValidMobileNumber = (value: string) =>
 
 export const isValidEmail = (value: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim())
+
+export const sanitizeAadhaarNumber = (value: string) =>
+  value.replace(/\D/g, "").slice(0, 12)
+
+export const isValidAadhaarNumber = (value: string) =>
+  /^\d{12}$/.test(value.trim())

@@ -3,6 +3,7 @@ import sql from '../config/postgres.js';
 export interface SchoolClass {
   id: number;
   name: string;
+  sections: string[];
   active: boolean;
   createdBy: string | null;
   createdAt: Date;
@@ -29,6 +30,7 @@ export const schoolClassRepository = {
       CREATE TABLE IF NOT EXISTS school_classes (
         id SERIAL PRIMARY KEY,
         name VARCHAR(80) NOT NULL UNIQUE,
+        sections TEXT[] NOT NULL DEFAULT ARRAY['A', 'B', 'C']::TEXT[],
         active BOOLEAN NOT NULL DEFAULT TRUE,
         "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -38,6 +40,7 @@ export const schoolClassRepository = {
     `;
     await sql`
       ALTER TABLE school_classes
+      ADD COLUMN IF NOT EXISTS sections TEXT[] NOT NULL DEFAULT ARRAY['A', 'B', 'C']::TEXT[],
       ADD COLUMN IF NOT EXISTS "createdBy" TEXT,
       ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -57,7 +60,7 @@ export const schoolClassRepository = {
 
   async findAll(): Promise<SchoolClass[]> {
     const rows = await sql<SchoolClassRow[]>`
-      SELECT id, name, active, "createdBy", "createdAt", "updatedAt", "updatedBy"
+      SELECT id, name, sections, active, "createdBy", "createdAt", "updatedAt", "updatedBy"
       FROM school_classes
       WHERE active = TRUE
       ORDER BY id

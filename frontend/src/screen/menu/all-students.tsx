@@ -11,98 +11,36 @@ import {
 } from "../../components"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { get } from "../../api/methods"
 
-const initialRows = [
-  [
-    "ADM-26-1001",
-    "Rahul Kumar",
-    "Hari Prasad",
-    "UKG",
-    "7310095239",
-    "Active",
-    "View",
-  ],
-  [
-    "ADM-26-1023",
-    "Ravi Kumar",
-    "Rahul Kumar",
-    "UKG",
-    "8601XXXXXX",
-    "Active",
-    "View",
-  ],
-  [
-    "ADM-26-1024",
-    "Ananya Sharma",
-    "Vikas Sharma",
-    "Class 2",
-    "9876543210",
-    "Active",
-    "View",
-  ],
-  [
-    "ADM-26-1025",
-    "Aarav Singh",
-    "Rohit Singh",
-    "Class 1",
-    "9123456780",
-    "Active",
-    "View",
-  ],
-  [
-    "ADM-26-1026",
-    "Meera Patel",
-    "Nitin Patel",
-    "LKG",
-    "9988776655",
-    "Active",
-    "View",
-  ],
-  [
-    "ADM-26-1027",
-    "Kabir Verma",
-    "Amit Verma",
-    "Class 2",
-    "9090909090",
-    "Inactive",
-    "View",
-  ],
-  [
-    "ADM-26-1028",
-    "Ishita Khan",
-    "Sameer Khan",
-    "UKG",
-    "9812345678",
-    "Active",
-    "View",
-  ],
-  [
-    "ADM-26-1029",
-    "Vivaan Das",
-    "Sanjay Das",
-    "Class 1",
-    "9765432109",
-    "Active",
-    "View",
-  ],
-  [
-    "ADM-26-1030",
-    "Sara Ali",
-    "Imran Ali",
-    "LKG",
-    "9654321098",
-    "Active",
-    "View",
-  ],
-  [
-    "ADM-26-1031",
-    "Arjun Joshi",
-    "Manoj Joshi",
-    "Class 2",
-    "9543210987",
-    "Inactive",
-    "View",
-  ],
+type AdmissionRecord = {
+  admissionNo: string
+  fullName: string
+  fatherName: string | null
+  className: string | null
+  section: string | null
+  mobile: string | null
+  status: string | null
+  gender: string | null
+  admissionDate: string | null
+  academicYear: string | null
+}
+
+type StudentRow = string[]
+
+const admissionToRow = (student: AdmissionRecord): StudentRow => [
+  student.admissionNo,
+  student.fullName,
+  student.fatherName || "—",
+  student.className || "—",
+  student.mobile || "—",
+  student.status || "Active",
+  "View",
+  student.section || "—",
+  student.gender || "—",
+  student.admissionDate ? student.admissionDate.slice(0, 10) : "",
+  student.academicYear || "—",
 ]
 
 const studentFields = [
@@ -1765,7 +1703,7 @@ export default function AllStudents() {
   const [modalOpen, setModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formValues, setFormValues] = useState<Record<string, string>>({})
-  const [rows, setRows] = useState(initialRows)
+  const [rows, setRows] = useState<StudentRow[]>([])
   const [editingAdmissionNo, setEditingAdmissionNo] = useState<string | null>(
     null,
   )
@@ -1779,9 +1717,21 @@ export default function AllStudents() {
   const { showToast } = useToast()
 
   useEffect(() => {
-    const hydrateStudents = window.setTimeout(() => setLoading(false), 750)
-    return () => window.clearTimeout(hydrateStudents)
-  }, [])
+    let active = true
+    void get<{ data: AdmissionRecord[] }>(`${API_BASE}${API_ENDPOINTS.ADMISSIONS}?page=1&limit=100`, { cache: "no-store" })
+      .then((response) => {
+        if (active) setRows(response.data.map(admissionToRow))
+      })
+      .catch((error) => {
+        if (active) showToast(error instanceof Error ? error.message : "Unable to load students.", { title: "Students unavailable", tone: "error" })
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
+  }, [showToast])
+
+  const classOptions = [...new Set(rows.map((row) => row[3]).filter((value) => value && value !== "—"))]
   const filteredRows = rows.filter((row) => {
     const matchesSearch =
       !search ||
@@ -1818,10 +1768,10 @@ export default function AllStudents() {
       "Student Name": row[1],
       "Father Name": row[2],
       Class: row[3],
-      Section: "A",
+      Section: row[7] === "—" ? "" : row[7],
       Phone: row[4],
-      Gender: "Not specified",
-      "Admission Date": "2026-04-01",
+      Gender: row[8] === "—" ? "" : row[8],
+      "Admission Date": row[9],
     })
     setModalOpen(true)
   }
@@ -2110,7 +2060,7 @@ export default function AllStudents() {
               }}
               placeholder="All Classes"
               aria-label="Class filter"
-              options={["UKG", "LKG", "Class 1", "Class 2"].map((value) => ({
+              options={classOptions.map((value) => ({
                 label: value,
                 value,
               }))}

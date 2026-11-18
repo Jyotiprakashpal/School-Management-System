@@ -1,0 +1,4 @@
+import { Request, Response } from 'express';
+import { categoryRepository } from '../models/Category.js';
+export const getCategories = async (_req: Request, res: Response) => { try { res.json({ data: await categoryRepository.findAll() }); } catch { res.status(500).json({ error: 'Failed to fetch categories' }); } };
+export const createCategory = async (req: Request, res: Response) => { const name = typeof req.body?.name === 'string' ? req.body.name.trim() : ''; if (!name) return res.status(400).json({ error: 'Category name is required' }); try { res.status(201).json({ data: await categoryRepository.create(name) }); } catch (error) { if ((error as { code?: string })?.code === '23505') return res.status(409).json({ error: 'Category already exists' }); res.status(500).json({ error: 'Failed to create category' }); } };

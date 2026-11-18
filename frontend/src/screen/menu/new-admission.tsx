@@ -9,12 +9,25 @@ import {
   useToast,
 } from "../../components"
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
-import { post } from "../../api/methods"
+import { get, post } from "../../api/methods"
 import { getAuthUser } from "../../auth/session"
 import Header from "../../ui/header"
-import { isValidEmail, isValidMobileNumber, sanitizeMobileNumber } from "../../utils/validation"
+import {
+  isValidAadhaarNumber,
+  isValidEmail,
+  isValidMobileNumber,
+  sanitizeAadhaarNumber,
+  sanitizeMobileNumber,
+} from "../../utils/validation"
+import { onAcademicSessionChanged } from "../../api/socket"
 
 type FormState = Record<string, string>
+type SchoolClass = {
+  id: number
+  name: string
+  sections: string[]
+  active: boolean
+}
 
 const createAdmissionNo = () => {
   const year = String(new Date().getFullYear()).slice(-2)
@@ -23,7 +36,7 @@ const createAdmissionNo = () => {
 
 const createInitialForm = (): FormState => ({
   admissionNo: createAdmissionNo(),
-  academicYear: "2027–28",
+  academicYear: "",
   status: "Active",
   nationality: "Indian",
   transportFee: "0",
@@ -210,6 +223,11 @@ function DatePickerField({
 
 export default function NewAdmission() {
   const [form, setForm] = useState<FormState>(createInitialForm)
+  const [schoolClasses, setSchoolClasses] = useState<SchoolClass[]>([])
+  const [categories, setCategories] = useState<string[]>([])
+  const [religions, setReligions] = useState<string[]>([])
+  const [genders, setGenders] = useState<string[]>([])
+  const [bloodGroups, setBloodGroups] = useState<string[]>([])
   const [savingMode, setSavingMode] = useState<"save" | "print" | null>(null)
   const [studentPhoto, setStudentPhoto] = useState("")
   const [loading, setLoading] = useState(true)
@@ -222,6 +240,47 @@ export default function NewAdmission() {
   const pinRequest = useRef(0)
   const update = (name: string, value: string) =>
     setForm((current) => ({ ...current, [name]: value }))
+
+  useEffect(() => {
+    let active = true
+    void Promise.allSettled([
+      get<{ data: { name: string }[] }>(`${API_BASE}${API_ENDPOINTS.CATEGORIES}`, { cache: "no-store" }),
+      get<{ data: { name: string }[] }>(`${API_BASE}${API_ENDPOINTS.RELIGIONS}`, { cache: "no-store" }),
+      get<{ data: { name: string }[] }>(`${API_BASE}${API_ENDPOINTS.GENDERS}`, { cache: "no-store" }),
+      get<{ data: { name: string }[] }>(`${API_BASE}${API_ENDPOINTS.BLOOD_GROUPS}`, { cache: "no-store" }),
+      get<{ name: string }>(`${API_BASE}${API_ENDPOINTS.SESSIONS}/current`, { cache: "no-store" }),
+    ]).then(([categoryResult, religionResult, genderResult, bloodGroupResult, sessionResult]) => {
+      if (!active) return
+      if (categoryResult.status === "fulfilled") setCategories(categoryResult.value.data.map((item) => item.name))
+      if (religionResult.status === "fulfilled") setReligions(religionResult.value.data.map((item) => item.name))
+      if (genderResult.status === "fulfilled") setGenders(genderResult.value.data.map((item) => item.name))
+      if (bloodGroupResult.status === "fulfilled") setBloodGroups(bloodGroupResult.value.data.map((item) => item.name))
+      if (sessionResult.status === "fulfilled") setForm((current) => ({ ...current, academicYear: sessionResult.value.name }))
+      if (categoryResult.status === "rejected" || religionResult.status === "rejected" || genderResult.status === "rejected" || bloodGroupResult.status === "rejected") {
+        showToast("Unable to load admission options.", { title: "Admission options unavailable", tone: "error" })
+      }
+    })
+    const removeSessionListener = onAcademicSessionChanged((session) => {
+      if (session.current) setForm((current) => ({ ...current, academicYear: session.name }))
+    })
+    return () => { active = false; removeSessionListener() }
+  }, [showToast])
+
+  useEffect(() => {
+    let active = true
+    void fetch(`${API_BASE}${API_ENDPOINTS.CLASSES}`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load classes.")
+        return (await response.json()) as SchoolClass[]
+      })
+      .then((classes) => {
+        if (active) setSchoolClasses(classes.filter((item) => item.active))
+      })
+      .catch((error) => {
+        if (active) showToast(error instanceof Error ? error.message : "Unable to load classes.", { title: "Classes unavailable", tone: "error" })
+      })
+    return () => { active = false }
+  }, [showToast])
 
   useEffect(() => {
     const finishLoading = () => setLoading(false)
@@ -295,6 +354,8 @@ export default function NewAdmission() {
     "district",
     "state",
   ]
+  const selectedClass = schoolClasses.find((item) => item.name === form.className)
+  const sectionOptions = selectedClass?.sections ?? []
   const completion = Math.round(
     (trackedFields.filter((key) => form[key]?.trim()).length /
       trackedFields.length) *
@@ -335,6 +396,13 @@ export default function NewAdmission() {
     if (form.email?.trim() && !isValidEmail(form.email)) {
       showToast("Enter a valid email address.", {
         title: "Invalid email address",
+        tone: "error",
+      })
+      return
+    }
+    if (form.aadhaar?.trim() && !isValidAadhaarNumber(form.aadhaar)) {
+      showToast("Aadhaar number must contain exactly 12 digits.", {
+        title: "Invalid Aadhaar number",
         tone: "error",
       })
       return
@@ -508,27 +576,23 @@ export default function NewAdmission() {
               label="Gender"
               value={form.gender ?? ""}
               onChange={(event) => update("gender", event.target.value)}
-              options={options(["Male", "Female", "Other"])}
+              options={options(genders)}
             />
             <Dropdown
               label="Blood Group"
               value={form.bloodGroup ?? ""}
               onChange={(event) => update("bloodGroup", event.target.value)}
-              options={options([
-                "A+",
-                "A-",
-                "B+",
-                "B-",
-                "AB+",
-                "AB-",
-                "O+",
-                "O-",
-              ])}
+              options={options(bloodGroups)}
             />
             <Input
               label="Aadhaar No."
+              type="tel"
+              inputMode="numeric"
+              maxLength={12}
               value={form.aadhaar ?? ""}
-              onChange={(event) => update("aadhaar", event.target.value)}
+              onChange={(event) => update("aadhaar", sanitizeAadhaarNumber(event.target.value))}
+              hint={form.aadhaar && !isValidAadhaarNumber(form.aadhaar) ? "Enter exactly 12 digits." : undefined}
+              className={form.aadhaar && !isValidAadhaarNumber(form.aadhaar) ? "border-rose-300! focus:border-rose-400!" : ""}
               placeholder="12-digit number"
             />
             <Input
@@ -554,23 +618,24 @@ export default function NewAdmission() {
             <Dropdown
               label="Class *"
               value={form.className ?? ""}
-              onChange={(event) => update("className", event.target.value)}
-              options={options([
-                "Nursery",
-                "LKG",
-                "UKG",
-                "Class 1",
-                "Class 2",
-                "Class 3",
-                "Class 4",
-                "Class 5",
-              ])}
+              onChange={(event) => {
+                const className = event.target.value
+                setForm((current) => ({
+                  ...current,
+                  className,
+                  section: "",
+                }))
+              }}
+              placeholder="Select class"
+              options={schoolClasses.map((item) => ({ label: item.name, value: item.name }))}
             />
             <Dropdown
               label="Section"
               value={form.section ?? ""}
               onChange={(event) => update("section", event.target.value)}
-              options={options(["A", "B", "C"])}
+              placeholder={selectedClass ? "Select section" : "Select class first"}
+              disabled={!selectedClass || sectionOptions.length === 0}
+              options={options(sectionOptions)}
             />
             <Dropdown
               label="Status"
@@ -587,19 +652,13 @@ export default function NewAdmission() {
               label="Category"
               value={form.category ?? ""}
               onChange={(event) => update("category", event.target.value)}
-              options={options(["General", "OBC", "SC", "ST"])}
+              options={options(categories)}
             />
             <Dropdown
               label="Religion"
               value={form.religion ?? ""}
               onChange={(event) => update("religion", event.target.value)}
-              options={options([
-                "Hindu",
-                "Muslim",
-                "Sikh",
-                "Christian",
-                "Other",
-              ])}
+              options={options(religions)}
             />
             <Input
               label="Nationality"
@@ -609,7 +668,8 @@ export default function NewAdmission() {
             <Input
               label="Academic Year"
               value={form.academicYear}
-              onChange={(event) => update("academicYear", event.target.value)}
+              readOnly
+              placeholder="Current academic session"
             />
           </div>
         </section>

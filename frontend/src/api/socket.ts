@@ -40,6 +40,7 @@ socket.on("connect", () => {
   socket.emit("join", "users")
   socket.emit("join", "staff")
   socket.emit("join", "salary")
+  socket.emit("join", "sessions")
 })
 
 export function onCurrentUserUpdated(listener: (user: AuthUser) => void) {
@@ -58,6 +59,17 @@ export function onSessionTerminated(listener: (payload: { id: number; token: str
   socket.on("user:session_terminated", listener)
   return () => {
     socket.off("user:session_terminated", listener)
+  }
+}
+
+export type AcademicSessionRealtime = { id: number; name: string; current: boolean; [key: string]: unknown }
+
+export function onAcademicSessionChanged(listener: (session: AcademicSessionRealtime) => void) {
+  socket.on("session:current_changed", listener)
+  socket.on("session:updated", listener)
+  return () => {
+    socket.off("session:current_changed", listener)
+    socket.off("session:updated", listener)
   }
 }
 

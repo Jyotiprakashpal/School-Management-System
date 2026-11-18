@@ -32,6 +32,10 @@ import documentRoutes from './routes/documentRoutes.js';
 import noticeRoutes from './routes/noticeRoutes.js';
 import schoolClassRoutes from './routes/schoolClassRoutes.js';
 import departmentRoutes from './routes/departmentRoutes.js';
+import religionRoutes from './routes/religionRoutes.js';
+import categoryRoutes from './routes/categoryRoutes.js';
+import genderRoutes from './routes/genderRoutes.js';
+import bloodGroupRoutes from './routes/bloodGroupRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 import { initializeDatabase } from './db-init.js';
 
@@ -112,6 +116,10 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/notices', noticeRoutes);
 app.use('/api/classes', schoolClassRoutes);
 app.use('/api/departments', departmentRoutes);
+app.use('/api/religions', religionRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/genders', genderRoutes);
+app.use('/api/blood-groups', bloodGroupRoutes);
 
 const connectDatabase = async () => {
   try {

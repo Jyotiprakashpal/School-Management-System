@@ -27,6 +27,10 @@ import { userSessionRepository } from './models/UserSession.js';
 import { noticeRepository } from './models/Notice.js';
 import { schoolClassRepository } from './models/SchoolClass.js';
 import { departmentRepository } from './models/Department.js';
+import { religionRepository } from './models/Religion.js';
+import { categoryRepository } from './models/Category.js';
+import { genderRepository } from './models/Gender.js';
+import { bloodGroupRepository } from './models/BloodGroup.js';
 
 export async function initializeDatabase(): Promise<void> {
   await userRepository.initializeTable();
@@ -60,4 +64,8 @@ export async function initializeDatabase(): Promise<void> {
   await noticeRepository.initializeTable();
   await schoolClassRepository.initializeTable();
   await departmentRepository.initializeTable();
+  await religionRepository.initializeTable();
+  await categoryRepository.initializeTable();
+  await genderRepository.initializeTable();
+  await bloodGroupRepository.initializeTable();
 }

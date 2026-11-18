@@ -67,6 +67,10 @@ export const API_ENDPOINTS = {
   REPORTS: "/reports",
   STAFF: "/staff",
   DEPARTMENTS: "/departments",
+  RELIGIONS: "/religions",
+  CATEGORIES: "/categories",
+  GENDERS: "/genders",
+  BLOOD_GROUPS: "/blood-groups",
   SALARY: "/salary",
   
   ADMIN_SETTINGS: "/admin-settings",
