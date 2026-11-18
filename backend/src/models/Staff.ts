@@ -2,6 +2,7 @@ import sql from '../config/postgres.js';
 
 export interface Staff {
   id: number;
+  userId: string | null;
   staffId: string;
   name: string;
   designation: string;
@@ -17,6 +18,7 @@ export interface Staff {
 }
 
 export interface CreateStaffDto {
+  userId?: string;
   staffId?: string;
   name: string;
   designation: string;
@@ -62,7 +64,7 @@ function toStaffResponse(staff: StaffRow): Staff {
 }
 
 const selectStaffColumns = sql`
-  id, "staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdBy", "createdAt", "updatedAt"
+  id, "userId", "staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const staffRepository = {
@@ -70,6 +72,7 @@ export const staffRepository = {
     await sql`
       CREATE TABLE IF NOT EXISTS staff (
         id SERIAL PRIMARY KEY,
+        "userId" TEXT REFERENCES users("userId") ON DELETE SET NULL,
         "staffId" VARCHAR(20) NOT NULL UNIQUE,
         name VARCHAR(120) NOT NULL,
         designation VARCHAR(120) NOT NULL,
@@ -84,6 +87,7 @@ export const staffRepository = {
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    await sql`ALTER TABLE staff ADD COLUMN IF NOT EXISTS "userId" TEXT`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_staff_department ON staff(department)
     `;
@@ -138,11 +142,19 @@ export const staffRepository = {
     return staff ? toStaffResponse(staff) : null;
   },
 
+  async findByName(name: string): Promise<Staff | null> {
+    const [staff] = await sql<StaffRow[]>`
+      SELECT ${selectStaffColumns}
+      FROM staff WHERE LOWER(name) = LOWER(${name.trim()})
+    `;
+    return staff ? toStaffResponse(staff) : null;
+  },
+
   async create(data: CreateStaffDto): Promise<Staff> {
     const staffId = data.staffId || `EMP-${Date.now()}`;
     const [staff] = await sql<StaffRow[]>`
-      INSERT INTO staff ("staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdBy")
-      VALUES (${staffId}, ${data.name}, ${data.designation}, ${data.department}, ${data.phone}, ${data.email}, ${data.salary}, ${data.joiningDate}, ${data.status || 'Active'}, ${data.createdBy || null})
+      INSERT INTO staff ("userId", "staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdBy")
+      VALUES (${data.userId || null}, ${staffId}, ${data.name}, ${data.designation}, ${data.department}, ${data.phone}, ${data.email}, ${data.salary}, ${data.joiningDate}, ${data.status || 'Active'}, ${data.createdBy || null})
       RETURNING ${selectStaffColumns}
     `;
     return toStaffResponse(staff);
@@ -168,7 +180,11 @@ export const staffRepository = {
     updates.push('"updatedAt" = NOW()');
     values.push(id);
 
-    const query = `UPDATE staff SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING ${selectStaffColumns}`;
+    // `selectStaffColumns` is a postgres query fragment and cannot be interpolated
+    // into a plain unsafe SQL string (it becomes `[object Object]`). Keep the
+    // returning column list as SQL text for this dynamic update query.
+    const returningColumns = 'id, "userId", "staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdBy", "createdAt", "updatedAt"';
+    const query = `UPDATE staff SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING ${returningColumns}`;
     const [staff] = await sql.unsafe(query, values) as StaffRow[];
     return staff ? toStaffResponse(staff) : null;
   },

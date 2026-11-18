@@ -8,8 +8,19 @@ import {
   StaffQuery
 } from '../models/Staff.js';
 import { notificationRepository } from '../models/Notification.js';
+import { userRepository } from '../models/User.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
+
+const getActorUserId = async (req: Request): Promise<string | undefined> => {
+  const token = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : '';
+  const userId = Number(token.match(/^session-(\d+)-/)?.[1] || 0);
+  if (!userId) return undefined;
+  const user = await userRepository.findById(userId);
+  return user?.userId || undefined;
+};
 
 const createNotification = async (req: Request, data: {
   userId?: string;
@@ -22,7 +33,8 @@ const createNotification = async (req: Request, data: {
   try {
     const notification = await notificationRepository.create({
       ...data,
-      entityType: 'staff' as any
+      entityType: 'staff' as any,
+      createdBy: await getActorUserId(req),
     });
     getIO(req).to(`user:${data.userId || 'all'}`).emit('notification:created', notification);
     if (!data.userId) {
@@ -42,6 +54,7 @@ interface PaginatedStaff {
 }
 
 const validateStaffBody = (body: Partial<CreateStaffDto>): string | null => {
+  if (typeof body.userId !== 'string' || !body.userId.trim()) return 'User is required';
   if (typeof body.name !== 'string' || !body.name.trim()) return 'Name is required';
   if (typeof body.designation !== 'string' || !body.designation.trim()) return 'Designation is required';
   if (typeof body.department !== 'string' || !body.department.trim()) return 'Department is required';
@@ -127,6 +140,10 @@ export const createStaff = async (req: Request<{}, Staff | { error: string }, Cr
     const validationError = validateStaffBody(req.body);
     if (validationError) {
       return res.status(400).json({ error: validationError });
+    }
+
+    if (await staffRepository.findByName(req.body.name)) {
+      return res.status(409).json({ error: 'This user already has a staff profile' });
     }
 
     const existingStaff = await staffRepository.findByStaffId(req.body.staffId || `EMP-${Date.now()}`);

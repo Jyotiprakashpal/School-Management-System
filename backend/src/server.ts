@@ -31,6 +31,7 @@ import roleRoutes from './routes/roleRoutes.js';
 import documentRoutes from './routes/documentRoutes.js';
 import noticeRoutes from './routes/noticeRoutes.js';
 import schoolClassRoutes from './routes/schoolClassRoutes.js';
+import departmentRoutes from './routes/departmentRoutes.js';
 import sql, { connectPostgres } from './config/postgres.js';
 import { initializeDatabase } from './db-init.js';
 
@@ -110,6 +111,7 @@ app.use('/api/roles', roleRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/notices', noticeRoutes);
 app.use('/api/classes', schoolClassRoutes);
+app.use('/api/departments', departmentRoutes);
 
 const connectDatabase = async () => {
   try {

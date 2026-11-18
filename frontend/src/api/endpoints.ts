@@ -66,6 +66,7 @@ export const API_ENDPOINTS = {
   EXPENSES: "/expenses",
   REPORTS: "/reports",
   STAFF: "/staff",
+  DEPARTMENTS: "/departments",
   SALARY: "/salary",
   
   ADMIN_SETTINGS: "/admin-settings",

@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
+import { del, get, post, put } from "../../api/methods"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { getAuthUser } from "../../auth/session"
 import {
   Button,
   DatePicker,
@@ -11,8 +14,18 @@ import Header from "../../ui/header"
 import Popup from "../../ui/popup"
 
 type StaffStatus = "Active" | "On Leave"
+type UserRole = "Superadmin" | "Admin" | "Operator" | "Accountant" | "Student" | "Teacher"
+
+type UserOption = {
+  id: number
+  userId: string
+  name: string
+  role: UserRole
+  status: "Active" | "Suspended"
+}
 
 type StaffMember = {
+  userId: string | null
   department: string
   designation: string
   email: string
@@ -24,81 +37,6 @@ type StaffMember = {
   staffId: string
   status: StaffStatus
 }
-
-const initialStaff: StaffMember[] = [
-  {
-    id: 1,
-    staffId: "EMP-26-1001",
-    name: "Raj Kumar",
-    designation: "Principal",
-    department: "Administration",
-    phone: "7310095239",
-    email: "raj.kumar@pal.edu",
-    salary: 42000,
-    joiningDate: "2022-04-01",
-    status: "Active",
-  },
-  {
-    id: 2,
-    staffId: "EMP-26-1002",
-    name: "Priya Sharma",
-    designation: "English Teacher",
-    department: "Academics",
-    phone: "9876543210",
-    email: "priya.sharma@pal.edu",
-    salary: 28500,
-    joiningDate: "2023-07-10",
-    status: "Active",
-  },
-  {
-    id: 3,
-    staffId: "EMP-26-1003",
-    name: "Ravi Verma",
-    designation: "Mathematics Teacher",
-    department: "Academics",
-    phone: "9837456120",
-    email: "ravi.verma@pal.edu",
-    salary: 30000,
-    joiningDate: "2021-06-15",
-    status: "Active",
-  },
-  {
-    id: 4,
-    staffId: "EMP-26-1004",
-    name: "Neha Singh",
-    designation: "Science Teacher",
-    department: "Academics",
-    phone: "9765432180",
-    email: "neha.singh@pal.edu",
-    salary: 29500,
-    joiningDate: "2024-04-03",
-    status: "On Leave",
-  },
-  {
-    id: 5,
-    staffId: "EMP-26-1005",
-    name: "Anjali Gupta",
-    designation: "Accountant",
-    department: "Finance",
-    phone: "9654321870",
-    email: "anjali.gupta@pal.edu",
-    salary: 26500,
-    joiningDate: "2022-09-12",
-    status: "Active",
-  },
-  {
-    id: 6,
-    staffId: "EMP-26-1006",
-    name: "Mohan Yadav",
-    designation: "Transport Coordinator",
-    department: "Transport",
-    phone: "9543218760",
-    email: "mohan.yadav@pal.edu",
-    salary: 22000,
-    joiningDate: "2020-02-20",
-    status: "Active",
-  },
-]
 
 const blankStaff = {
   department: "",
@@ -219,9 +157,27 @@ function progressWidth(value: number, max: number) {
   return "w-1/4"
 }
 
+type StaffListResponse = {
+  data: StaffMember[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+function normalizeStaff(member: StaffMember): StaffMember {
+  return {
+    ...member,
+    joiningDate: String(member.joiningDate).slice(0, 10),
+    salary: Number(member.salary),
+  }
+}
+
 export default function StaffManagement() {
   const [initialLoading, setInitialLoading] = useState(true)
   const [staff, setStaff] = useState<StaffMember[]>([])
+  const [users, setUsers] = useState<UserOption[]>([])
+  const [departments, setDepartments] = useState<string[]>([])
   const [query, setQuery] = useState("")
   const [department, setDepartment] = useState("All Departments")
   const [status, setStatus] = useState("All Status")
@@ -233,16 +189,71 @@ export default function StaffManagement() {
   const [saving, setSaving] = useState(false)
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
   const [deletingStaff, setDeletingStaff] = useState<StaffMember | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const { showToast } = useToast()
 
   useEffect(() => {
-    const loadStaffManagement = window.setTimeout(() => {
-      setStaff(initialStaff)
-      setInitialLoading(false)
-    }, 1000)
+    let active = true
+    void get<StaffListResponse>(`${API_BASE}${API_ENDPOINTS.STAFF}?limit=100`)
+      .then((response) => {
+        if (active) setStaff(response.data.map(normalizeStaff))
+      })
+      .catch((error) => {
+        if (active) {
+          showToast(error instanceof Error ? error.message : "Failed to load staff profiles.", {
+            title: "Staff unavailable",
+            tone: "error",
+          })
+        }
+      })
+      .finally(() => {
+        if (active) setInitialLoading(false)
+      })
 
-    return () => window.clearTimeout(loadStaffManagement)
-  }, [])
+    return () => {
+      active = false
+    }
+  }, [showToast])
+
+  useEffect(() => {
+    let active = true
+    void get<{ data: Array<{ departmentId: string; departmentName: string }> }>(`${API_BASE}${API_ENDPOINTS.DEPARTMENTS}?limit=100`, { cache: "no-store" })
+      .then((response) => {
+        if (active) setDepartments(response.data.map((department) => department.departmentName))
+      })
+      .catch((error) => {
+        if (active) {
+          showToast(error instanceof Error ? error.message : "Failed to load departments.", {
+            title: "Departments unavailable",
+            tone: "error",
+          })
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [showToast])
+
+  useEffect(() => {
+    let active = true
+    void get<{ data: UserOption[] }>(`${API_BASE}${API_ENDPOINTS.USER}?limit=100`, { cache: "no-store" })
+      .then((response) => {
+        if (active) setUsers(response.data.filter((user) => user.role !== "Student"))
+      })
+      .catch((error) => {
+        if (active) {
+          showToast(error instanceof Error ? error.message : "Failed to load users.", {
+            title: "Users unavailable",
+            tone: "error",
+          })
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [showToast])
 
   const filteredStaff = useMemo(
     () =>
@@ -281,12 +292,21 @@ export default function StaffManagement() {
 
   const refreshStaff = async () => {
     setLoading(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 650))
-    setLoading(false)
-    showToast(
-      `${filteredStaff.length} staff members match the selected filters.`,
-      { title: "Directory updated", tone: "info" },
-    )
+    try {
+      const response = await get<StaffListResponse>(`${API_BASE}${API_ENDPOINTS.STAFF}?limit=100`)
+      setStaff(response.data.map(normalizeStaff))
+      showToast(`${response.data.length} staff profiles loaded from the database.`, {
+        title: "Directory updated",
+        tone: "info",
+      })
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to refresh staff profiles.", {
+        title: "Refresh failed",
+        tone: "error",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const openCreate = () => {
@@ -338,27 +358,52 @@ export default function StaffManagement() {
       })
       return
     }
-    setSaving(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 900))
-    if (editingId) {
-      setStaff((current) =>
-        current.map((member) =>
-          member.id === editingId ? { ...member, ...form, salary } : member,
-        ),
-      )
-    } else {
-      const staffId = `EMP-26-${String(1001 + staff.length).padStart(4, "0")}`
-      setStaff((current) => [
-        ...current,
-        { id: Date.now(), staffId, ...form, salary },
-      ])
+    if (!editingId && staff.some((member) => member.name.toLowerCase() === form.name.trim().toLowerCase())) {
+      showToast("This user already has a staff profile and cannot be added again.", {
+        title: "Staff profile already exists",
+        tone: "error",
+      })
+      return
     }
-    setSaving(false)
-    setEditorOpen(false)
-    showToast(
-      `${form.name} was ${editingId ? "updated" : "added"} successfully.`,
-      { title: editingId ? "Staff profile updated" : "Staff member added" },
-    )
+    setSaving(true)
+    try {
+      const payload = {
+        name: form.name.trim(),
+        designation: form.designation.trim(),
+        department: form.department,
+        phone: form.phone.trim(),
+        email: form.email.trim(),
+        salary,
+        joiningDate: form.joiningDate,
+        status: form.status,
+      }
+
+      if (editingId) {
+        const updated = await put<StaffMember>(`${API_BASE}${API_ENDPOINTS.STAFF}/${editingId}`, payload)
+        const normalized = normalizeStaff(updated)
+        setStaff((current) => current.map((member) => member.id === editingId ? normalized : member))
+        setSelectedStaff((current) => current?.id === editingId ? normalized : current)
+        showToast(`${form.name} was updated successfully.`, { title: "Staff profile updated" })
+      } else {
+        const selectedUser = users.find((user) => `${user.name} (${user.role})` === form.name)
+        const created = await post<StaffMember>(`${API_BASE}${API_ENDPOINTS.STAFF}`, {
+          ...payload,
+          ...(selectedUser ? { userId: selectedUser.userId } : {}),
+          ...(selectedUser ? { staffId: `EMP-${selectedUser.id}` } : {}),
+          createdBy: getAuthUser()?.username,
+        })
+        setStaff((current) => [normalizeStaff(created), ...current])
+        showToast(`${form.name} was added successfully.`, { title: "Staff member added" })
+      }
+      setEditorOpen(false)
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to save staff profile.", {
+        title: "Staff save failed",
+        tone: "error",
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const updateStatus = (member: StaffMember) => {
@@ -378,16 +423,26 @@ export default function StaffManagement() {
     })
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deletingStaff) return
-    setStaff((current) =>
-      current.filter((member) => member.id !== deletingStaff.id),
-    )
-    showToast(`${deletingStaff.name} was removed from the staff directory.`, {
-      title: "Staff member removed",
-      tone: "info",
-    })
-    setDeletingStaff(null)
+    setDeleting(true)
+    try {
+      await del<{ message: string }>(`${API_BASE}${API_ENDPOINTS.STAFF}/${deletingStaff.id}`)
+      setStaff((current) => current.filter((member) => member.id !== deletingStaff.id))
+      setSelectedStaff((current) => current?.id === deletingStaff.id ? null : current)
+      showToast(`${deletingStaff.name} was removed from the staff directory.`, {
+        title: "Staff member removed",
+        tone: "info",
+      })
+      setDeletingStaff(null)
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to delete staff profile.", {
+        title: "Delete failed",
+        tone: "error",
+      })
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const exportDirectory = async () => {
@@ -617,13 +672,10 @@ export default function StaffManagement() {
               label="Department"
               value={department}
               onChange={(event) => setDepartment(event.target.value)}
-              options={[
-                "All Departments",
-                "Academics",
-                "Administration",
-                "Finance",
-                "Transport",
-              ].map((value) => ({ label: value, value }))}
+              options={["All Departments", ...departments].map((value) => ({
+                label: value,
+                value,
+              }))}
             />
             <Dropdown
               label="Employment Status"
@@ -959,13 +1011,29 @@ export default function StaffManagement() {
         }
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input
+          <Dropdown
             label="Full Name *"
             value={form.name}
             onChange={(event) =>
               setForm((current) => ({ ...current, name: event.target.value }))
             }
-            placeholder="Employee full name"
+            placeholder="Select a user"
+            options={[
+              ...(form.name && !users.some((user) => `${user.name} (${user.role})` === form.name)
+                ? [{ label: form.name, value: form.name }]
+                : []),
+              ...users
+                .filter((user) => !staff.some((member) => {
+                  const selectedName = `${user.name} (${user.role})`.toLowerCase()
+                  const userName = user.name.toLowerCase()
+                  const existingName = member.name.toLowerCase()
+                  return existingName === selectedName || existingName === userName
+                }))
+                .map((user) => ({
+                label: `${user.name} (${user.role})`,
+                value: `${user.name} (${user.role})`,
+                })),
+            ]}
           />
           <Input
             label="Designation *"
@@ -988,12 +1056,7 @@ export default function StaffManagement() {
               }))
             }
             placeholder="Select department"
-            options={[
-              "Academics",
-              "Administration",
-              "Finance",
-              "Transport",
-            ].map((value) => ({ label: value, value }))}
+            options={departments.map((value) => ({ label: value, value }))}
           />
           <Dropdown
             label="Employment Status"
@@ -1012,11 +1075,17 @@ export default function StaffManagement() {
           <Input
             label="Phone Number *"
             type="tel"
+            inputMode="numeric"
+            maxLength={10}
+            pattern="[0-9]{10}"
+            aria-invalid={Boolean(form.phone && form.phone.length !== 10)}
             value={form.phone}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, phone: event.target.value }))
-            }
+            onChange={(event) => {
+              const phone = event.target.value.replace(/\D/g, "").slice(0, 10)
+              setForm((current) => ({ ...current, phone }))
+            }}
             placeholder="10-digit phone number"
+            hint={form.phone && form.phone.length !== 10 ? `${form.phone.length}/10 digits entered. Enter exactly 10 digits.` : undefined}
           />
           <Input
             label="Email Address *"
@@ -1138,6 +1207,7 @@ export default function StaffManagement() {
               variant="outline"
               className="!px-2 sm:!px-4"
               onClick={() => setDeletingStaff(null)}
+              disabled={deleting}
             >
               Cancel
             </Button>
@@ -1145,6 +1215,8 @@ export default function StaffManagement() {
               variant="danger"
               className="!px-2 sm:!px-4"
               onClick={confirmDelete}
+              isLoading={deleting}
+              loadingText="Removing..."
             >
               Remove Profile
             </Button>

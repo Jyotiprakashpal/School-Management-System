@@ -12,8 +12,19 @@ import {
   EmployeeSalaryReport,
 } from '../models/Salary.js';
 import { notificationRepository } from '../models/Notification.js';
+import { userRepository } from '../models/User.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
+
+const getActorUserId = async (req: Request): Promise<string | undefined> => {
+  const token = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : '';
+  const numericId = Number(token.match(/^session-(\d+)-/)?.[1] || 0);
+  if (!numericId) return undefined;
+  const user = await userRepository.findById(numericId);
+  return user?.username || undefined;
+};
 
 const createNotification = async (req: Request, data: {
   userId?: string;
@@ -288,7 +299,10 @@ export const createPayroll = async (req: Request<{}, Payroll | { error: string }
       return res.status(409).json({ error: 'Payroll for this employee/month/year already exists' });
     }
 
-    const payroll = await salaryRepository.create(req.body);
+    const payroll = await salaryRepository.create({
+      ...req.body,
+      createdBy: await getActorUserId(req) || req.body.createdBy,
+    });
 
     getIO(req).to('salary').emit('payroll:created', payroll);
 

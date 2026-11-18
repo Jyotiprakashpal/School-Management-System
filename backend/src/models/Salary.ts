@@ -99,9 +99,16 @@ type MonthlyPayrollRow = Omit<MonthlyPayrollReport, 'status'> & {
 type EmployeeSalaryRow = EmployeeSalaryReport;
 
 function toPayrollResponse(row: PayrollRow): Payroll {
+  const basic = Number(row.basic || 0);
+  const allowances = Number(row.allowances || 0);
+  const deductions = Number(row.deductions || 0);
   return {
     ...row,
-    netSalary: row.basic + row.allowances - row.deductions,
+    basic,
+    allowances,
+    deductions,
+    netSalary: basic + allowances - deductions,
+    year: Number(row.year),
     createdAt: new Date(row.createdAt),
     updatedAt: new Date(row.updatedAt),
     createdBy: row.createdBy || null,
@@ -273,7 +280,10 @@ export const salaryRepository = {
     updates.push('"updatedAt" = NOW()');
     values.push(id);
 
-    const query = `UPDATE payrolls SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING ${selectPayrollColumns}`;
+    // `selectPayrollColumns` is a postgres query fragment and cannot be used
+    // inside a plain unsafe SQL string. Use the equivalent SQL column list.
+    const returningColumns = 'id, "employeeId", name, designation, department, basic, allowances, deductions, "netSalary", status, month, year, "createdBy", "createdAt", "updatedAt"';
+    const query = `UPDATE payrolls SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING ${returningColumns}`;
 
     const [payroll] = await sql.unsafe(query, values) as PayrollRow[];
     return payroll ? toPayrollResponse(payroll) : null;

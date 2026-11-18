@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { get, post, put } from "../../api/methods";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { Button, Dropdown, Input, SalaryManagementSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
@@ -17,14 +19,29 @@ type Payroll = {
   status: PayrollStatus;
 };
 
-const initialPayroll: Payroll[] = [
-  { id: 1, employeeId: "EMP-26-1001", name: "Raj Kumar", designation: "Principal", department: "Administration", basic: 42000, allowances: 6000, deductions: 2800, status: "Paid" },
-  { id: 2, employeeId: "EMP-26-1002", name: "Priya Sharma", designation: "English Teacher", department: "Academics", basic: 28500, allowances: 3200, deductions: 1600, status: "Processed" },
-  { id: 3, employeeId: "EMP-26-1003", name: "Ravi Verma", designation: "Mathematics Teacher", department: "Academics", basic: 30000, allowances: 3500, deductions: 1750, status: "Pending" },
-  { id: 4, employeeId: "EMP-26-1004", name: "Neha Singh", designation: "Science Teacher", department: "Academics", basic: 29500, allowances: 3200, deductions: 1700, status: "Pending" },
-  { id: 5, employeeId: "EMP-26-1005", name: "Anjali Gupta", designation: "Accountant", department: "Finance", basic: 26500, allowances: 2800, deductions: 1450, status: "Processed" },
-  { id: 6, employeeId: "EMP-26-1006", name: "Mohan Yadav", designation: "Transport Coordinator", department: "Transport", basic: 22000, allowances: 2500, deductions: 1200, status: "Pending" },
-];
+type StaffListResponse = {
+  data: Array<{
+    id: number;
+    userId: string | null;
+    staffId: string;
+    name: string;
+    designation: string;
+    department: string;
+    salary: number;
+    status: "Active" | "On Leave";
+  }>;
+};
+
+type PayrollListResponse = { data: Payroll[] };
+
+function payrollPeriod(value: string) {
+  const [month, yearText] = value.split(" ");
+  return { month, year: Number(yearText) };
+}
+
+type DepartmentResponse = {
+  data: Array<{ departmentId: string; departmentName: string }>;
+};
 
 function PayrollIcon({ type }: { type: "wallet" | "people" | "salary" | "paid" | "calendar" | "download" | "search" }) {
   const paths = {
@@ -67,6 +84,7 @@ function progressWidth(value: number, max: number) {
 export default function SalaryManagement() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [payroll, setPayroll] = useState<Payroll[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [month, setMonth] = useState("September 2026");
   const [department, setDepartment] = useState("All Departments");
   const [status, setStatus] = useState("All Status");
@@ -84,13 +102,44 @@ export default function SalaryManagement() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    const loadSalaryManagement = window.setTimeout(() => {
-      setPayroll(initialPayroll);
-      setInitialLoading(false);
-    }, 1000);
+    let active = true;
+    Promise.all([
+      get<StaffListResponse>(`${API_BASE}${API_ENDPOINTS.STAFF}?limit=100`, { cache: "no-store" }),
+      (() => {
+        const period = payrollPeriod(month);
+        return get<PayrollListResponse>(`${API_BASE}${API_ENDPOINTS.SALARY}?limit=100&month=${encodeURIComponent(period.month)}&year=${period.year}`, { cache: "no-store" });
+      })(),
+      get<DepartmentResponse>(`${API_BASE}${API_ENDPOINTS.DEPARTMENTS}`, { cache: "no-store" }),
+    ])
+      .then(([staffResponse, payrollResponse, departmentResponse]) => {
+        if (!active) return;
+        setPayroll(staffResponse.data.map((staff) => {
+          const saved = payrollResponse.data.find((item) => item.employeeId === staff.userId);
+          return {
+          id: saved?.id ?? -staff.id,
+          employeeId: saved?.employeeId ?? staff.userId ?? "",
+          name: saved?.name ?? staff.name,
+          designation: saved?.designation ?? staff.designation,
+          department: saved?.department ?? staff.department,
+          basic: saved?.basic ?? Number(staff.salary),
+          allowances: saved?.allowances ?? 0,
+          deductions: saved?.deductions ?? 0,
+          status: saved?.status ?? "Pending",
+        };
+        }));
+        setDepartments(departmentResponse.data.map((department) => department.departmentName));
+      })
+      .catch((error) => {
+        if (active) showToast(error instanceof Error ? error.message : "Failed to load salary records.", { title: "Salary data unavailable", tone: "error" });
+      })
+      .finally(() => {
+        if (active) setInitialLoading(false);
+      });
 
-    return () => window.clearTimeout(loadSalaryManagement);
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [showToast]);
 
   const visiblePayroll = useMemo(() => payroll.filter((item) => {
     const matchesSearch = `${item.name} ${item.employeeId} ${item.designation}`.toLowerCase().includes(query.toLowerCase());
@@ -117,17 +166,44 @@ export default function SalaryManagement() {
   const processedAmount = payroll.filter((item) => item.status === "Processed").reduce((sum, item) => sum + netSalary(item), 0);
   const loadPayroll = async () => {
     setRefreshing(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 700));
-    setRefreshing(false);
-    showToast(`${month} payroll has been loaded.`, { title: "Payroll updated", tone: "info" });
+    try {
+      const period = payrollPeriod(month);
+      const response = await get<PayrollListResponse>(`${API_BASE}${API_ENDPOINTS.SALARY}?limit=100&month=${encodeURIComponent(period.month)}&year=${period.year}`, { cache: "no-store" });
+      setPayroll((current) => current.map((item) => response.data.find((saved) => saved.employeeId === item.employeeId) ?? item));
+      showToast(`${month} payroll has been loaded.`, { title: "Payroll updated", tone: "info" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to load payroll.", { title: "Payroll unavailable", tone: "error" });
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const generatePayroll = async () => {
     setGenerating(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 1000));
-    setPayroll((current) => current.map((item) => item.status === "Pending" ? { ...item, status: "Processed" } : item));
-    setGenerating(false);
-    showToast(`Salary calculations were generated for ${month}.`, { title: "Payroll generated" });
+    try {
+      const period = payrollPeriod(month);
+      const processed = await Promise.all(payroll.filter((item) => item.status === "Pending").map((item) => item.id < 0
+        ? post<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}`, {
+            employeeId: item.employeeId,
+            name: item.name,
+            designation: item.designation,
+            department: item.department,
+            basic: item.basic,
+            allowances: item.allowances,
+            deductions: item.deductions,
+            month: period.month,
+            year: period.year,
+            status: "Processed",
+          })
+        : put<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}/${item.id}/status`, { status: "Processed" })
+      ));
+      setPayroll((current) => current.map((item) => processed.find((saved) => saved.employeeId === item.employeeId) ?? item));
+      showToast(`Salary calculations were generated for ${month}.`, { title: "Payroll generated" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to generate payroll.", { title: "Payroll generation failed", tone: "error" });
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const openEdit = (item: Payroll) => {
@@ -145,30 +221,52 @@ export default function SalaryManagement() {
       return;
     }
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 800));
-    setPayroll((current) => current.map((item) => item.id === editingPayroll.id ? { ...item, basic, allowances, deductions: itemDeductions, status: item.status === "Paid" ? "Paid" : "Processed" } : item));
-    setSaving(false);
-    setEditingPayroll(null);
-    showToast(`${editingPayroll.name}'s salary calculation was updated.`, { title: "Payroll updated" });
+    try {
+      const period = payrollPeriod(month);
+      if (!editingPayroll.employeeId) {
+        showToast("This staff profile is not linked to a user account. Recreate the staff profile from a selected user before saving salary.", { title: "Staff link missing", tone: "error" });
+        return;
+      }
+      const saved = editingPayroll.id > 0
+        ? await put<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}/${editingPayroll.id}`, { basic, allowances, deductions: itemDeductions })
+        : await post<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}`, { ...editingPayroll, basic, allowances, deductions: itemDeductions, month: period.month, year: period.year, status: "Pending" });
+      setPayroll((current) => current.map((item) => item.id === editingPayroll.id ? saved : item));
+      setEditingPayroll(null);
+      showToast(`${editingPayroll.name}'s salary calculation was updated.`, { title: "Payroll updated" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to update salary.", { title: "Payroll update failed", tone: "error" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const markPaid = async (item: Payroll) => {
     setPaying(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 900));
-    setPayroll((current) => current.map((payrollItem) => payrollItem.id === item.id ? { ...payrollItem, status: "Paid" } : payrollItem));
-    setPaying(false);
-    setPaymentPayroll(null);
-    showToast(`${formatCurrency(netSalary(item))} was marked paid to ${item.name}.`, { title: "Salary paid" });
+    try {
+      const saved = await put<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}/${item.id}/status`, { status: "Paid" });
+      setPayroll((current) => current.map((payrollItem) => payrollItem.id === item.id ? saved : payrollItem));
+      setPaymentPayroll(null);
+      showToast(`${formatCurrency(netSalary(item))} was marked paid to ${item.name}.`, { title: "Salary paid" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to mark salary paid.", { title: "Payment failed", tone: "error" });
+    } finally {
+      setPaying(false);
+    }
   };
 
   const payAllProcessed = async () => {
     setPaying(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 1100));
-    const count = payroll.filter((item) => item.status === "Processed").length;
-    setPayroll((current) => current.map((item) => item.status === "Processed" ? { ...item, status: "Paid" } : item));
-    setPaying(false);
-    setBulkPaymentOpen(false);
-    showToast(`${count} processed salaries were marked as paid.`, { title: "Bulk payment completed" });
+    try {
+      const processedItems = payroll.filter((item) => item.status === "Processed" && item.id > 0);
+      const updated = await Promise.all(processedItems.map((item) => put<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}/${item.id}/status`, { status: "Paid" })));
+      setPayroll((current) => current.map((item) => updated.find((saved) => saved.id === item.id) ?? item));
+      setBulkPaymentOpen(false);
+      showToast(`${updated.length} processed salaries were marked as paid.`, { title: "Bulk payment completed" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to complete bulk payment.", { title: "Bulk payment failed", tone: "error" });
+    } finally {
+      setPaying(false);
+    }
   };
 
   const exportPayroll = async () => {
@@ -257,7 +355,7 @@ export default function SalaryManagement() {
         <div className="panel-title flex-wrap gap-3"><div className="flex items-center gap-3"><span className="settings-icon grid size-9 place-items-center rounded-xl"><PayrollIcon type="calendar" /></span><div><div className="font-display text-sm font-bold text-slate-900">Payroll Period</div><div className="mt-0.5 text-xs text-slate-400">Choose the cycle and narrow the employee view</div></div></div><span className="status-info">Session 2026–27</span></div>
         <div className="grid gap-3 p-4 sm:grid-cols-[repeat(3,minmax(0,1fr))_auto] sm:items-end sm:gap-3 sm:p-5 lg:gap-4 xl:grid-cols-[1fr_1fr_1fr_auto]">
           <Dropdown label="Salary Month" value={month} onChange={(event) => setMonth(event.target.value)} options={["September 2026", "August 2026", "July 2026"].map((value) => ({ label: value, value }))} />
-          <Dropdown label="Department" value={department} onChange={(event) => setDepartment(event.target.value)} options={["All Departments", "Academics", "Administration", "Finance", "Transport"].map((value) => ({ label: value, value }))} />
+          <Dropdown label="Department" value={department} onChange={(event) => setDepartment(event.target.value)} options={["All Departments", ...departments].map((value) => ({ label: value, value }))} />
           <Dropdown label="Payment Status" value={status} onChange={(event) => setStatus(event.target.value)} options={["All Status", "Pending", "Processed", "Paid"].map((value) => ({ label: value, value }))} />
           <Button className="w-full whitespace-nowrap sm:w-auto sm:px-3 lg:px-4" onClick={loadPayroll} isLoading={refreshing} loadingText="Loading...">View Payroll</Button>
         </div>
