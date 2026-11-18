@@ -38,6 +38,8 @@ socket.on("connect", () => {
   socket.emit("join", "roles")
   socket.emit("join", "notices")
   socket.emit("join", "users")
+  socket.emit("join", "staff")
+  socket.emit("join", "salary")
 })
 
 export function onCurrentUserUpdated(listener: (user: AuthUser) => void) {
@@ -94,4 +96,64 @@ export function onNoticeUpdated(listener: (notice: NoticeRealtime) => void) {
 export function onNoticeDeleted(listener: (payload: { id: number }) => void) {
   socket.on("notice:deleted", listener)
   return () => socket.off("notice:deleted", listener)
+}
+
+export type StaffRealtime = {
+  id: number
+  [key: string]: unknown
+}
+
+export type PayrollRealtime = {
+  id: number
+  employeeId: string
+  name: string
+  designation: string
+  department: string
+  basic: number
+  allowances: number
+  deductions: number
+  status: "Pending" | "Processed" | "Paid"
+  month: string
+  year: number
+  [key: string]: unknown
+}
+
+export function onStaffCreated(listener: (staff: StaffRealtime) => void) {
+  socket.on("staff:created", listener)
+  return () => socket.off("staff:created", listener)
+}
+
+export function onStaffUpdated(listener: (staff: StaffRealtime) => void) {
+  socket.on("staff:updated", listener)
+  return () => socket.off("staff:updated", listener)
+}
+
+export function onStaffStatusChanged(listener: (staff: StaffRealtime) => void) {
+  socket.on("staff:status_changed", listener)
+  return () => socket.off("staff:status_changed", listener)
+}
+
+export function onStaffDeleted(listener: (payload: { id: number }) => void) {
+  socket.on("staff:deleted", listener)
+  return () => socket.off("staff:deleted", listener)
+}
+
+export function onPayrollCreated(listener: (payroll: PayrollRealtime) => void) {
+  socket.on("payroll:created", listener)
+  return () => socket.off("payroll:created", listener)
+}
+
+export function onPayrollUpdated(listener: (payroll: PayrollRealtime) => void) {
+  socket.on("payroll:updated", listener)
+  return () => socket.off("payroll:updated", listener)
+}
+
+export function onPayrollStatusChanged(listener: (payroll: PayrollRealtime) => void) {
+  socket.on("payroll:status_changed", listener)
+  return () => socket.off("payroll:status_changed", listener)
+}
+
+export function onPayrollDeleted(listener: (payload: { id: number }) => void) {
+  socket.on("payroll:deleted", listener)
+  return () => socket.off("payroll:deleted", listener)
 }

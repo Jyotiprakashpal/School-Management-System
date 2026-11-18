@@ -58,6 +58,12 @@ const validateStaffBody = (body: Partial<CreateStaffDto>): string | null => {
   if (typeof body.name !== 'string' || !body.name.trim()) return 'Name is required';
   if (typeof body.designation !== 'string' || !body.designation.trim()) return 'Designation is required';
   if (typeof body.department !== 'string' || !body.department.trim()) return 'Department is required';
+  if (typeof body.accountHolderName !== 'string' || !body.accountHolderName.trim()) return 'Account holder name is required';
+  if (typeof body.accountNumber !== 'string' || !body.accountNumber.trim()) return 'Account number is required';
+  if (!['Savings', 'Current'].includes(body.accountType || '')) return 'Account type is required';
+  if (typeof body.bankName !== 'string' || !body.bankName.trim()) return 'Bank name is required';
+  if (typeof body.branchName !== 'string' || !body.branchName.trim()) return 'Branch name is required';
+  if (typeof body.ifscCode !== 'string' || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(body.ifscCode.trim().toUpperCase())) return 'Valid IFSC code is required';
   if (typeof body.phone !== 'string' || !body.phone.trim()) return 'Phone number is required';
   if (typeof body.email !== 'string' || !body.email.trim()) return 'Email is required';
   if (!body.email.includes('@')) return 'Invalid email format';

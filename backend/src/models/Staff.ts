@@ -7,6 +7,12 @@ export interface Staff {
   name: string;
   designation: string;
   department: string;
+  accountHolderName: string | null;
+  accountNumber: string | null;
+  accountType: 'Savings' | 'Current' | null;
+  bankName: string | null;
+  branchName: string | null;
+  ifscCode: string | null;
   phone: string;
   email: string;
   salary: number;
@@ -23,6 +29,12 @@ export interface CreateStaffDto {
   name: string;
   designation: string;
   department: string;
+  accountHolderName?: string;
+  accountNumber?: string;
+  accountType?: 'Savings' | 'Current';
+  bankName?: string;
+  branchName?: string;
+  ifscCode?: string;
   phone: string;
   email: string;
   salary: number;
@@ -35,6 +47,12 @@ export interface UpdateStaffDto {
   name?: string;
   designation?: string;
   department?: string;
+  accountHolderName?: string;
+  accountNumber?: string;
+  accountType?: 'Savings' | 'Current';
+  bankName?: string;
+  branchName?: string;
+  ifscCode?: string;
   phone?: string;
   email?: string;
   salary?: number;
@@ -64,7 +82,7 @@ function toStaffResponse(staff: StaffRow): Staff {
 }
 
 const selectStaffColumns = sql`
-  id, "userId", "staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdBy", "createdAt", "updatedAt"
+  id, "userId", "staffId", name, designation, department, "accountHolderName", "accountNumber", "accountType", "bankName", "branchName", "ifscCode", phone, email, salary, "joiningDate", status, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const staffRepository = {
@@ -77,6 +95,12 @@ export const staffRepository = {
         name VARCHAR(120) NOT NULL,
         designation VARCHAR(120) NOT NULL,
         department VARCHAR(50) NOT NULL,
+        "accountHolderName" VARCHAR(120),
+        "accountNumber" VARCHAR(30),
+        "accountType" VARCHAR(20) CHECK ("accountType" IN ('Savings', 'Current')),
+        "bankName" VARCHAR(120),
+        "branchName" VARCHAR(160),
+        "ifscCode" VARCHAR(20),
         phone VARCHAR(20) NOT NULL,
         email VARCHAR(120) NOT NULL,
         salary DECIMAL(10,2) NOT NULL,
@@ -88,6 +112,12 @@ export const staffRepository = {
       )
     `;
     await sql`ALTER TABLE staff ADD COLUMN IF NOT EXISTS "userId" TEXT`;
+    await sql`ALTER TABLE staff ADD COLUMN IF NOT EXISTS "accountHolderName" VARCHAR(120)`;
+    await sql`ALTER TABLE staff ADD COLUMN IF NOT EXISTS "accountNumber" VARCHAR(30)`;
+    await sql`ALTER TABLE staff ADD COLUMN IF NOT EXISTS "accountType" VARCHAR(20)`;
+    await sql`ALTER TABLE staff ADD COLUMN IF NOT EXISTS "bankName" VARCHAR(120)`;
+    await sql`ALTER TABLE staff ADD COLUMN IF NOT EXISTS "branchName" VARCHAR(160)`;
+    await sql`ALTER TABLE staff ADD COLUMN IF NOT EXISTS "ifscCode" VARCHAR(20)`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_staff_department ON staff(department)
     `;
@@ -153,8 +183,8 @@ export const staffRepository = {
   async create(data: CreateStaffDto): Promise<Staff> {
     const staffId = data.staffId || `EMP-${Date.now()}`;
     const [staff] = await sql<StaffRow[]>`
-      INSERT INTO staff ("userId", "staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdBy")
-      VALUES (${data.userId || null}, ${staffId}, ${data.name}, ${data.designation}, ${data.department}, ${data.phone}, ${data.email}, ${data.salary}, ${data.joiningDate}, ${data.status || 'Active'}, ${data.createdBy || null})
+      INSERT INTO staff ("userId", "staffId", name, designation, department, "accountHolderName", "accountNumber", "accountType", "bankName", "branchName", "ifscCode", phone, email, salary, "joiningDate", status, "createdBy")
+      VALUES (${data.userId || null}, ${staffId}, ${data.name}, ${data.designation}, ${data.department}, ${data.accountHolderName || null}, ${data.accountNumber || null}, ${data.accountType || null}, ${data.bankName || null}, ${data.branchName || null}, ${data.ifscCode || null}, ${data.phone}, ${data.email}, ${data.salary}, ${data.joiningDate}, ${data.status || 'Active'}, ${data.createdBy || null})
       RETURNING ${selectStaffColumns}
     `;
     return toStaffResponse(staff);
@@ -167,6 +197,12 @@ export const staffRepository = {
     if (data.name !== undefined) { updates.push('name = $' + (values.length + 1)); values.push(data.name); }
     if (data.designation !== undefined) { updates.push('designation = $' + (values.length + 1)); values.push(data.designation); }
     if (data.department !== undefined) { updates.push('department = $' + (values.length + 1)); values.push(data.department); }
+    if (data.accountHolderName !== undefined) { updates.push('"accountHolderName" = $' + (values.length + 1)); values.push(data.accountHolderName); }
+    if (data.accountNumber !== undefined) { updates.push('"accountNumber" = $' + (values.length + 1)); values.push(data.accountNumber); }
+    if (data.accountType !== undefined) { updates.push('"accountType" = $' + (values.length + 1)); values.push(data.accountType); }
+    if (data.bankName !== undefined) { updates.push('"bankName" = $' + (values.length + 1)); values.push(data.bankName); }
+    if (data.branchName !== undefined) { updates.push('"branchName" = $' + (values.length + 1)); values.push(data.branchName); }
+    if (data.ifscCode !== undefined) { updates.push('"ifscCode" = $' + (values.length + 1)); values.push(data.ifscCode); }
     if (data.phone !== undefined) { updates.push('phone = $' + (values.length + 1)); values.push(data.phone); }
     if (data.email !== undefined) { updates.push('email = $' + (values.length + 1)); values.push(data.email); }
     if (data.salary !== undefined) { updates.push('salary = $' + (values.length + 1)); values.push(data.salary); }
@@ -183,7 +219,7 @@ export const staffRepository = {
     // `selectStaffColumns` is a postgres query fragment and cannot be interpolated
     // into a plain unsafe SQL string (it becomes `[object Object]`). Keep the
     // returning column list as SQL text for this dynamic update query.
-    const returningColumns = 'id, "userId", "staffId", name, designation, department, phone, email, salary, "joiningDate", status, "createdBy", "createdAt", "updatedAt"';
+    const returningColumns = 'id, "userId", "staffId", name, designation, department, "accountHolderName", "accountNumber", "accountType", "bankName", "branchName", "ifscCode", phone, email, salary, "joiningDate", status, "createdBy", "createdAt", "updatedAt"';
     const query = `UPDATE staff SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING ${returningColumns}`;
     const [staff] = await sql.unsafe(query, values) as StaffRow[];
     return staff ? toStaffResponse(staff) : null;

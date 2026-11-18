@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { get, post, put } from "../../api/methods";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { onPayrollCreated, onPayrollDeleted, onPayrollStatusChanged, onPayrollUpdated } from "../../api/socket";
 import { Button, Dropdown, Input, SalaryManagementSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
@@ -140,6 +141,19 @@ export default function SalaryManagement() {
       active = false;
     };
   }, [showToast]);
+
+  useEffect(() => {
+    const mergePayroll = (incoming: Payroll) => {
+      setPayroll((current) => current.some((item) => item.id === incoming.id)
+        ? current.map((item) => item.id === incoming.id ? incoming : item)
+        : [incoming, ...current]);
+    };
+    const removeCreated = onPayrollCreated(mergePayroll);
+    const removeUpdated = onPayrollUpdated(mergePayroll);
+    const removeStatusChanged = onPayrollStatusChanged(mergePayroll);
+    const removeDeleted = onPayrollDeleted(({ id }) => setPayroll((current) => current.filter((item) => item.id !== id)));
+    return () => { removeCreated(); removeUpdated(); removeStatusChanged(); removeDeleted(); };
+  }, []);
 
   const visiblePayroll = useMemo(() => payroll.filter((item) => {
     const matchesSearch = `${item.name} ${item.employeeId} ${item.designation}`.toLowerCase().includes(query.toLowerCase());

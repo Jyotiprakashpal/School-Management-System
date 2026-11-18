@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { del, get, post, put } from "../../api/methods"
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { getAuthUser } from "../../auth/session"
+import { onStaffCreated, onStaffDeleted, onStaffStatusChanged, onStaffUpdated } from "../../api/socket"
 import {
   Button,
   DatePicker,
@@ -14,6 +15,7 @@ import Header from "../../ui/header"
 import Popup from "../../ui/popup"
 
 type StaffStatus = "Active" | "On Leave"
+type BankAccountType = "Savings" | "Current"
 type UserRole = "Superadmin" | "Admin" | "Operator" | "Accountant" | "Student" | "Teacher"
 
 type UserOption = {
@@ -26,6 +28,12 @@ type UserOption = {
 
 type StaffMember = {
   userId: string | null
+  accountHolderName: string | null
+  accountNumber: string | null
+  accountType: BankAccountType | null
+  bankName: string | null
+  branchName: string | null
+  ifscCode: string | null
   department: string
   designation: string
   email: string
@@ -39,6 +47,11 @@ type StaffMember = {
 }
 
 const blankStaff = {
+  accountHolderName: "",
+  accountNumber: "",
+  accountType: "Savings" as BankAccountType,
+  bankName: "",
+  branchName: "",
   department: "",
   designation: "",
   email: "",
@@ -46,6 +59,7 @@ const blankStaff = {
   name: "",
   phone: "",
   salary: "",
+  ifscCode: "",
   status: "Active" as StaffStatus,
 }
 
@@ -216,6 +230,28 @@ export default function StaffManagement() {
   }, [showToast])
 
   useEffect(() => {
+    const removeCreated = onStaffCreated((staffMember) => {
+      const staff = normalizeStaff(staffMember as StaffMember)
+      setStaff((current) => current.some((item) => item.id === staff.id) ? current : [staff, ...current])
+    })
+    const removeUpdated = onStaffUpdated((staffMember) => {
+      const staff = normalizeStaff(staffMember as StaffMember)
+      setStaff((current) => current.map((item) => item.id === staff.id ? staff : item))
+      setSelectedStaff((current) => current?.id === staff.id ? staff : current)
+    })
+    const removeStatusChanged = onStaffStatusChanged((staffMember) => {
+      const staff = normalizeStaff(staffMember as StaffMember)
+      setStaff((current) => current.map((item) => item.id === staff.id ? staff : item))
+      setSelectedStaff((current) => current?.id === staff.id ? staff : current)
+    })
+    const removeDeleted = onStaffDeleted(({ id }) => {
+      setStaff((current) => current.filter((item) => item.id !== id))
+      setSelectedStaff((current) => current?.id === id ? null : current)
+    })
+    return () => { removeCreated(); removeUpdated(); removeStatusChanged(); removeDeleted() }
+  }, [])
+
+  useEffect(() => {
     let active = true
     void get<{ data: Array<{ departmentId: string; departmentName: string }> }>(`${API_BASE}${API_ENDPOINTS.DEPARTMENTS}?limit=100`, { cache: "no-store" })
       .then((response) => {
@@ -318,6 +354,11 @@ export default function StaffManagement() {
   const openEdit = (member: StaffMember) => {
     setEditingId(member.id)
     setForm({
+      accountHolderName: member.accountHolderName || "",
+      accountNumber: member.accountNumber || "",
+      accountType: member.accountType || "Savings",
+      bankName: member.bankName || "",
+      branchName: member.branchName || "",
       department: member.department,
       designation: member.designation,
       email: member.email,
@@ -326,6 +367,7 @@ export default function StaffManagement() {
       phone: member.phone,
       salary: String(member.salary),
       status: member.status,
+      ifscCode: member.ifscCode || "",
     })
     setEditorOpen(true)
   }
@@ -339,6 +381,12 @@ export default function StaffManagement() {
       !form.phone.trim() ||
       !form.email.trim() ||
       !form.joiningDate ||
+      !form.accountHolderName.trim() ||
+      !form.accountNumber.trim() ||
+      !form.accountType ||
+      !form.bankName.trim() ||
+      !form.branchName.trim() ||
+      !form.ifscCode.trim() ||
       !salary ||
       salary <= 0
     ) {
@@ -356,6 +404,12 @@ export default function StaffManagement() {
         title: "Invalid contact details",
         tone: "error",
       })
+      return
+    }
+    const accountNumber = form.accountNumber.replace(/\D/g, "")
+    const ifscCode = form.ifscCode.trim().toUpperCase()
+    if (accountNumber.length < 9 || accountNumber.length > 18 || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)) {
+      showToast("Enter a valid 9-18 digit account number and 11-character IFSC code.", { title: "Invalid bank details", tone: "error" })
       return
     }
     if (!editingId && staff.some((member) => member.name.toLowerCase() === form.name.trim().toLowerCase())) {
@@ -376,6 +430,12 @@ export default function StaffManagement() {
         salary,
         joiningDate: form.joiningDate,
         status: form.status,
+        accountHolderName: form.accountHolderName.trim(),
+        accountNumber,
+        accountType: form.accountType,
+        bankName: form.bankName.trim(),
+        branchName: form.branchName.trim(),
+        ifscCode,
       }
 
       if (editingId) {
@@ -1095,6 +1155,45 @@ export default function StaffManagement() {
               setForm((current) => ({ ...current, email: event.target.value }))
             }
             placeholder="name@school.edu"
+          />
+          <Input
+            label="Account Holder Name *"
+            value={form.accountHolderName}
+            onChange={(event) => setForm((current) => ({ ...current, accountHolderName: event.target.value }))}
+            placeholder="Name as per bank account"
+          />
+          <Input
+            label="Account Number *"
+            type="text"
+            inputMode="numeric"
+            value={form.accountNumber}
+            onChange={(event) => setForm((current) => ({ ...current, accountNumber: event.target.value.replace(/\D/g, "") }))}
+            placeholder="9-18 digit account number"
+          />
+          <Dropdown
+            label="Account Type *"
+            value={form.accountType}
+            onChange={(event) => setForm((current) => ({ ...current, accountType: event.target.value as BankAccountType }))}
+            options={["Savings", "Current"].map((value) => ({ label: value, value }))}
+          />
+          <Input
+            label="Bank Name *"
+            value={form.bankName}
+            onChange={(event) => setForm((current) => ({ ...current, bankName: event.target.value }))}
+            placeholder="Bank name"
+          />
+          <Input
+            label="Branch Name *"
+            value={form.branchName}
+            onChange={(event) => setForm((current) => ({ ...current, branchName: event.target.value }))}
+            placeholder="Branch name"
+          />
+          <Input
+            label="IFSC Code *"
+            value={form.ifscCode}
+            maxLength={11}
+            onChange={(event) => setForm((current) => ({ ...current, ifscCode: event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11) }))}
+            placeholder="ABCD0123456"
           />
           <DatePicker label="Joining Date" required value={form.joiningDate} onChange={(value) => setForm((current) => ({ ...current, joiningDate: value }))} />
           <Input
