@@ -420,6 +420,21 @@ export const terminateSession = async (req: Request<{ id: string }>, res: Respon
   }
 };
 
+export const terminateCurrentSession = async (req: Request, res: Response<{ message: string } | { error: string }>) => {
+  try {
+    const authorization = req.headers.authorization;
+    const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : '';
+    if (!token) return res.status(401).json({ error: 'Session token is required' });
+
+    const session = await userSessionRepository.terminateByToken(token);
+    if (session) getIO(req).to('users').emit('user:session_terminated', session);
+    res.json({ message: 'Current session terminated successfully' });
+  } catch (error) {
+    console.error('Terminate current session error:', error);
+    res.status(500).json({ error: 'Failed to terminate current session' });
+  }
+};
+
 export const toggleUserStatus = async (req: Request<{ id: string }, User | { error: string }, { status: 'Active' | 'Suspended' }>, res: Response<User | { error: string }>) => {
   try {
     const id = parseInt(req.params.id, 10);

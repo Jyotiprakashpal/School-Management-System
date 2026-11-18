@@ -3,7 +3,7 @@ import { Button, Dropdown, Input, TerminateSessionPopup, UserManagementSkeleton,
 import Header from "../../ui/header";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { get, post, put } from "../../api/methods";
-import { onRoleCreated, onRoleDeleted, onRoleUpdated } from "../../api/socket";
+import { onRoleCreated, onRoleDeleted, onRoleUpdated, onSessionTerminated } from "../../api/socket";
 
 type TabId = "users" | "activity" | "sessions";
 type Role = "Superadmin" | "Admin" | "Operator" | "Accountant" | "Student" | "Teacher";
@@ -102,6 +102,13 @@ export default function UserManagement() {
       setSessionsLoadingMore(false);
     }
   };
+
+  useEffect(() => {
+    const removeSession = onSessionTerminated(({ id }) => {
+      setSessions((current) => current.filter((session) => session.id !== id));
+    });
+    return removeSession;
+  }, []);
 
   useEffect(() => {
     if (!selectedResetUser && users[0]) setSelectedResetUser(String(users[0].id));

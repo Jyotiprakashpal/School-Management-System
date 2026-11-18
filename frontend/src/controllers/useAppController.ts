@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { recordLoginTime } from "../utils/device";
-import { get, getToken } from "../api/methods";
+import { get, getToken, post } from "../api/methods";
 import { API_BASE, API_ENDPOINTS } from "../api/endpoints";
 import { clearAuthSession, getAuthUser, storeAuthUser, type AuthUser } from "../auth/session";
 import { onSessionTerminated } from "../api/socket";
@@ -22,6 +22,11 @@ export function useAppController() {
   };
 
   const logout = () => {
+    // Clear the server-side session as well as the browser credentials. Do
+    // this before clearing the token so the request includes authentication.
+    if (getToken()) {
+      void post(`${API_BASE}${API_ENDPOINTS.USER}/sessions/current/terminate`).catch(() => undefined);
+    }
     window.sessionStorage.removeItem("pal-login-time");
     clearAuthSession();
     setAuthenticated(false);

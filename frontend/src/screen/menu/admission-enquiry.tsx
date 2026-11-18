@@ -11,6 +11,7 @@ import {
 import Header from "../../ui/header"
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { del, get, post, put } from "../../api/methods"
+import { isValidMobileNumber, sanitizeMobileNumber } from "../../utils/validation"
 
 type Enquiry = {
   studentId?: string
@@ -435,8 +436,8 @@ export default function AdmissionEnquiry() {
       })
       return
     }
-    if (!/^\d{10}$/.test(form.mobile)) {
-      showToast("Enter a valid 10-digit mobile number.", {
+    if (!isValidMobileNumber(form.mobile)) {
+      showToast("Enter a valid Indian mobile number starting with 6, 7, 8, or 9.", {
         title: "Invalid mobile number",
         tone: "error",
       })
@@ -762,9 +763,9 @@ export default function AdmissionEnquiry() {
                   onChange={(event) => {
                     const rawValue = event.target.value
                     setMobileInputError(/\D/.test(rawValue))
-                    updateField("mobile", rawValue.replace(/\D/g, "").slice(0, 10))
+                    updateField("mobile", sanitizeMobileNumber(rawValue))
                   }}
-                  hint={mobileInputError ? "Only numbers are allowed." : form.mobile.length > 0 && form.mobile.length < 10 ? "Mobile number must contain 10 digits." : undefined}
+                  hint={mobileInputError ? "Only numbers are allowed." : form.mobile.length > 0 && !isValidMobileNumber(form.mobile) ? "Use 10 digits starting with 6, 7, 8, or 9." : undefined}
                   className={mobileInputError || (form.mobile.length > 0 && form.mobile.length < 10) ? "border-rose-300! focus:border-rose-400!" : ""}
                   placeholder="10-digit mobile number"
                 />

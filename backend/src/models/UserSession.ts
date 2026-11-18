@@ -49,6 +49,13 @@ export const userSessionRepository = {
   },
 
   async findPage(cursor?: string, limit = 20): Promise<{ data: UserSession[]; hasMore: boolean }> {
+    // The user-management panel represents active sessions. Remove sessions
+    // that have been inactive for the same period used by the status query so
+    // timed-out sessions cannot remain visible indefinitely.
+    await sql`
+      DELETE FROM user_sessions
+      WHERE "lastActive" <= NOW() - INTERVAL '15 minutes'
+    `;
     const pageSize = Math.min(100, Math.max(1, limit));
     const rows = await sql<UserSession[]>`
       SELECT s.id, s."userId" AS "userId", u.username, u.name AS "user",
@@ -71,5 +78,14 @@ export const userSessionRepository = {
       RETURNING token
     `;
     return session?.token || null;
+  },
+
+  async terminateByToken(token: string): Promise<{ id: number; token: string } | null> {
+    const [session] = await sql<{ id: number; token: string }[]>`
+      DELETE FROM user_sessions
+      WHERE token = ${token}
+      RETURNING id, token
+    `;
+    return session || null;
   },
 };

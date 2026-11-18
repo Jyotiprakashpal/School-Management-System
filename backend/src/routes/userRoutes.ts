@@ -10,6 +10,7 @@ import {
   getUserActivity,
   getUserSessions,
   terminateSession,
+  terminateCurrentSession,
   toggleUserStatus,
   forgotPassword,
   loginUser,
@@ -29,6 +30,7 @@ router.get('/', getAllUsers);
 // These static routes must be registered before /:id.
 router.get('/activity', getUserActivity);
 router.get('/sessions', getUserSessions);
+router.post('/sessions/current/terminate', terminateCurrentSession);
 router.post('/sessions/:id/terminate', terminateSession);
 router.get('/:userId/sessions', getUserSessions);
 router.get('/:id', getUserById);

@@ -12,6 +12,7 @@ import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { post } from "../../api/methods"
 import { getAuthUser } from "../../auth/session"
 import Header from "../../ui/header"
+import { isValidEmail, isValidMobileNumber, sanitizeMobileNumber } from "../../utils/validation"
 
 type FormState = Record<string, string>
 
@@ -317,6 +318,27 @@ export default function NewAdmission() {
       })
       return
     }
+    if (!isValidMobileNumber(form.mobile)) {
+      showToast("Enter a valid Indian mobile number starting with 6, 7, 8, or 9.", {
+        title: "Invalid mobile number",
+        tone: "error",
+      })
+      return
+    }
+    if (form.altMobile?.trim() && !isValidMobileNumber(form.altMobile)) {
+      showToast("Enter a valid Indian alternate mobile number starting with 6, 7, 8, or 9.", {
+        title: "Invalid alternate mobile number",
+        tone: "error",
+      })
+      return
+    }
+    if (form.email?.trim() && !isValidEmail(form.email)) {
+      showToast("Enter a valid email address.", {
+        title: "Invalid email address",
+        tone: "error",
+      })
+      return
+    }
     setSavingMode(mode)
     try {
       const user = getAuthUser()
@@ -605,20 +627,32 @@ export default function NewAdmission() {
           <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
             <Input
               label="Mobile Number *"
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
               value={form.mobile ?? ""}
-              onChange={(event) => update("mobile", event.target.value)}
-              placeholder="+91 XXXXX XXXXX"
+              onChange={(event) => update("mobile", sanitizeMobileNumber(event.target.value))}
+              hint={form.mobile && !isValidMobileNumber(form.mobile) ? "Use 10 digits starting with 6, 7, 8, or 9." : undefined}
+              className={form.mobile && !isValidMobileNumber(form.mobile) ? "border-rose-300! focus:border-rose-400!" : ""}
+              placeholder="10-digit mobile number"
             />
             <Input
               label="Alternate Mobile"
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
               value={form.altMobile ?? ""}
-              onChange={(event) => update("altMobile", event.target.value)}
+              onChange={(event) => update("altMobile", sanitizeMobileNumber(event.target.value))}
+              hint={form.altMobile && !isValidMobileNumber(form.altMobile) ? "Use 10 digits starting with 6, 7, 8, or 9." : undefined}
+              className={form.altMobile && !isValidMobileNumber(form.altMobile) ? "border-rose-300! focus:border-rose-400!" : ""}
             />
             <Input
               label="Email"
               type="email"
               value={form.email ?? ""}
               onChange={(event) => update("email", event.target.value)}
+              hint={form.email && !isValidEmail(form.email) ? "Enter a valid email address." : undefined}
+              className={form.email && !isValidEmail(form.email) ? "border-rose-300! focus:border-rose-400!" : ""}
               placeholder="email@example.com"
             />
             <Input
