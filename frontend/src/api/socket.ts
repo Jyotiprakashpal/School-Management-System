@@ -41,6 +41,17 @@ socket.on("connect", () => {
   socket.emit("join", "staff")
   socket.emit("join", "salary")
   socket.emit("join", "sessions")
+  socket.emit("join", "fees")
+  socket.emit("join", "fee_assignments")
+  socket.emit("join", "fee_collections")
+  socket.emit("join", "admissions")
+  socket.emit("join", "attendance")
+  socket.emit("join", "exams")
+  socket.emit("join", "marks")
+  socket.emit("join", "subjects")
+  socket.emit("join", "class_subject_maps")
+  socket.emit("join", "exam_schedules")
+  socket.emit("join", "class_results")
 })
 
 export function onCurrentUserUpdated(listener: (user: AuthUser) => void) {
@@ -168,4 +179,64 @@ export function onPayrollStatusChanged(listener: (payroll: PayrollRealtime) => v
 export function onPayrollDeleted(listener: (payload: { id: number }) => void) {
   socket.on("payroll:deleted", listener)
   return () => socket.off("payroll:deleted", listener)
+}
+
+export function onFeeStructureChanged(listener: () => void) {
+  const events = ["fee:created", "fee:updated", "fee:deleted", "fee:copied", "assignment:created"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
+}
+
+export function onFeeCollectionChanged(listener: () => void) {
+  const events = ["payment:created", "payment:updated", "payment:deleted"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
+}
+
+export function onAdmissionsChanged(listener: () => void) {
+  const events = ["admission:created", "admission:updated", "admission:deleted"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
+}
+
+export function onAttendanceChanged(listener: () => void) {
+  const events = ["attendance:created", "attendance:bulk_created", "attendance:deleted"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
+}
+
+export function onExamChanged(listener: () => void) {
+  const events = ["exam:created", "exam:updated", "exam:status_changed", "exam:deleted"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
+}
+
+export function onMarksChanged(listener: () => void) {
+  const events = ["marks:created", "marks:bulk_created", "marks:updated", "marks:deleted"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
+}
+
+export function onSubjectChanged(listener: () => void) {
+  const events = ["subject:created", "subject:updated", "subject:deleted"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
+}
+
+export function onClassSubjectMapChanged(listener: () => void) {
+  const events = ["map:created", "map:updated", "map:deleted", "map:copied"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
+}
+
+export function onExamScheduleChanged(listener: () => void) {
+  const events = ["schedule:created", "schedule:updated", "schedule:deleted"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
+}
+
+export function onClassResultChanged(listener: () => void) {
+  const events = ["results:generated", "results:published", "results:unpublished"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
 }

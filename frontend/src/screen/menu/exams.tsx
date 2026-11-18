@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, DatePicker, Dropdown, ExamsSkeleton, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { del, get, post, put } from "../../api/methods";
+import { getAuthUser } from "../../auth/session";
+import { onExamChanged } from "../../api/socket";
 
 type ExamStatus = "Upcoming" | "Active" | "Completed";
 type Exam = {
@@ -15,14 +19,7 @@ type Exam = {
   term: string;
 };
 
-const initialExams: Exam[] = [
-  { id: 1, name: "Half Yearly Examination", term: "Term 1", session: "2027–28", classes: "Class 1–10", startDate: "2026-10-14", endDate: "2026-10-26", status: "Upcoming" },
-  { id: 2, name: "Unit Test 2", term: "Term 1", session: "2027–28", classes: "Class 6–10", startDate: "2026-10-05", endDate: "2026-10-12", status: "Active" },
-  { id: 3, name: "Unit Test 1", term: "Term 1", session: "2027–28", classes: "Class 1–10", startDate: "2026-07-12", endDate: "2026-07-16", status: "Completed" },
-  { id: 4, name: "Annual Examination", term: "Term 2", session: "2026–27", classes: "Class 1–10", startDate: "2026-03-02", endDate: "2026-03-18", status: "Completed" },
-];
-
-const blankExam = { name: "", term: "Term 1", session: "2027–28", classes: "Class 1–10", startDate: "", endDate: "", status: "Upcoming" as ExamStatus };
+const blankExam = { name: "", term: "Term 1", session: "", classes: "", startDate: "", endDate: "", status: "Upcoming" as ExamStatus };
 const statuses: ExamStatus[] = ["Upcoming", "Active", "Completed"];
 const statusMeta: Record<ExamStatus, { badge: string; bar: string; strip: string; tile: string }> = {
   Upcoming: { badge: "status-warning", bar: "bg-amber-500", strip: "from-amber-400 to-orange-400", tile: "bg-amber-50 text-amber-600 ring-amber-100" },
@@ -83,6 +80,8 @@ function PanelHead({ icon, title, subtitle, action }: { icon: IconType; title: s
 export default function Exams() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [exams, setExams] = useState<Exam[]>([]);
+  const [sessions, setSessions] = useState<string[]>([]);
+  const [classOptions, setClassOptions] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [sessionFilter, setSessionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | ExamStatus>("");
@@ -92,16 +91,31 @@ export default function Exams() {
   const [saving, setSaving] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Exam | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    const loadExams = window.setTimeout(() => {
-      setExams(initialExams);
-      setInitialLoading(false);
-    }, 1000);
+  useEffect(() => onExamChanged(() => setRefreshKey((value) => value + 1)), []);
 
-    return () => window.clearTimeout(loadExams);
-  }, []);
+  useEffect(() => {
+    let active = true;
+    setInitialLoading(true);
+    void Promise.all([
+      get<{ data: Exam[] }>(`${API_BASE}${API_ENDPOINTS.EXAMS}?page=1&limit=100`, { cache: "no-store" }),
+      get<{ name: string; current?: boolean }[]>(`${API_BASE}${API_ENDPOINTS.SESSIONS}/simple`, { cache: "no-store" }),
+      get<{ name: string }[]>(`${API_BASE}${API_ENDPOINTS.CLASSES}`, { cache: "no-store" }),
+    ]).then(([examResponse, sessionResponse, classResponse]) => {
+      if (!active) return;
+      setExams(examResponse.data.map((exam) => ({ ...exam, startDate: exam.startDate.slice(0, 10), endDate: exam.endDate.slice(0, 10) })));
+      const sessionNames = sessionResponse.map((item) => item.name);
+      setSessions(sessionNames);
+      setClassOptions(classResponse.map((item) => item.name));
+      const currentSession = sessionResponse.find((item) => item.current)?.name ?? sessionNames[0] ?? "";
+      setForm((current) => ({ ...current, session: current.session || currentSession, classes: current.classes || "All Classes" }));
+    }).catch((error) => {
+      if (active) showToast(error instanceof Error ? error.message : "Unable to load examinations.", { title: "Examinations unavailable", tone: "error" });
+    }).finally(() => { if (active) setInitialLoading(false); });
+    return () => { active = false; };
+  }, [refreshKey, showToast]);
 
   const counts = useMemo(() => ({
     all: exams.length,
@@ -141,31 +155,47 @@ export default function Exams() {
       return;
     }
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 700));
-    if (editingId) setExams((current) => current.map((exam) => exam.id === editingId ? { ...exam, ...form } : exam));
-    else setExams((current) => [{ id: Date.now(), ...form }, ...current]);
-    setSaving(false);
-    setEditorOpen(false);
-    showToast(`${form.name} was ${editingId ? "updated" : "created"} successfully.`, { title: editingId ? "Exam updated" : "Exam created" });
+    try {
+      const payload = { ...form, createdBy: getAuthUser()?.username || undefined };
+      const saved = editingId
+        ? await put<Exam>(`${API_BASE}${API_ENDPOINTS.EXAMS}/${editingId}`, payload)
+        : await post<Exam>(API_BASE + API_ENDPOINTS.EXAMS, payload);
+      setExams((current) => editingId ? current.map((exam) => exam.id === saved.id ? saved : exam) : [saved, ...current]);
+      setSaving(false);
+      setEditorOpen(false);
+      showToast(`${form.name} was ${editingId ? "updated" : "created"} successfully.`, { title: editingId ? "Exam updated" : "Exam created" });
+    } catch (error) {
+      setSaving(false);
+      showToast(error instanceof Error ? error.message : "Unable to save examination.", { title: "Exam save failed", tone: "error" });
+    }
   };
 
-  const changeStatus = (exam: Exam, status: ExamStatus) => {
-    setExams((current) => current.map((item) => item.id === exam.id ? { ...item, status } : item));
-    setSelectedExam((current) => current && current.id === exam.id ? { ...current, status } : current);
-    showToast(`${exam.name} is now marked ${status.toLowerCase()}.`, { title: "Exam status updated" });
+  const changeStatus = async (exam: Exam, status: ExamStatus) => {
+    try {
+      const updated = await put<Exam>(`${API_BASE}${API_ENDPOINTS.EXAMS}/${exam.id}/status`, { status });
+      setExams((current) => current.map((item) => item.id === exam.id ? updated : item));
+      setSelectedExam((current) => current && current.id === exam.id ? updated : current);
+      showToast(`${exam.name} is now marked ${status.toLowerCase()}.`, { title: "Exam status updated" });
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to update exam status.", { title: "Status update failed", tone: "error" }); }
   };
 
-  const duplicateExam = (exam: Exam) => {
-    setExams((current) => [{ ...exam, id: Date.now(), name: `${exam.name} (Copy)`, status: "Upcoming" }, ...current]);
-    showToast(`A copy of ${exam.name} was added as upcoming.`, { title: "Exam duplicated" });
+  const duplicateExam = async (exam: Exam) => {
+    try {
+      const duplicated = await post<Exam>(`${API_BASE}${API_ENDPOINTS.EXAMS}/${exam.id}/duplicate`);
+      setExams((current) => [duplicated, ...current]);
+      showToast(`A copy of ${exam.name} was added as upcoming.`, { title: "Exam duplicated" });
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to duplicate exam.", { title: "Duplication failed", tone: "error" }); }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
-    setExams((current) => current.filter((exam) => exam.id !== deleteTarget.id));
-    showToast(`${deleteTarget.name} was removed.`, { title: "Exam deleted", tone: "info" });
-    setDeleteTarget(null);
-    setSelectedExam(null);
+    try {
+      await del(`${API_BASE}${API_ENDPOINTS.EXAMS}/${deleteTarget.id}`);
+      setExams((current) => current.filter((exam) => exam.id !== deleteTarget.id));
+      showToast(`${deleteTarget.name} was removed.`, { title: "Exam deleted", tone: "info" });
+      setDeleteTarget(null);
+      setSelectedExam(null);
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to delete exam.", { title: "Exam deletion failed", tone: "error" }); }
   };
 
   const exportCsv = () => {
@@ -245,7 +275,7 @@ export default function Exams() {
         <div className="space-y-3 border-b border-slate-100 p-3.5 sm:p-4">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2.5 max-sm:[&>:first-child]:col-span-2 max-sm:[&>button]:min-w-28 sm:grid-cols-[1fr_12rem_auto] sm:gap-3">
             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search exam, term or classes..." aria-label="Search exams" />
-            <Dropdown value={sessionFilter} onChange={(event) => setSessionFilter(event.target.value)} placeholder="All Sessions" aria-label="Session filter" options={["2026–27", "2027–28"].map((value) => ({ label: value, value }))} />
+            <Dropdown value={sessionFilter} onChange={(event) => setSessionFilter(event.target.value)} placeholder="All Sessions" aria-label="Session filter" options={sessions.map((value) => ({ label: value, value }))} />
             <Button variant="outline" onClick={resetFilters} disabled={!hasFilters} icon={<ExamIcon type="reset" className="size-4" />} className="border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50! text-rose-600! shadow-sm hover:from-rose-100! hover:to-orange-100! active:scale-95">Reset</Button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-0.5">
@@ -309,8 +339,8 @@ export default function Exams() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2"><Input label="Exam Name *" value={form.name} onChange={(event) => setField("name", event.target.value)} placeholder="e.g. Half Yearly Examination" /></div>
         <Dropdown label="Term" value={form.term} onChange={(event) => setField("term", event.target.value)} options={["Term 1", "Term 2", "Annual"].map((value) => ({ label: value, value }))} />
-        <Dropdown label="Academic Year" value={form.session} onChange={(event) => setField("session", event.target.value)} options={["2026–27", "2027–28"].map((value) => ({ label: value, value }))} />
-        <Dropdown label="Participating Classes" value={form.classes} onChange={(event) => setField("classes", event.target.value)} options={["All Classes", "Class 1–5", "Class 6–10", "Class 1–10"].map((value) => ({ label: value, value }))} />
+        <Dropdown label="Academic Year" value={form.session} onChange={(event) => setField("session", event.target.value)} options={sessions.map((value) => ({ label: value, value }))} />
+        <Dropdown label="Participating Classes" value={form.classes} onChange={(event) => setField("classes", event.target.value)} options={["All Classes", ...classOptions].map((value) => ({ label: value, value }))} />
         <Dropdown label="Status" value={form.status} onChange={(event) => setField("status", event.target.value)} options={statuses.map((value) => ({ label: value, value }))} />
         <DatePicker label="Start Date" required value={form.startDate} onChange={(value) => setField("startDate", value)} />
         <DatePicker label="End Date" required value={form.endDate} onChange={(value) => setField("endDate", value)} />

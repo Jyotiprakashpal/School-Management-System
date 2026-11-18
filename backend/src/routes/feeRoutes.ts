@@ -24,6 +24,7 @@ router.get('/classes', getFeeClasses);
 router.get('/frequencies', getFeeFrequencies);
 router.get('/', getAllFeeHeads);
 router.get('/class/:className/year/:year', getFeeHeadsByClassAndYear);
+router.get('/assignments', getFeeAssignments);
 router.get('/:id', getFeeHeadById);
 router.post('/', createFeeHead);
 router.put('/:id', updateFeeHead);
@@ -31,7 +32,6 @@ router.delete('/:id', deleteFeeHead);
 
 // Fee assignment routes
 router.post('/assign', assignFees);
-router.get('/assignments', getFeeAssignments);
 
 // Copy structure route
 router.post('/copy', copyFeeStructure);

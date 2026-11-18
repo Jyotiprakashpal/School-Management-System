@@ -102,11 +102,33 @@ export const feeRepository = {
         UNIQUE("className", name, year)
       )
     `;
+    // `CREATE TABLE IF NOT EXISTS` does not add columns to an existing
+    // installation. Keep older databases compatible with the current fee
+    // repository, which writes and reads these audit columns.
+    await sql`
+      ALTER TABLE fee_heads
+        ADD COLUMN IF NOT EXISTS "createdBy" TEXT,
+        ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    `;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_fee_heads_class_year ON fee_heads("className", year)
     `;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_fee_heads_name ON fee_heads(name)
+    `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS fee_frequencies (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(30) NOT NULL UNIQUE,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+    await sql`
+      INSERT INTO fee_frequencies (name)
+      VALUES ${sql([["One Time"], ["Monthly"], ["Quarterly"], ["Half Yearly"], ["Yearly"]])}
+      ON CONFLICT (name) DO NOTHING
     `;
 
     await sql`
@@ -122,6 +144,10 @@ export const feeRepository = {
     `;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_fee_assignments_class_year ON fee_assignments("className", year)
+    `;
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_fee_assignments_class_year
+      ON fee_assignments("className", year)
     `;
   },
 
@@ -262,7 +288,7 @@ async updateFeeHead(id: number, data: Partial<UpdateFeeHeadDto>): Promise<FeeHea
       throw new Error('No fee heads found for this class and year');
     }
 
-    const students = this.getActiveStudentsCount(data.className);
+    const students = await this.getActiveStudentsCount(data.className, data.year);
     const perStudent = heads.reduce((sum, fee) => sum + Number(fee.amount), 0);
 
     const [assignment] = await sql<FeeAssignmentRow[]>`
@@ -272,6 +298,17 @@ async updateFeeHead(id: number, data: Partial<UpdateFeeHeadDto>): Promise<FeeHea
     `;
 
     return toFeeAssignmentResponse(assignment);
+  },
+
+  async findFeeAssignmentByClassAndYear(className: string, year: string): Promise<FeeAssignment | null> {
+    const [assignment] = await sql<FeeAssignmentRow[]>`
+      SELECT ${selectFeeAssignmentColumns}
+      FROM fee_assignments
+      WHERE "className" = ${className} AND year = ${year}
+      ORDER BY id DESC
+      LIMIT 1
+    `;
+    return assignment ? toFeeAssignmentResponse(assignment) : null;
   },
 
   async findManyFeeAssignments(params: FeeAssignmentQuery): Promise<{ data: FeeAssignment[]; total: number }> {
@@ -300,17 +337,16 @@ async updateFeeHead(id: number, data: Partial<UpdateFeeHeadDto>): Promise<FeeHea
     return { data: assignments.map(toFeeAssignmentResponse), total: Number(total?.count || 0) };
   },
 
-  getActiveStudentsCount(className: string): number {
-    // Default active students per class - in production this would query students table
-    const activeStudents: Record<string, number> = {
-      Nursery: 18,
-      LKG: 24,
-      UKG: 26,
-      'Class 1': 28,
-      'Class 2': 22,
-      'Class 3': 20,
-    };
-    return activeStudents[className] || 0;
+  async getActiveStudentsCount(className: string, year?: string): Promise<number> {
+    const queryYear = year ?? null;
+    const [result] = await sql<{ count: string }[]>`
+      SELECT COUNT(*)::text AS count
+      FROM admissions
+      WHERE "className" = ${className}
+        AND COALESCE(status, 'Active') = 'Active'
+        AND (${queryYear}::text IS NULL OR "academicYear" = ${queryYear} OR "academicYear" IS NULL)
+    `;
+    return Number(result?.count || 0);
   },
 
   async copyFeeStructure(fromYear: string, toYear: string): Promise<{ copied: number; skipped: number }> {
@@ -344,7 +380,10 @@ async updateFeeHead(id: number, data: Partial<UpdateFeeHeadDto>): Promise<FeeHea
 
   async getYears(): Promise<string[]> {
     const years = await sql<{ year: string }[]>`
-      SELECT DISTINCT year FROM fee_heads ORDER BY year DESC
+      SELECT name AS year FROM academic_sessions
+      UNION
+      SELECT DISTINCT year FROM fee_heads
+      ORDER BY year DESC
     `;
     return years.map(y => y.year);
   },
@@ -357,8 +396,23 @@ async updateFeeHead(id: number, data: Partial<UpdateFeeHeadDto>): Promise<FeeHea
   },
 
   async getFrequencies(): Promise<string[]> {
+    // Self-heal older installations where the new lookup table has not yet
+    // been created by the startup migration.
+    await sql`
+      CREATE TABLE IF NOT EXISTS fee_frequencies (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(30) NOT NULL UNIQUE,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+    await sql`
+      INSERT INTO fee_frequencies (name)
+      VALUES ${sql([["One Time"], ["Monthly"], ["Quarterly"], ["Half Yearly"], ["Yearly"]])}
+      ON CONFLICT (name) DO NOTHING
+    `;
     const frequencies = await sql<{ frequency: string }[]>`
-      SELECT DISTINCT frequency FROM fee_heads ORDER BY frequency
+      SELECT name AS frequency FROM fee_frequencies WHERE active = TRUE ORDER BY id
     `;
     return frequencies.map(f => f.frequency);
   },

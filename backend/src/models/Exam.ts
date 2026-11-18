@@ -82,6 +82,10 @@ export const examRepository = {
       )
     `;
     await sql`
+      ALTER TABLE exams
+      ADD COLUMN IF NOT EXISTS "createdBy" TEXT
+    `;
+    await sql`
       CREATE INDEX IF NOT EXISTS idx_exams_session ON exams(session)
     `;
     await sql`

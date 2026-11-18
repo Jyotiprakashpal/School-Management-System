@@ -287,6 +287,13 @@ export const assignFees = async (req: Request<{}, FeeAssignment | { error: strin
       return res.status(400).json({ error: 'Class name and academic year are required' });
     }
 
+    const existingAssignment = await feeRepository.findFeeAssignmentByClassAndYear(className, year);
+    if (existingAssignment) {
+      return res.status(409).json({
+        error: `Fees are already assigned to ${className} for ${year}`
+      });
+    }
+
     const heads = await feeRepository.findFeeHeadsByClassAndYear(className, year);
     if (!heads.length) {
       return res.status(400).json({ error: `No fee heads found for ${className} in ${year}` });

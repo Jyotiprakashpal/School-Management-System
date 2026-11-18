@@ -9,50 +9,19 @@ import {
 } from "../../components"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { get, post } from "../../api/methods"
+import { getAuthUser } from "../../auth/session"
+import { onAdmissionsChanged, onAttendanceChanged } from "../../api/socket"
 
 type Status = "present" | "absent" | "leave" | ""
 type Learner = {
+  studentId: number
   admissionNo: string
   name: string
   rollNo: number
 }
 type Marks = Record<string, Status>
-
-const classes = ["Nursery", "LKG", "UKG", "Class 1", "Class 2", "Class 3"]
-const sections = ["A", "B", "C"]
-const firstNames = [
-  "Rahul",
-  "Ananya",
-  "Mohit",
-  "Priya",
-  "Aarav",
-  "Sneha",
-  "Kabir",
-  "Sara",
-  "Vihaan",
-  "Diya",
-  "Arjun",
-  "Meera",
-]
-const lastNames = [
-  "Kumar",
-  "Sharma",
-  "Verma",
-  "Singh",
-  "Gupta",
-  "Yadav",
-  "Patel",
-  "Mehta",
-]
-
-const rosterFor = (className: string, section: string): Learner[] => {
-  const seed = classes.indexOf(className) * 3 + sections.indexOf(section)
-  return Array.from({ length: 9 + (seed % 3) }, (_, index) => ({
-    rollNo: index + 1,
-    admissionNo: `ADM-26-${1000 + seed * 20 + index + 1}`,
-    name: `${firstNames[(index * 5 + seed * 2) % firstNames.length]} ${lastNames[(index * 3 + seed) % lastNames.length]}`,
-  }))
-}
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
 const longDate = (iso: string) =>
@@ -209,10 +178,11 @@ const statusMeta: {
 ]
 
 export default function Attendance() {
-  const [className, setClassName] = useState("UKG")
-  const [section, setSection] = useState("A")
+  const [className, setClassName] = useState("")
+  const [section, setSection] = useState("")
+  const [classes, setClasses] = useState<{ name: string; sections: string[] }[]>([])
   const [date, setDate] = useState(todayIso())
-  const [saved, setSaved] = useState<Record<string, Marks>>({})
+  const [saved, setSaved] = useState<Record<string, Marks | undefined>>({})
   const [marks, setMarks] = useState<Marks>({})
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -222,25 +192,59 @@ export default function Attendance() {
   const [reportOpen, setReportOpen] = useState(false)
   const [roster, setRoster] = useState<Learner[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
   const { showToast } = useToast()
 
   const key = `${className}-${section}-${date}`
 
   useEffect(() => {
-    setMarks(saved[key] ?? {})
-    setDirty(false)
-    setEditing(false)
-    setSearch("")
-    setFilter("all")
-  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+    const refresh = () => setRefreshKey((value) => value + 1)
+    const unsubscribeAdmissions = onAdmissionsChanged(refresh)
+    const unsubscribeAttendance = onAttendanceChanged(refresh)
+    return () => {
+      unsubscribeAdmissions()
+      unsubscribeAttendance()
+    }
+  }, [])
+
   useEffect(() => {
+    let active = true
+    void get<{ name: string; sections: string[] }[]>(`${API_BASE}${API_ENDPOINTS.CLASSES}`, { cache: "no-store" })
+      .then((response) => {
+        if (!active) return
+        setClasses(response)
+        setClassName((current) => current || response[0]?.name || "")
+        setSection((current) => current || response[0]?.sections?.[0] || "")
+      })
+      .catch((error) => {
+        if (active) showToast(error instanceof Error ? error.message : "Unable to load classes.", { title: "Classes unavailable", tone: "error" })
+      })
+    return () => { active = false }
+  }, [showToast, refreshKey])
+
+  useEffect(() => {
+    if (!className || !section || !date) return
+    let active = true
     setLoading(true)
-    const loadRoster = window.setTimeout(() => {
-      setRoster(rosterFor(className, section))
-      setLoading(false)
-    }, 700)
-    return () => window.clearTimeout(loadRoster)
-  }, [className, section, date])
+    void Promise.all([
+      get<{ data: { id: number; admissionNo: string; fullName: string }[] }>(`${API_BASE}${API_ENDPOINTS.ADMISSIONS}?className=${encodeURIComponent(className)}&section=${encodeURIComponent(section)}&status=Active&page=1&limit=100`, { cache: "no-store" }),
+      get<{ data: { studentId: string; admissionNo: string; studentName: string; rollNo: number; status: Status }[] }>(`${API_BASE}${API_ENDPOINTS.ATTENDANCE}?className=${encodeURIComponent(className)}&section=${encodeURIComponent(section)}&date=${encodeURIComponent(date)}&page=1&limit=100`, { cache: "no-store" }),
+    ]).then(([studentsResponse, attendanceResponse]) => {
+      if (!active) return
+      const nextRoster = studentsResponse.data.map((student, index) => ({ studentId: student.id, admissionNo: student.admissionNo, name: student.fullName, rollNo: index + 1 }))
+      const nextMarks = Object.fromEntries(attendanceResponse.data.map((record) => [record.admissionNo, record.status]))
+      setRoster(nextRoster)
+      setSaved((current) => ({ ...current, [key]: attendanceResponse.data.length ? nextMarks : undefined }))
+      setMarks(nextMarks)
+      setDirty(false)
+      setEditing(false)
+      setSearch("")
+      setFilter("all")
+    }).catch((error) => {
+      if (active) showToast(error instanceof Error ? error.message : "Unable to load attendance.", { title: "Attendance unavailable", tone: "error" })
+    }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [className, section, date, key, refreshKey, showToast])
 
   const statusOf = (learner: Learner): Status =>
     marks[learner.admissionNo] ?? ""
@@ -254,7 +258,7 @@ export default function Attendance() {
   const percent = roster.length
     ? Math.round((totals.present / roster.length) * 100)
     : 0
-  const isSaved = Boolean(saved[key])
+  const isSaved = Boolean(saved[key] && Object.keys(saved[key] ?? {}).length > 0)
   const locked = isSaved && !editing
 
   const visible = roster.filter((learner) => {
@@ -310,17 +314,29 @@ export default function Attendance() {
       return
     }
     setSaving(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 800))
-    setSaved((current) => ({ ...current, [key]: marks }))
-    setSaving(false)
-    setDirty(false)
-    setEditing(false)
-    showToast(
-      `${className}-${section} attendance ${
-        isSaved ? "updated" : "saved"
-      } for ${longDate(date)}.`,
-      { title: isSaved ? "Attendance updated" : "Attendance saved" },
-    )
+    try {
+      const records = roster.map((learner) => ({
+        studentId: String(learner.studentId),
+        admissionNo: learner.admissionNo,
+        studentName: learner.name,
+        className,
+        section,
+        rollNo: learner.rollNo,
+        date,
+        status: marks[learner.admissionNo] as Exclude<Status, "">,
+        markedBy: getAuthUser()?.username || "System",
+        createdBy: getAuthUser()?.username || "System",
+      }))
+      await post(`${API_BASE}${API_ENDPOINTS.ATTENDANCE}/bulk`, { records })
+      setSaved((current) => ({ ...current, [key]: marks }))
+      setSaving(false)
+      setDirty(false)
+      setEditing(false)
+      showToast(`${className}-${section} attendance ${isSaved ? "updated" : "saved"} for ${longDate(date)}.`, { title: isSaved ? "Attendance updated" : "Attendance saved" })
+    } catch (error) {
+      setSaving(false)
+      showToast(error instanceof Error ? error.message : "Unable to save attendance.", { title: "Attendance save failed", tone: "error" })
+    }
   }
 
   const cancelEdit = () => {
@@ -543,14 +559,18 @@ export default function Attendance() {
             <Dropdown
               label="Class"
               value={className}
-              onChange={(event) => setClassName(event.target.value)}
-              options={classes.map((value) => ({ label: value, value }))}
+              onChange={(event) => {
+                const nextClass = classes.find((item) => item.name === event.target.value)
+                setClassName(event.target.value)
+                setSection(nextClass?.sections?.[0] || "")
+              }}
+              options={classes.map((item) => ({ label: item.name, value: item.name }))}
             />
             <Dropdown
               label="Section"
               value={section}
               onChange={(event) => setSection(event.target.value)}
-              options={sections.map((value) => ({
+              options={(classes.find((item) => item.name === className)?.sections ?? []).map((value) => ({
                 label: `Section ${value}`,
                 value,
               }))}

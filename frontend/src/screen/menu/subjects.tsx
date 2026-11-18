@@ -2,19 +2,14 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Dropdown, Input, PremiumPagination, SubjectsSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { del, get, post, put } from "../../api/methods";
+import { getAuthUser } from "../../auth/session";
+import { onSubjectChanged } from "../../api/socket";
 
 type SubjectType = "Core" | "Language" | "Elective" | "Activity";
 type SubjectStatus = "Active" | "Inactive";
 type Subject = { classes: string; code: string; id: number; name: string; status: SubjectStatus; teachers: number; type: SubjectType };
-
-const initialSubjects: Subject[] = [
-  { id: 1, code: "ENG-01", name: "English", type: "Language", classes: "UKG–Class 10", teachers: 4, status: "Active" },
-  { id: 2, code: "MAT-01", name: "Mathematics", type: "Core", classes: "Class 1–10", teachers: 5, status: "Active" },
-  { id: 3, code: "SCI-01", name: "Science", type: "Core", classes: "Class 3–10", teachers: 3, status: "Active" },
-  { id: 4, code: "SST-01", name: "Social Studies", type: "Core", classes: "Class 4–10", teachers: 2, status: "Active" },
-  { id: 5, code: "HIN-01", name: "Hindi", type: "Language", classes: "Class 1–10", teachers: 3, status: "Active" },
-  { id: 6, code: "ART-01", name: "Art & Craft", type: "Activity", classes: "Nursery–Class 8", teachers: 1, status: "Inactive" },
-];
 
 const types: SubjectType[] = ["Core", "Language", "Elective", "Activity"];
 const typeMeta: Record<SubjectType, { badge: string; tile: string; strip: string }> = {
@@ -74,14 +69,14 @@ export default function Subjects() {
   const [pageSize, setPageSize] = useState(6);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    const loadSubjects = window.setTimeout(() => {
-      setSubjects(initialSubjects);
-      setInitialLoading(false);
-    }, 1000);
-
-    return () => window.clearTimeout(loadSubjects);
-  }, []);
+  const loadSubjects = async () => {
+    try {
+      const response = await get<{ data: Subject[] }>(`${API_BASE}${API_ENDPOINTS.SUBJECTS}?page=1&limit=100`, { cache: "no-store" });
+      setSubjects(response.data ?? []);
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to load subjects.", { title: "Subjects unavailable", tone: "error" }); }
+    finally { setInitialLoading(false); }
+  };
+  useEffect(() => { void loadSubjects(); return onSubjectChanged(() => void loadSubjects()); }, []);
 
   const typeCounts = useMemo(() => Object.fromEntries(types.map((t) => [t, subjects.filter((s) => s.type === t).length])) as Record<SubjectType, number>, [subjects]);
   const totalTeachers = subjects.reduce((sum, s) => sum + s.teachers, 0);
@@ -115,33 +110,29 @@ export default function Subjects() {
       return;
     }
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 700));
-    const payload = { code: form.code.trim().toUpperCase(), name: form.name.trim(), type: form.type, classes: form.classes.trim(), teachers: Math.max(0, Number(form.teachers) || 0), status: form.status };
-    if (editingId) setSubjects((current) => current.map((subject) => subject.id === editingId ? { ...subject, ...payload } : subject));
-    else setSubjects((current) => [...current, { id: Date.now(), ...payload }]);
-    setSaving(false);
-    setEditorOpen(false);
-    showToast(`${payload.name} was ${editingId ? "updated" : "added"} successfully.`, { title: editingId ? "Subject updated" : "Subject added" });
+    try {
+      const payload = { code: form.code.trim().toUpperCase(), name: form.name.trim(), type: form.type, classes: form.classes.trim(), teachers: Math.max(0, Number(form.teachers) || 0), status: form.status, createdBy: getAuthUser()?.username || undefined };
+      const saved = editingId ? await put<Subject>(`${API_BASE}${API_ENDPOINTS.SUBJECTS}/${editingId}`, payload) : await post<Subject>(API_BASE + API_ENDPOINTS.SUBJECTS, payload);
+      setSubjects((current) => editingId ? current.map((subject) => subject.id === saved.id ? saved : subject) : [saved, ...current]);
+      setEditorOpen(false); showToast(`${saved.name} was ${editingId ? "updated" : "added"} successfully.`, { title: editingId ? "Subject updated" : "Subject added" });
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to save subject.", { title: "Subject save failed", tone: "error" }); }
+    finally { setSaving(false); }
   };
 
-  const toggleStatus = (subject: Subject) => {
+  const toggleStatus = async (subject: Subject) => {
     const status: SubjectStatus = subject.status === "Active" ? "Inactive" : "Active";
-    setSubjects((current) => current.map((item) => item.id === subject.id ? { ...item, status } : item));
-    showToast(`${subject.name} is now ${status.toLowerCase()}.`, { title: "Subject status updated" });
+    try { const updated = await put<Subject>(`${API_BASE}${API_ENDPOINTS.SUBJECTS}/${subject.id}/toggle`); setSubjects((current) => current.map((item) => item.id === updated.id ? updated : item)); showToast(`${subject.name} is now ${status.toLowerCase()}.`, { title: "Subject status updated" }); }
+    catch (error) { showToast(error instanceof Error ? error.message : "Unable to change subject status.", { title: "Status update failed", tone: "error" }); }
   };
 
-  const duplicateSubject = (subject: Subject) => {
-    let code = `${subject.code}-COPY`;
-    while (subjects.some((s) => s.code === code)) code += "2";
-    setSubjects((current) => [...current, { ...subject, id: Date.now(), code, name: `${subject.name} (Copy)` }]);
-    showToast(`A copy of ${subject.name} was added to the catalog.`, { title: "Subject duplicated" });
+  const duplicateSubject = async (subject: Subject) => {
+    try { const copy = await post<Subject>(`${API_BASE}${API_ENDPOINTS.SUBJECTS}/${subject.id}/duplicate`); setSubjects((current) => [copy, ...current]); showToast(`A copy of ${subject.name} was added to the catalog.`, { title: "Subject duplicated" }); }
+    catch (error) { showToast(error instanceof Error ? error.message : "Unable to duplicate subject.", { title: "Duplicate failed", tone: "error" }); }
   };
 
   const confirmDelete = () => {
     if (!deleteSubject) return;
-    setSubjects((current) => current.filter((subject) => subject.id !== deleteSubject.id));
-    showToast(`${deleteSubject.name} was removed from the subject catalog.`, { title: "Subject deleted", tone: "info" });
-    setDeleteSubject(null);
+    void del(`${API_BASE}${API_ENDPOINTS.SUBJECTS}/${deleteSubject.id}`).then(() => { setSubjects((current) => current.filter((subject) => subject.id !== deleteSubject.id)); showToast(`${deleteSubject.name} was removed from the subject catalog.`, { title: "Subject deleted", tone: "info" }); setDeleteSubject(null); }).catch((error) => showToast(error instanceof Error ? error.message : "Unable to delete subject.", { title: "Delete failed", tone: "error" }));
   };
 
   const exportCsv = () => {

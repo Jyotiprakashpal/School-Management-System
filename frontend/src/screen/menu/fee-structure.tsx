@@ -9,10 +9,11 @@ import {
 } from "../../components"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { del, get, post, put } from "../../api/methods"
+import { onFeeStructureChanged } from "../../api/socket"
 import {
-  classBase,
   useStructure,
-  useStudents,
   type FeeItem,
 } from "../../data/feeStore"
 
@@ -24,57 +25,15 @@ type AssignmentLog = {
   heads: number
   perStudent: number
   time: string
+  createdAt?: string
 }
-
-const classes = ["Nursery", "LKG", "UKG", "Class 1", "Class 2", "Class 3"]
-const years = ["2026–27", "2027–28", "2028–29"]
-const frequencies = [
-  "One Time",
-  "Monthly",
-  "Quarterly",
-  "Half Yearly",
-  "Yearly",
-]
-const activeStudents: Record<string, number> = {
-  Nursery: 18,
-  LKG: 24,
-  UKG: 26,
-  "Class 1": 28,
-  "Class 2": 22,
-  "Class 3": 20,
-}
-
-const classOptions = classes.map((value) => ({ label: value, value }))
-const yearOptions = years.map((value) => ({ label: value, value }))
-const frequencyOptions = frequencies.map((value) => ({ label: value, value }))
-
-const initialAssignments: AssignmentLog[] = [
-  {
-    id: 2,
-    className: "UKG",
-    year: "2027–28",
-    students: 26,
-    heads: 2,
-    perStudent: 6200,
-    time: "Yesterday, 03:40 PM",
-  },
-  {
-    id: 1,
-    className: "Class 1",
-    year: "2027–28",
-    students: 28,
-    heads: 2,
-    perStudent: 3300,
-    time: "2 days ago, 11:10 AM",
-  },
-]
 
 const emptyForm = {
   className: "",
   name: "",
   amount: "",
-  year: "2027–28",
-  frequency: "Monthly",
+  year: "",
+  frequency: "",
 }
 
 type IconType = "add" | "assign" | "copy" | "table" | "money" | "classes" | "calendar" | "layers" | "download" | "reset"
@@ -190,13 +149,16 @@ const csvCell = (value: string) => `"${value.replace(/"/g, '""')}"`
 
 export default function FeeStructure() {
   const [fees, setFees] = useStructure()
-  const [, setStudents] = useStudents()
-  const [assignments, setAssignments] = useState(initialAssignments)
+  const [assignments, setAssignments] = useState<AssignmentLog[]>([])
+  const [classes, setClasses] = useState<string[]>([])
+  const [years, setYears] = useState<string[]>([])
+  const [frequencies, setFrequencies] = useState<string[]>([])
+  const [assignStudentCount, setAssignStudentCount] = useState(0)
   const [feeForm, setFeeForm] = useState(emptyForm)
   const [assignClass, setAssignClass] = useState("")
-  const [assignYear, setAssignYear] = useState("2027–28")
-  const [fromYear, setFromYear] = useState("2026–27")
-  const [toYear, setToYear] = useState("2027–28")
+  const [assignYear, setAssignYear] = useState("")
+  const [fromYear, setFromYear] = useState("")
+  const [toYear, setToYear] = useState("")
   const [saving, setSaving] =
     useState<"fee" | "assign" | "copy" | "edit" | null>(null)
   const [deleteItem, setDeleteItem] = useState<FeeItem | null>(null)
@@ -204,16 +166,65 @@ export default function FeeStructure() {
   const [editForm, setEditForm] = useState(emptyForm)
   const [search, setSearch] = useState("")
   const [classFilter, setClassFilter] = useState("")
-  const [yearFilter, setYearFilter] = useState("2027–28")
+  const [yearFilter, setYearFilter] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
   const { showToast } = useToast()
 
+  useEffect(() => onFeeStructureChanged(() => setRefreshKey((value) => value + 1)), [])
+
   useEffect(() => {
-    const hydrateStructure = window.setTimeout(() => setLoading(false), 750)
-    return () => window.clearTimeout(hydrateStructure)
-  }, [])
+    let active = true
+    void Promise.all([
+      get<{ data: FeeItem[] }>(`${API_BASE}${API_ENDPOINTS.FEES}?page=1&limit=100`, { cache: "no-store" }),
+      get<{ data: AssignmentLog[] }>(`${API_BASE}${API_ENDPOINTS.FEES}/assignments?limit=100`, { cache: "no-store" }),
+      get<{ name: string }[]>(`${API_BASE}${API_ENDPOINTS.CLASSES}`, { cache: "no-store" }),
+      get<string[]>(`${API_BASE}${API_ENDPOINTS.FEES}/years`, { cache: "no-store" }),
+      get<string[]>(`${API_BASE}${API_ENDPOINTS.FEES}/frequencies`, { cache: "no-store" }),
+    ]).then(([feeResponse, assignmentResponse, classResponse, yearResponse, frequencyResponse]) => {
+      if (!active) return
+      const loadedClasses = classResponse.map((item) => item.name)
+      setClasses(loadedClasses)
+      setYears(yearResponse)
+      setFrequencies(frequencyResponse)
+      const defaultYear = yearResponse[0] ?? ""
+      const defaultFrequency = frequencyResponse[0] ?? ""
+      setAssignYear((current) => current || defaultYear)
+      setFromYear((current) => current || defaultYear)
+      setToYear((current) => current || yearResponse[1] || defaultYear)
+      setYearFilter((current) => current || defaultYear)
+      setFeeForm((current) => ({ ...current, year: current.year || defaultYear, frequency: current.frequency || defaultFrequency }))
+      setEditForm((current) => ({ ...current, year: current.year || defaultYear, frequency: current.frequency || defaultFrequency }))
+      setFees(feeResponse.data.map((fee) => ({ ...fee, amount: String(fee.amount) })))
+      setAssignments(assignmentResponse.data.map((assignment) => ({ ...assignment, time: new Date(assignment.createdAt ?? Date.now()).toLocaleString("en-IN") })))
+    }).catch((error) => {
+      if (active) showToast(error instanceof Error ? error.message : "Unable to load fee structure.", { title: "Fee structure unavailable", tone: "error" })
+    }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [setFees, showToast, refreshKey])
+
+  useEffect(() => {
+    if (!assignClass || !assignYear) {
+      setAssignStudentCount(0)
+      return
+    }
+    let active = true
+    void get<{ total: number }>(
+      `${API_BASE}${API_ENDPOINTS.ADMISSIONS}?className=${encodeURIComponent(assignClass)}&status=Active&limit=1`,
+      { cache: "no-store" },
+    ).then((response) => {
+      if (active) setAssignStudentCount(response.total)
+    }).catch(() => {
+      if (active) setAssignStudentCount(0)
+    })
+    return () => { active = false }
+  }, [assignClass, assignYear])
+
+  const classOptions = classes.map((value) => ({ label: value, value }))
+  const yearOptions = years.map((value) => ({ label: value, value }))
+  const frequencyOptions = frequencies.map((value) => ({ label: value, value }))
 
   const filteredFees = useMemo(
     () =>
@@ -236,16 +247,17 @@ export default function FeeStructure() {
     safePage * pageSize,
   )
 
-  const sessionFees = fees.filter((fee) => fee.year === "2027–28")
+  const sessionYear = yearFilter || years[0] || ""
+  const sessionFees = fees.filter((fee) => fee.year === sessionYear)
   const assignedStudents = assignments
-    .filter((entry) => entry.year === "2027–28")
+    .filter((entry) => entry.year === sessionYear)
     .reduce((sum, entry) => sum + entry.students, 0)
   const stats = [
     {
       label: "Fee Types",
       value: String(sessionFees.length),
       tone: "teal",
-      copy: "Configured for 2027–28",
+      copy: `Configured for ${sessionYear || "the selected session"}`,
       icon: "layers" as IconType,
     },
     {
@@ -268,7 +280,7 @@ export default function FeeStructure() {
         sessionFees.reduce((sum, fee) => sum + Number(fee.amount), 0),
       ),
       tone: "violet",
-      copy: "Across 2027–28 fee heads",
+      copy: `Across ${sessionYear || "the selected session"} fee heads`,
       icon: "money" as IconType,
     },
   ]
@@ -301,19 +313,13 @@ export default function FeeStructure() {
       return
     }
     setSaving("fee")
-    await new Promise((resolve) => window.setTimeout(resolve, 700))
-    setFees((current) => [
-      { ...feeForm, name: feeForm.name.trim(), id: Date.now() },
-      ...current,
-    ])
-    setSaving(null)
-    setYearFilter(feeForm.year)
-    setCurrentPage(1)
-    showToast(
-      `${feeForm.name.trim()} has been added for ${feeForm.className}.`,
-      { title: "Fee type added" },
-    )
-    setFeeForm({ ...emptyForm, year: feeForm.year })
+    try {
+      const created = await post<FeeItem>(`${API_BASE}${API_ENDPOINTS.FEES}`, { ...feeForm, amount: Number(feeForm.amount) })
+      setFees((current) => [{ ...created, amount: String(created.amount) }, ...current])
+      setYearFilter(feeForm.year); setCurrentPage(1); setFeeForm({ ...emptyForm, year: feeForm.year })
+      showToast(`${feeForm.name.trim()} has been added for ${feeForm.className}.`, { title: "Fee type added" })
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to add fee type.", { title: "Fee type failed", tone: "error" }) }
+    finally { setSaving(null) }
   }
 
   const openEdit = (fee: FeeItem) => {
@@ -335,26 +341,25 @@ export default function FeeStructure() {
       return
     }
     setSaving("edit")
-    await new Promise((resolve) => window.setTimeout(resolve, 600))
-    setFees((current) =>
-      current.map((fee) =>
-        fee.id === editItem.id
-          ? { ...fee, ...editForm, name: editForm.name.trim() }
-          : fee,
-      ),
-    )
-    setSaving(null)
-    showToast(
-      `${editForm.name.trim()} for ${editForm.className} was updated.`,
-      { title: "Fee type updated" },
-    )
-    setEditItem(null)
+    try {
+      const updated = await put<FeeItem>(`${API_BASE}${API_ENDPOINTS.FEES}/${editItem.id}`, { ...editForm, amount: Number(editForm.amount) })
+      setFees((current) => current.map((fee) => fee.id === updated.id ? { ...updated, amount: String(updated.amount) } : fee))
+      showToast(`${editForm.name.trim()} for ${editForm.className} was updated.`, { title: "Fee type updated" }); setEditItem(null)
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to update fee type.", { title: "Fee update failed", tone: "error" }) }
+    finally { setSaving(null) }
   }
 
   const assignFees = async () => {
     if (!assignClass) {
       showToast("Select a class before assigning fees.", {
         title: "Class required",
+        tone: "error",
+      })
+      return
+    }
+    if (assignments.some((entry) => entry.className === assignClass && entry.year === assignYear)) {
+      showToast(`Fees are already assigned to ${assignClass} for ${assignYear}.`, {
+        title: "Fees already assigned",
         tone: "error",
       })
       return
@@ -370,52 +375,28 @@ export default function FeeStructure() {
       return
     }
     setSaving("assign")
-    await new Promise((resolve) => window.setTimeout(resolve, 800))
-    const students = activeStudents[assignClass] ?? 0
+    try {
+    const assignment = await post<AssignmentLog>(`${API_BASE}${API_ENDPOINTS.FEES}/assign`, { className: assignClass, year: assignYear })
     const perStudent = heads.reduce((sum, fee) => sum + Number(fee.amount), 0)
-    setStudents((current) =>
-      current.map((student) =>
-        classBase(student.className) !== assignClass
-          ? student
-          : {
-              ...student,
-              fees: [
-                ...student.fees,
-                ...heads
-                  .filter(
-                    (fee) =>
-                      !student.fees.some(
-                        (existing) => existing.name === fee.name,
-                      ),
-                  )
-                  .map((fee, index) => ({
-                    id: Date.now() + index,
-                    name: fee.name,
-                    amount: Number(fee.amount),
-                    paid: 0,
-                    selected: false,
-                  })),
-              ],
-            },
-      ),
-    )
     setAssignments((current) => [
       {
-        id: Date.now(),
+        id: assignment.id,
         className: assignClass,
         year: assignYear,
-        students,
+        students: assignment.students,
         heads: heads.length,
         perStudent,
-        time: `Today, ${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+        time: new Date(assignment.createdAt ?? Date.now()).toLocaleString("en-IN"),
       },
       ...current,
     ])
     setSaving(null)
     showToast(
-      `${heads.length} fee heads (${money(perStudent)}) were assigned to ${students} active ${assignClass} students.`,
+      `${heads.length} fee heads (${money(perStudent)}) were assigned to ${assignment.students} active ${assignClass} students.`,
       { title: "Fees assigned successfully" },
     )
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to assign fees.", { title: "Fee assignment failed", tone: "error" }) }
+    finally { setSaving(null) }
   }
 
   const copyStructure = async () => {
@@ -435,42 +416,34 @@ export default function FeeStructure() {
       return
     }
     setSaving("copy")
-    await new Promise((resolve) => window.setTimeout(resolve, 800))
-    const additions = source
-      .filter(
-        (fee) =>
-          !isDuplicate({
-            className: fee.className,
-            name: fee.name,
-            year: toYear,
-          }),
-      )
-      .map((fee, index) => ({ ...fee, id: Date.now() + index, year: toYear }))
-    setFees((current) => [...additions, ...current])
+    const result = await post<{ copied: number; skipped: number }>(
+      `${API_BASE}${API_ENDPOINTS.FEES}/copy`,
+      { fromYear, toYear },
+    )
+    const refreshed = await get<{ data: FeeItem[] }>(
+      `${API_BASE}${API_ENDPOINTS.FEES}?page=1&limit=100`,
+      { cache: "no-store" },
+    )
+    setFees(refreshed.data.map((fee) => ({ ...fee, amount: String(fee.amount) })))
     setSaving(null)
     setYearFilter(toYear)
     setCurrentPage(1)
     showToast(
-      `${additions.length} copied from ${fromYear} to ${toYear}${
-        source.length - additions.length
-          ? `, ${source.length - additions.length} skipped as existing`
-          : ""
-      }.`,
+      `${result.copied} copied from ${fromYear} to ${toYear}${result.skipped ? `, ${result.skipped} skipped as existing` : ""}.`,
       {
-        title: additions.length ? "Structure copied" : "Nothing new to copy",
-        tone: additions.length ? "success" : "info",
+        title: result.copied ? "Structure copied" : "Nothing new to copy",
+        tone: result.copied ? "success" : "info",
       },
     )
   }
 
   const confirmDelete = () => {
     if (!deleteItem) return
-    setFees((current) => current.filter((fee) => fee.id !== deleteItem.id))
-    showToast(`${deleteItem.name} was removed from ${deleteItem.className}.`, {
-      title: "Fee type deleted",
-      tone: "info",
-    })
-    setDeleteItem(null)
+    void del(`${API_BASE}${API_ENDPOINTS.FEES}/${deleteItem.id}`).then(() => {
+      setFees((current) => current.filter((fee) => fee.id !== deleteItem.id))
+      showToast(`${deleteItem.name} was removed from ${deleteItem.className}.`, { title: "Fee type deleted", tone: "info" })
+      setDeleteItem(null)
+    }).catch((error) => showToast(error instanceof Error ? error.message : "Unable to delete fee type.", { title: "Fee deletion failed", tone: "error" }))
   }
 
   const exportFees = () => {
@@ -500,7 +473,7 @@ export default function FeeStructure() {
   const resetFilters = () => {
     setSearch("")
     setClassFilter("")
-    setYearFilter("2027–28")
+    setYearFilter(years[0] ?? "")
     setCurrentPage(1)
   }
 
@@ -526,7 +499,7 @@ export default function FeeStructure() {
             <div className="min-w-0">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-sm">
                 <FeeIcon type="layers" className="size-4" />
-                Pricing architecture · 2027–28
+                Pricing architecture · {sessionYear || "No academic session"}
               </div>
               <h2 className="mt-3 font-display text-2xl font-bold sm:text-3xl">
                 Build a fee model that scales across every class
@@ -571,7 +544,7 @@ export default function FeeStructure() {
                 <div
                   className="h-full rounded-full bg-white/90"
                   style={{
-                    width: `${(new Set(sessionFees.map((fee) => fee.className)).size / classes.length) * 100}%`,
+                    width: `${classes.length ? (new Set(sessionFees.map((fee) => fee.className)).size / classes.length) * 100 : 0}%`,
                   }}
                 />
               </div>
@@ -868,7 +841,7 @@ export default function FeeStructure() {
                           fee.year === assignYear,
                       ).length
                     }{" "}
-                    fee heads · {activeStudents[assignClass]} active students
+                    fee heads · {assignStudentCount} active students
                   </span>
                   <strong className="text-slate-800">
                     {money(

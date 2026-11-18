@@ -48,6 +48,7 @@ interface PaginatedMarkEntries {
 const validateMarkEntryBody = (body: Partial<CreateMarkEntryDto>): string | null => {
   if (typeof body.examId !== 'number' || body.examId <= 0) return 'Exam ID is required';
   if (typeof body.examName !== 'string' || !body.examName.trim()) return 'Exam name is required';
+  if (typeof body.admissionId !== 'number' || body.admissionId <= 0) return 'Admission ID is required';
   if (typeof body.studentId !== 'string' || !body.studentId.trim()) return 'Student ID is required';
   if (typeof body.admissionNo !== 'string' || !body.admissionNo.trim()) return 'Admission number is required';
   if (typeof body.studentName !== 'string' || !body.studentName.trim()) return 'Student name is required';
@@ -73,8 +74,8 @@ const validateBulkBody = (body: Partial<BulkMarkEntryDto>): string | null => {
   if (!Array.isArray(body.entries) || body.entries.length === 0) return 'At least one entry is required';
   
   for (const entry of body.entries) {
-    if (!entry.studentId || !entry.admissionNo || !entry.studentName || !entry.rollNo) {
-      return 'Each entry must have studentId, admissionNo, studentName, and rollNo';
+    if (!entry.admissionId || !entry.studentId || !entry.admissionNo || !entry.studentName || !entry.rollNo) {
+      return 'Each entry must have admissionId, studentId, admissionNo, studentName, and rollNo';
     }
     if (entry.marksObtained !== null && entry.marksObtained !== undefined) {
       if (typeof entry.marksObtained !== 'number' || entry.marksObtained < 0) return 'Marks must be non-negative';

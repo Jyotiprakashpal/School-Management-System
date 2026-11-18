@@ -73,6 +73,7 @@ export const subjectRepository = {
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    await sql`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_subjects_type ON subjects(type)
     `;

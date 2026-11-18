@@ -127,6 +127,8 @@ export const classResultRepository = {
         PRIMARY KEY ("examId", "studentId")
       )
     `;
+    await sql`ALTER TABLE class_results DROP CONSTRAINT IF EXISTS "class_results_studentId_fkey"`;
+    await sql`ALTER TABLE class_results ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_class_results_exam_id ON class_results("examId")
     `;

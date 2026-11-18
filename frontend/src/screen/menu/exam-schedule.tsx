@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AdmitCardPrint, Button, DatePicker, Dropdown, ExamScheduleSkeleton, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { del, get, post, put } from "../../api/methods";
+import { getAuthUser } from "../../auth/session";
+import { onExamScheduleChanged } from "../../api/socket";
 
 type Schedule = {
   className: string;
@@ -14,30 +18,10 @@ type Schedule = {
   room: string;
   startTime: string;
   subject: string;
+  examId?: number | null;
 };
 
-const HY = "Half Yearly Examination";
-const UT = "Unit Test 2";
-const AN = "Annual Examination";
-const exams = [HY, UT, AN];
-const classOptions = ["Class 8-A", "Class 9-A", "Class 10-A", "Class 10-B"];
-const subjects = ["English", "Mathematics", "Science", "Social Studies", "Hindi", "Computer"];
-const rooms = ["Room 10", "Room 9", "Science Hall", "Main Hall"];
-const invigilators = ["Priya Sharma", "Ravi Verma", "Neha Singh", "Anjali Gupta"];
-
-const initialSchedules: Schedule[] = [
-  { id: 1, exam: HY, date: "2026-10-14", subject: "English", className: "Class 10-A", startTime: "09:00", endTime: "12:00", room: "Room 10", invigilator: "Priya Sharma", maxMarks: "100" },
-  { id: 2, exam: HY, date: "2026-10-16", subject: "Mathematics", className: "Class 10-A", startTime: "09:00", endTime: "12:00", room: "Room 10", invigilator: "Ravi Verma", maxMarks: "100" },
-  { id: 3, exam: HY, date: "2026-10-18", subject: "Science", className: "Class 10-A", startTime: "09:00", endTime: "12:00", room: "Science Hall", invigilator: "Neha Singh", maxMarks: "100" },
-  { id: 4, exam: HY, date: "2026-10-21", subject: "Social Studies", className: "Class 10-A", startTime: "09:00", endTime: "11:30", room: "Room 10", invigilator: "Anjali Gupta", maxMarks: "80" },
-  { id: 5, exam: HY, date: "2026-10-14", subject: "Hindi", className: "Class 9-A", startTime: "09:00", endTime: "11:30", room: "Room 9", invigilator: "Anjali Gupta", maxMarks: "80" },
-  { id: 6, exam: HY, date: "2026-10-16", subject: "Science", className: "Class 9-A", startTime: "09:00", endTime: "12:00", room: "Science Hall", invigilator: "Neha Singh", maxMarks: "100" },
-  { id: 7, exam: UT, date: "2026-10-05", subject: "English", className: "Class 10-A", startTime: "10:00", endTime: "11:00", room: "Room 10", invigilator: "Priya Sharma", maxMarks: "25" },
-  { id: 8, exam: UT, date: "2026-10-06", subject: "Mathematics", className: "Class 10-A", startTime: "10:00", endTime: "11:00", room: "Room 10", invigilator: "Ravi Verma", maxMarks: "25" },
-  { id: 9, exam: UT, date: "2026-10-09", subject: "Science", className: "Class 10-A", startTime: "10:00", endTime: "11:00", room: "Science Hall", invigilator: "Neha Singh", maxMarks: "25" },
-];
-
-const blankSchedule = { date: "", subject: "", className: "Class 10-A", startTime: "09:00", endTime: "12:00", room: "", invigilator: "", maxMarks: "100" };
+const blankSchedule = { date: "", subject: "", className: "", startTime: "09:00", endTime: "12:00", room: "", invigilator: "", maxMarks: "100" };
 const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
 
 type IconType = "calendar" | "card" | "clock" | "room" | "plus" | "edit" | "trash" | "copy" | "download" | "print" | "search" | "reset" | "user" | "check" | "alert";
@@ -96,8 +80,14 @@ const whenStyle: Record<Exclude<When, "All">, { badge: string; strip: string; ti
 
 export default function ExamSchedule() {
   const [initialLoading, setInitialLoading] = useState(true);
-  const [exam, setExam] = useState(HY);
-  const [classFilter, setClassFilter] = useState("Class 10-A");
+  const [exams, setExams] = useState<{ id: number; name: string; session: string }[]>([]);
+  const [examId, setExamId] = useState<number | null>(null);
+  const [exam, setExam] = useState("");
+  const [classOptions, setClassOptions] = useState<string[]>([]);
+  const [subjectOptions, setSubjectOptions] = useState<Record<string, string[]>>({});
+  const [invigilators, setInvigilators] = useState<string[]>([]);
+  const [rooms, setRooms] = useState<string[]>([]);
+  const [classFilter, setClassFilter] = useState("");
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [query, setQuery] = useState("");
   const [when, setWhen] = useState<When>("All");
@@ -109,14 +99,27 @@ export default function ExamSchedule() {
   const [admitCardOpen, setAdmitCardOpen] = useState(false);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    const loadExamSchedule = window.setTimeout(() => {
-      setSchedules(initialSchedules);
-      setInitialLoading(false);
-    }, 1000);
-
-    return () => window.clearTimeout(loadExamSchedule);
-  }, []);
+  const loadScheduleData = async () => {
+    const [examResponse, scheduleResponse, classResponse, mapResponse, staffResponse] = await Promise.all([
+      get<{ data: { id: number; name: string; session: string }[] }>(`${API_BASE}${API_ENDPOINTS.EXAMS}?page=1&limit=100`, { cache: "no-store" }),
+      get<{ data: Schedule[] }>(`${API_BASE}${API_ENDPOINTS.EXAM_SCHEDULES}?page=1&limit=100`, { cache: "no-store" }),
+      get<{ name: string; sections?: string[] }[]>(`${API_BASE}${API_ENDPOINTS.CLASSES}`, { cache: "no-store" }),
+      get<{ data: { className: string; section: string; subjectName: string }[] }>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}?page=1&limit=100`, { cache: "no-store" }),
+      get<{ data: { name: string; status?: string }[] }>(`${API_BASE}${API_ENDPOINTS.STAFF}?limit=100`, { cache: "no-store" }),
+    ]);
+    const nextExams = examResponse.data ?? [];
+    const nextClasses = classResponse.flatMap((item) => (item.sections?.length ? item.sections.map((section) => `${item.name}-${section}`) : [item.name]));
+    const subjectsByClass: Record<string, string[]> = {};
+    for (const item of mapResponse.data ?? []) { const key = `${item.className}-${item.section}`; subjectsByClass[key] = [...(subjectsByClass[key] ?? []), item.subjectName]; }
+    const nextSchedules = (scheduleResponse.data ?? []).map((item: Schedule & { examName?: string; maxMarks: number | string }) => ({ ...item, exam: item.examName ?? item.exam ?? "", date: item.date.slice(0, 10), maxMarks: String(item.maxMarks) }));
+    setExams(nextExams); setSchedules(nextSchedules); setClassOptions(nextClasses); setSubjectOptions(subjectsByClass);
+    setInvigilators((staffResponse.data ?? []).filter((item) => !item.status || item.status === "Active").map((item) => item.name));
+    setRooms([...new Set(nextSchedules.map((item) => item.room).filter(Boolean))]);
+    const selectedExam = nextExams[0]; const selectedClass = nextClasses[0] ?? "";
+    setExamId(selectedExam?.id ?? null); setExam(selectedExam?.name ?? ""); setClassFilter(selectedClass);
+  };
+  useEffect(() => { let active = true; void loadScheduleData().catch((error) => showToast(error instanceof Error ? error.message : "Unable to load exam schedule.", { title: "Schedule unavailable", tone: "error" })).finally(() => { if (active) setInitialLoading(false); }); return () => { active = false; }; }, []);
+  useEffect(() => onExamScheduleChanged(() => void loadScheduleData()), []);
 
   const scoped = useMemo(() => schedules.filter((schedule) => schedule.exam === exam && schedule.className === classFilter).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)), [schedules, exam, classFilter]);
   const visible = scoped.filter((schedule) => {
@@ -196,20 +199,20 @@ export default function ExamSchedule() {
       return;
     }
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 700));
-    if (editingId) setSchedules((current) => current.map((schedule) => schedule.id === editingId ? { ...schedule, ...form } : schedule));
-    else setSchedules((current) => [...current, { id: Date.now(), exam, ...form }]);
-    setSaving(false);
-    setEditorOpen(false);
-    if (form.className !== classFilter) setClassFilter(form.className);
-    showToast(`${form.subject} schedule was ${editingId ? "updated" : "added"} successfully.`, { title: editingId ? "Schedule updated" : "Exam scheduled" });
+    try {
+      const payload = { examId: examId ?? undefined, examName: exam, subject: form.subject, className: form.className, date: form.date, startTime: form.startTime, endTime: form.endTime, room: form.room, invigilator: form.invigilator, maxMarks: Number(form.maxMarks), createdBy: getAuthUser()?.username || undefined };
+      const saved = editingId ? await put<Schedule>(`${API_BASE}${API_ENDPOINTS.EXAM_SCHEDULES}/${editingId}`, payload) : await post<Schedule>(API_BASE + API_ENDPOINTS.EXAM_SCHEDULES, payload);
+      const nextSaved = { ...saved, exam: (saved as Schedule & { examName?: string }).examName ?? exam, maxMarks: String(saved.maxMarks) };
+      setSchedules((current) => editingId ? current.map((schedule) => schedule.id === nextSaved.id ? nextSaved : schedule) : [...current, nextSaved]);
+      setRooms((current) => current.includes(nextSaved.room) ? current : [...current, nextSaved.room]); setEditorOpen(false); if (form.className !== classFilter) setClassFilter(form.className);
+      showToast(`${form.subject} schedule was ${editingId ? "updated" : "added"} successfully.`, { title: editingId ? "Schedule updated" : "Exam scheduled" });
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to save schedule.", { title: "Schedule save failed", tone: "error" }); }
+    finally { setSaving(false); }
   };
 
   const confirmDelete = () => {
     if (!deleteSchedule) return;
-    setSchedules((current) => current.filter((schedule) => schedule.id !== deleteSchedule.id));
-    showToast(`${deleteSchedule.subject} was removed from the exam schedule.`, { title: "Schedule removed", tone: "info" });
-    setDeleteSchedule(null);
+    void del(`${API_BASE}${API_ENDPOINTS.EXAM_SCHEDULES}/${deleteSchedule.id}`).then(() => { setSchedules((current) => current.filter((schedule) => schedule.id !== deleteSchedule.id)); showToast(`${deleteSchedule.subject} was removed from the exam schedule.`, { title: "Schedule removed", tone: "info" }); setDeleteSchedule(null); }).catch((error) => showToast(error instanceof Error ? error.message : "Unable to delete schedule.", { title: "Delete failed", tone: "error" }));
   };
 
   const exportCsv = () => {
@@ -278,7 +281,7 @@ export default function ExamSchedule() {
       <section className="exam-schedule-filter-panel panel overflow-hidden">
         <PanelHead icon="calendar" title="Schedule Filters" subtitle="Choose an examination and class" action={<span className="status-info">Session 2027–28</span>} />
         <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3.5 p-3.5 sm:gap-x-4 sm:p-5 [&>:first-child]:col-span-2 sm:[&>:first-child]:col-span-1">
-          <Dropdown label="Examination" value={exam} onChange={(event) => { setExam(event.target.value); setWhen("All"); }} options={exams.map((value) => ({ label: value, value }))} />
+          <Dropdown label="Examination" value={String(examId ?? "")} onChange={(event) => { const selected = exams.find((value) => value.id === Number(event.target.value)); setExamId(selected?.id ?? null); setExam(selected?.name ?? ""); setWhen("All"); }} options={exams.map((value) => ({ label: `${value.name} (${value.session})`, value: String(value.id) }))} />
           <Dropdown label="Class & Section" value={classFilter} onChange={(event) => { setClassFilter(event.target.value); setWhen("All"); }} options={classOptions.map((value) => ({ label: value, value }))} />
         </div>
       </section>
@@ -378,12 +381,12 @@ export default function ExamSchedule() {
     >
       <div className="grid grid-cols-2 items-start gap-x-3 gap-y-3.5 sm:gap-x-4 sm:gap-y-4 [&>*]:min-w-0 max-sm:[&>:nth-child(-n+4)]:col-span-2 max-sm:[&>:nth-child(7)]:col-span-2 max-sm:[&>:nth-child(8)]:col-span-2">
         <DatePicker label="Exam Date" required value={form.date} onChange={(value) => setField("date", value)} />
-        <Dropdown label="Subject *" value={form.subject} onChange={(event) => setField("subject", event.target.value)} placeholder="Select subject" options={subjects.map((value) => ({ label: value, value }))} />
+        <Dropdown label="Subject *" value={form.subject} onChange={(event) => setField("subject", event.target.value)} placeholder="Select subject" options={(subjectOptions[form.className] ?? []).map((value) => ({ label: value, value }))} />
         <Dropdown label="Class & Section" value={form.className} onChange={(event) => setField("className", event.target.value)} options={classOptions.map((value) => ({ label: value, value }))} />
         <Input label="Maximum Marks" type="number" min="1" value={form.maxMarks} onChange={(event) => setField("maxMarks", event.target.value)} />
         <Input label="Start Time" type="time" value={form.startTime} onChange={(event) => setField("startTime", event.target.value)} />
         <Input label="End Time" type="time" value={form.endTime} onChange={(event) => setField("endTime", event.target.value)} />
-        <Dropdown label="Exam Room *" value={form.room} onChange={(event) => setField("room", event.target.value)} placeholder="Select room" options={rooms.map((value) => ({ label: value, value }))} />
+        <Input label="Exam Room *" value={form.room} onChange={(event) => setField("room", event.target.value)} placeholder="e.g. Room 10" />
         <Dropdown label="Invigilator *" value={form.invigilator} onChange={(event) => setField("invigilator", event.target.value)} placeholder="Select teacher" options={invigilators.map((value) => ({ label: value, value }))} />
       </div>
     </Popup>

@@ -9,6 +9,9 @@ import {
 } from "../../components"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { get } from "../../api/methods"
+import { onAdmissionsChanged, onAttendanceChanged } from "../../api/socket"
 
 type Record_ = {
   absent: number
@@ -21,86 +24,6 @@ type Record_ = {
 }
 type Tone = "good" | "low" | "critical"
 
-const classes = ["Nursery", "LKG", "UKG", "Class 1", "Class 2", "Class 3"]
-const months = ["July 2026", "August 2026", "September 2026", "October 2026"]
-const sessions = ["2026–27", "2027–28"]
-const workingDays: Record<string, number> = {
-  "July 2026": 22,
-  "August 2026": 20,
-  "September 2026": 21,
-  "October 2026": 9,
-}
-const firstNames = [
-  "Rahul",
-  "Ananya",
-  "Mohit",
-  "Priya",
-  "Aarav",
-  "Sneha",
-  "Kabir",
-  "Sara",
-  "Vihaan",
-  "Diya",
-  "Arjun",
-  "Meera",
-]
-const lastNames = [
-  "Kumar",
-  "Sharma",
-  "Verma",
-  "Singh",
-  "Gupta",
-  "Yadav",
-  "Patel",
-  "Mehta",
-]
-
-const buildRecords = (
-  className: string,
-  month: string,
-  session: string,
-): Record_[] => {
-  const seed =
-    classes.indexOf(className) * 7 +
-    months.indexOf(month) * 3 +
-    sessions.indexOf(session) * 5
-  const total = workingDays[month]
-  return Array.from({ length: 10 + (seed % 3) }, (_, index) => {
-    const mix = (index * 37 + seed * 11) % 100
-    const ratio =
-      index === 1 || index === 6
-        ? 0.58
-        : index === 3
-          ? 0.36
-          : mix < 15
-            ? 0.45
-            : mix < 35
-              ? 0.28
-              : mix < 60
-                ? 0.12
-                : 0.05
-    const absent = Math.min(
-      total,
-      Math.round(
-        ratio * total +
-          (index === 1 || index === 3 || index === 6 ? 0 : (index + seed) % 2),
-      ),
-    )
-    const leave = Math.min(
-      total - absent,
-      (index + seed) % 3 === 0 ? 1 : (index * 2 + seed) % 4 === 0 ? 2 : 0,
-    )
-    return {
-      rollNo: index + 1,
-      admissionNo: `ADM-26-${1000 + classes.indexOf(className) * 20 + index + 1}`,
-      name: `${firstNames[(index * 5 + seed) % firstNames.length]} ${lastNames[(index * 3 + seed) % lastNames.length]}`,
-      present: total - absent - leave,
-      absent,
-      leave,
-      totalDays: total,
-    }
-  })
-}
 
 const percentage = (record: Record_) =>
   record.totalDays
@@ -232,9 +155,12 @@ function PanelHead({
 }
 
 export default function AttendanceReport() {
-  const [className, setClassName] = useState("UKG")
-  const [month, setMonth] = useState("September 2026")
-  const [session, setSession] = useState("2027–28")
+  const [className, setClassName] = useState("")
+  const [month, setMonth] = useState("")
+  const [session, setSession] = useState("")
+  const [classOptions, setClassOptions] = useState<string[]>([])
+  const [sessionOptions, setSessionOptions] = useState<{ name: string; startDate: string; endDate: string }[]>([])
+  const [monthOptions, setMonthOptions] = useState<string[]>([])
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState<"all" | Tone>("all")
   const [sort, setSort] = useState("roll")
@@ -242,18 +168,87 @@ export default function AttendanceReport() {
   const [pageSize, setPageSize] = useState(5)
   const [selected, setSelected] = useState<Record_ | null>(null)
   const [records, setRecords] = useState<Record_[] | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
   const registerRef = useRef<HTMLElement>(null)
   const { showToast } = useToast()
 
   useEffect(() => {
+    const refresh = () => setRefreshKey((value) => value + 1)
+    const unsubscribeAdmissions = onAdmissionsChanged(refresh)
+    const unsubscribeAttendance = onAttendanceChanged(refresh)
+    return () => { unsubscribeAdmissions(); unsubscribeAttendance() }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    void Promise.all([
+      get<{ name: string }[]>(`${API_BASE}${API_ENDPOINTS.CLASSES}`, { cache: "no-store" }),
+      get<{ name: string; startDate: string; endDate: string; current?: boolean }[]>(`${API_BASE}${API_ENDPOINTS.SESSIONS}/simple`, { cache: "no-store" }),
+    ]).then(([classesResponse, sessionsResponse]) => {
+      if (!active) return
+      const loadedClasses = classesResponse.map((item) => item.name)
+      setClassOptions(loadedClasses)
+      setSessionOptions(sessionsResponse)
+      setClassName((current) => current || loadedClasses[0] || "")
+      const currentSession = sessionsResponse.find((item) => item.current) ?? sessionsResponse[0]
+      setSession((current) => current || currentSession?.name || "")
+    }).catch((error) => {
+      if (active) showToast(error instanceof Error ? error.message : "Unable to load report filters.", { title: "Report unavailable", tone: "error" })
+    })
+    return () => { active = false }
+  }, [showToast, refreshKey])
+
+  useEffect(() => {
+    if (!className || !session) return
+    let active = true
     setRecords(null)
-    const loadRecords = window.setTimeout(() => {
-      setRecords(buildRecords(className, month, session))
-    }, 700)
-    return () => window.clearTimeout(loadRecords)
-  }, [className, month, session])
+    const sessionInfo = sessionOptions.find((item) => item.name === session)
+    const start = sessionInfo ? new Date(sessionInfo.startDate) : new Date()
+    const end = sessionInfo ? new Date(sessionInfo.endDate) : new Date()
+    const generatedMonths: string[] = []
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
+    const last = new Date(end.getFullYear(), end.getMonth(), 1)
+    while (cursor <= last && generatedMonths.length < 24) {
+      generatedMonths.push(cursor.toISOString().slice(0, 7))
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+    setMonthOptions(generatedMonths)
+    const selectedMonth = month || generatedMonths[0] || new Date().toISOString().slice(0, 7)
+    setMonth(selectedMonth)
+    void Promise.all([
+      get<{ data: { admissionNo: string; fullName: string; className: string | null; academicYear: string | null }[] }>(`${API_BASE}${API_ENDPOINTS.ADMISSIONS}?className=${encodeURIComponent(className)}&status=Active&page=1&limit=100`, { cache: "no-store" }),
+      get<{ data: { admissionNo: string; studentName: string; rollNo: number; date: string; status: "present" | "absent" | "leave" }[] }>(`${API_BASE}${API_ENDPOINTS.ATTENDANCE}?className=${encodeURIComponent(className)}&page=1&limit=100`, { cache: "no-store" }),
+    ]).then(([studentsResponse, attendanceResponse]) => {
+      if (!active) return
+      const monthRecords = attendanceResponse.data.filter((record) => record.date.slice(0, 7) === selectedMonth)
+      const totalDays = new Set(monthRecords.map((record) => record.date)).size
+      const students = studentsResponse.data.filter((student) => !student.academicYear || student.academicYear === session)
+      const attendanceByStudent = new Map<string, typeof monthRecords>()
+      monthRecords.forEach((record) => {
+        const list = attendanceByStudent.get(record.admissionNo) ?? []
+        list.push(record)
+        attendanceByStudent.set(record.admissionNo, list)
+      })
+      setRecords(students.map((student, index) => {
+        const studentRecords = attendanceByStudent.get(student.admissionNo) ?? []
+        return {
+          rollNo: index + 1,
+          admissionNo: student.admissionNo,
+          name: student.fullName,
+          present: studentRecords.filter((record) => record.status === "present").length,
+          absent: studentRecords.filter((record) => record.status === "absent").length,
+          leave: studentRecords.filter((record) => record.status === "leave").length,
+          totalDays,
+        }
+      }))
+    }).catch((error) => {
+      if (active) { setRecords([]); showToast(error instanceof Error ? error.message : "Unable to load attendance report.", { title: "Report unavailable", tone: "error" }) }
+    })
+    return () => { active = false }
+  }, [className, session, month, sessionOptions, refreshKey, showToast])
 
   const reportRecords = records ?? []
+  const workingDayCount = reportRecords[0]?.totalDays ?? 0
   const counts = useMemo(
     () => ({
       good: reportRecords.filter((r) => toneOf(percentage(r)) === "good")
@@ -478,7 +473,7 @@ export default function AttendanceReport() {
             <div className="min-w-0">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs text-white/80 backdrop-blur-sm">
                 <ReportIcon type="calendar" className="size-4" />
-                {month} · {workingDays[month]} working days
+                {month || "No month selected"} · {workingDayCount} recorded days
               </div>
               <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">
                 {className} Attendance Report
@@ -552,7 +547,7 @@ export default function AttendanceReport() {
                 setClassName(event.target.value)
                 setCurrentPage(1)
               }}
-              options={classes.map((value) => ({ label: value, value }))}
+              options={classOptions.map((value) => ({ label: value, value }))}
             />
             <Dropdown
               label="Month"
@@ -561,7 +556,7 @@ export default function AttendanceReport() {
                 setMonth(event.target.value)
                 setCurrentPage(1)
               }}
-              options={months.map((value) => ({ label: value, value }))}
+              options={monthOptions.map((value) => ({ label: value, value }))}
             />
             <Dropdown
               label="Academic Session"
@@ -570,7 +565,7 @@ export default function AttendanceReport() {
                 setSession(event.target.value)
                 setCurrentPage(1)
               }}
-              options={sessions.map((value) => ({ label: value, value }))}
+              options={sessionOptions.map((value) => ({ label: value.name, value: value.name }))}
             />
           </div>
         </section>

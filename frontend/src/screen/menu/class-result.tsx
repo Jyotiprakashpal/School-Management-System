@@ -2,18 +2,15 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, ClassResultSkeleton, Dropdown, Input, PremiumPagination, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { get, post } from "../../api/methods";
+import { getAuthUser } from "../../auth/session";
+import { onClassResultChanged } from "../../api/socket";
 
 type Subject = { name: string; score: number; total: number };
 type ResultRecord = { admissionNo: string; name: string; subjects: Subject[] };
 type Ranked = ResultRecord & { rank: number; obtained: number; maximum: number; percentage: number; grade: string; passed: boolean };
 type Filter = "all" | "pass" | "fail";
-
-const examOptions = ["Half Yearly Examination", "Unit Test 2", "Annual Examination"];
-const classOptions = ["Class 8", "Class 9", "Class 10"];
-const sectionOptions = ["A", "B", "C"];
-const subjectNames = ["English", "Mathematics", "Science", "Social Studies", "Hindi", "Computer"];
-const firstNames = ["Anaya", "Rahul", "Ravi", "Sara", "Kabir", "Vihaan", "Diya", "Arjun", "Meera", "Aarav", "Sneha", "Mohit"];
-const lastNames = ["Patel", "Kumar", "Singh", "Mehta", "Sharma", "Verma", "Gupta", "Yadav"];
 
 const gradeScale = [
   { grade: "A+", min: 90, bar: "bg-emerald-500" },
@@ -30,28 +27,6 @@ const initials = (name: string) => name.split(" ").map((part) => part[0]).slice(
 const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
 const escapeReportText = (value: string | number) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
 const reportRemark = (record: Ranked) => record.percentage >= 90 ? "Outstanding academic performance. Keep pursuing excellence with the same dedication." : record.percentage >= 75 ? "Very good performance with consistent achievement across the curriculum." : record.percentage >= 60 ? "Good progress. Continued practice will help strengthen overall achievement." : record.passed ? "Satisfactory progress. Focused support in lower-scoring subjects is recommended." : "Additional academic support and focused revision are recommended before the next assessment.";
-
-const buildResults = (exam: string, className: string, section: string): Ranked[] => {
-  const seed = classOptions.indexOf(className) * 7 + sectionOptions.indexOf(section) * 3 + examOptions.indexOf(exam) * 5;
-  const records: ResultRecord[] = Array.from({ length: 9 + (seed % 3) }, (_, index) => {
-    const base = 94 - index * 6 - ((index * seed) % 4);
-    const weak = index === 7;
-    return {
-      admissionNo: `ADM-26-${1001 + classOptions.indexOf(className) * 200 + sectionOptions.indexOf(section) * 60 + index * 7}`,
-      name: `${firstNames[(index * 5 + seed) % firstNames.length]} ${lastNames[(index * 3 + seed) % lastNames.length]}`,
-      subjects: subjectNames.map((name, s) => ({ name, total: 100, score: Math.max(12, Math.min(99, (weak && s === 1 ? 28 : base) + ((s * 3 + index + seed) % 7) - 3)) })),
-    };
-  });
-  return records
-    .map((record) => {
-      const obtained = record.subjects.reduce((sum, s) => sum + s.score, 0);
-      const maximum = record.subjects.reduce((sum, s) => sum + s.total, 0);
-      const percentage = Number(((obtained / maximum) * 100).toFixed(1));
-      return { ...record, rank: 0, obtained, maximum, percentage, grade: gradeFor(percentage), passed: record.subjects.every((s) => s.score >= s.total * 0.35) };
-    })
-    .sort((a, b) => b.percentage - a.percentage)
-    .map((record, index) => ({ ...record, rank: index + 1 }));
-};
 
 type IconType = "trophy" | "chart" | "publish" | "users" | "check" | "close" | "search" | "download" | "print" | "reset" | "eye" | "load";
 
@@ -88,10 +63,15 @@ const medal = ["from-amber-300 to-amber-500", "from-slate-300 to-slate-400", "fr
 
 export default function ClassResult() {
   const [initialLoading, setInitialLoading] = useState(true);
-  const [exam, setExam] = useState("Half Yearly Examination");
-  const [className, setClassName] = useState("Class 10");
-  const [section, setSection] = useState("A");
-  const [loaded, setLoaded] = useState({ exam: "Half Yearly Examination", className: "Class 10", section: "A" });
+  const [exams, setExams] = useState<{ id: number; name: string; session: string }[]>([]);
+  const [classOptions, setClassOptions] = useState<string[]>([]);
+  const [classSections, setClassSections] = useState<Record<string, string[]>>({});
+  const [sectionOptions, setSectionOptions] = useState<string[]>([]);
+  const [examId, setExamId] = useState<number | null>(null);
+  const [exam, setExam] = useState("");
+  const [className, setClassName] = useState("");
+  const [section, setSection] = useState("");
+  const [loaded, setLoaded] = useState({ exam: "", className: "", section: "", examId: 0, session: "" });
   const [loading, setLoading] = useState(false);
   const [published, setPublished] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -104,14 +84,19 @@ export default function ClassResult() {
   const [results, setResults] = useState<Ranked[]>([]);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    const loadClassResult = window.setTimeout(() => {
-      setResults(buildResults("Half Yearly Examination", "Class 10", "A"));
-      setInitialLoading(false);
-    }, 1000);
-
-    return () => window.clearTimeout(loadClassResult);
-  }, []);
+  const mapResults = (items: Array<{ admissionNo: string; studentName: string; subjects: Array<{ subject: string; maximumMarks: number; marksObtained: number | null }>; totalObtained: number; totalMaximum: number; overallPercentage: number; overallGrade: string; rank: number; passed: boolean }>): Ranked[] => items.map((item) => ({ admissionNo: item.admissionNo, name: item.studentName, subjects: item.subjects.map((subject) => ({ name: subject.subject, total: subject.maximumMarks, score: subject.marksObtained ?? 0 })), obtained: item.totalObtained, maximum: item.totalMaximum, percentage: Number(item.overallPercentage), grade: item.overallGrade, rank: item.rank, passed: item.passed }));
+  const loadMetadata = async () => {
+    const [examResponse, classResponse] = await Promise.all([
+      get<{ data: { id: number; name: string; session: string }[] }>(`${API_BASE}${API_ENDPOINTS.EXAMS}?page=1&limit=100`, { cache: "no-store" }),
+      get<{ name: string; sections?: string[] }[]>(`${API_BASE}${API_ENDPOINTS.CLASSES}`, { cache: "no-store" }),
+    ]);
+    const nextExams = examResponse.data ?? [];
+    const nextClasses = classResponse ?? [];
+    const firstExam = nextExams[0]; const firstClass = nextClasses[0];
+    setExams(nextExams); setClassOptions(nextClasses.map((item) => item.name)); setClassSections(Object.fromEntries(nextClasses.map((item) => [item.name, item.sections ?? []]))); setSectionOptions(firstClass?.sections ?? []);
+    setExamId(firstExam?.id ?? null); setExam(firstExam?.name ?? ""); setClassName(firstClass?.name ?? ""); setSection(firstClass?.sections?.[0] ?? "");
+  };
+  useEffect(() => { let active = true; void loadMetadata().catch((error) => showToast(error instanceof Error ? error.message : "Unable to load result filters.", { title: "Results unavailable", tone: "error" })).finally(() => { if (active) setInitialLoading(false); }); return () => { active = false; }; }, []);
 
   const stale = exam !== loaded.exam || className !== loaded.className || section !== loaded.section;
 
@@ -119,11 +104,12 @@ export default function ClassResult() {
     const passed = results.filter((r) => r.passed).length;
     const average = results.reduce((sum, r) => sum + r.percentage, 0) / (results.length || 1);
     const distribution = gradeScale.map((item) => ({ ...item, count: results.filter((r) => r.grade === item.grade).length }));
-    const subjectAverages = subjectNames.map((name) => ({ name, average: results.reduce((sum, r) => sum + (r.subjects.find((s) => s.name === name)?.score ?? 0), 0) / (results.length || 1) }));
+    const subjectNames = [...new Set(results.flatMap((result) => result.subjects.map((subject) => subject.name)))];
+    const subjectAverages = subjectNames.map((name) => ({ name, average: results.reduce((sum, r) => { const subject = r.subjects.find((s) => s.name === name); return sum + (subject ? (subject.score / subject.total) * 100 : 0); }, 0) / (results.length || 1) }));
     return { passed, failed: results.length - passed, average, distribution, subjectAverages, passRate: Math.round((passed / (results.length || 1)) * 100) };
   }, [results]);
 
-  const topper = results[0];
+  const topper: Ranked = results[0] ?? { admissionNo: "", name: "No result available", subjects: [], rank: 0, obtained: 0, maximum: 0, percentage: 0, grade: "-", passed: false };
   const maxCount = Math.max(1, ...summary.distribution.map((item) => item.count));
   const counts: Record<Filter, number> = { all: results.length, pass: summary.passed, fail: summary.failed };
 
@@ -136,33 +122,36 @@ export default function ClassResult() {
   const safePage = Math.min(currentPage, totalPages);
   const paged = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-  if (initialLoading) return <ClassResultSkeleton />;
-
   const changeSelection = (setter: (value: string) => void) => (event: { target: { value: string } }) => setter(event.target.value);
 
   const loadResult = async () => {
+    if (!examId || !className || !section) return;
     setLoading(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 650));
-    setLoaded({ exam, className, section });
-    setResults(buildResults(exam, className, section));
-    setPublished(false);
-    setSearch("");
-    setFilter("all");
-    setCurrentPage(1);
-    setLoading(false);
-    showToast(`${className}-${section} result loaded for ${exam}.`, { title: "Class result updated", tone: "info" });
+    try {
+      let response = await get<Array<{ admissionNo: string; studentName: string; subjects: Array<{ subject: string; maximumMarks: number; marksObtained: number | null }>; totalObtained: number; totalMaximum: number; overallPercentage: number; overallGrade: string; rank: number; passed: boolean; published?: boolean }>>(`${API_BASE}${API_ENDPOINTS.CLASS_RESULTS}/exam/${examId}/class/${encodeURIComponent(className)}/section/${encodeURIComponent(section)}`, { cache: "no-store" });
+      if (!response.length) {
+        response = await post<typeof response>(`${API_BASE}${API_ENDPOINTS.CLASS_RESULTS}/generate`, { examId, className, section });
+      }
+      setLoaded({ exam, className, section, examId, session: exams.find((item) => item.id === examId)?.session ?? "" }); setResults(mapResults(response)); setPublished(response.length > 0 && response.every((item) => item.published)); setSearch(""); setFilter("all"); setCurrentPage(1);
+      showToast(`${className}-${section} result loaded for ${exam}.`, { title: "Class result updated", tone: "info" });
+    } catch (error) { setResults([]); showToast(error instanceof Error ? error.message : "Unable to load or generate result.", { title: "Result unavailable", tone: "error" }); }
+    finally { setLoading(false); }
   };
+  useEffect(() => { if (examId && className && section) void loadResult(); }, [examId, className, section]);
+  useEffect(() => onClassResultChanged(() => { if (examId && className && section) void loadResult(); }), [examId, className, section]);
+
+  if (initialLoading) return <ClassResultSkeleton />;
 
   const publishResult = async () => {
+    if (!loaded.examId) return;
     setPublishing(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 900));
-    setPublishing(false);
-    setPublishOpen(false);
-    setPublished(true);
-    showToast(`${loaded.className}-${loaded.section} result is now visible to students and guardians.`, { title: "Result published successfully" });
+    try { await post(`${API_BASE}${API_ENDPOINTS.CLASS_RESULTS}/publish`, { examId: loaded.examId, className: loaded.className, section: loaded.section, publishedBy: getAuthUser()?.username || "Administrator" }); setPublished(true); setPublishOpen(false); showToast(`${loaded.className}-${loaded.section} result is now visible to students and guardians.`, { title: "Result published successfully" }); }
+    catch (error) { showToast(error instanceof Error ? error.message : "Unable to publish result.", { title: "Publish failed", tone: "error" }); }
+    finally { setPublishing(false); }
   };
 
   const exportCsv = () => {
+    const subjectNames = [...new Set(results.flatMap((result) => result.subjects.map((subject) => subject.name)))];
     const head = ["Rank", "Admission No", "Student", ...subjectNames, "Total", "Percentage", "Grade", "Result"].map(csvCell).join(",");
     const lines = results.map((r) => [r.rank, r.admissionNo, r.name, ...r.subjects.map((s) => s.score), `${r.obtained}/${r.maximum}`, `${r.percentage}%`, r.grade, r.passed ? "Passed" : "Failed"].map(csvCell).join(","));
     const url = URL.createObjectURL(new Blob([[head, ...lines].join("\n")], { type: "text/csv" }));
@@ -187,7 +176,7 @@ export default function ClassResult() {
   const printResult = () => printHtml("Class Result", `<h2>${loaded.exam} - Class Result</h2><p>${loaded.className}-${loaded.section} · Average ${summary.average.toFixed(1)}% · Pass rate ${summary.passRate}%</p><table><thead><tr><th>Rank</th><th>Admission No.</th><th>Student</th><th>Total</th><th>%</th><th>Grade</th><th>Result</th></tr></thead><tbody>${results.map((r) => `<tr><td>${r.rank}</td><td>${r.admissionNo}</td><td>${r.name}</td><td>${r.obtained}/${r.maximum}</td><td>${r.percentage}%</td><td>${r.grade}</td><td>${r.passed ? "Passed" : "Failed"}</td></tr>`).join("")}</tbody></table>`);
   const printReportCard = (record: Ranked) => {
     const remarks = reportRemark(record);
-    printHtml("Student Report Card", `<article class="report-sheet"><header class="school-head"><div class="brand"><div class="brand-mark">PI</div><div><div class="school-name">PAL IT HUB</div><div class="school-copy">12 Knowledge Park, Lucknow, Uttar Pradesh · www.pal.education</div></div></div><div class="document-title"><strong>Academic Report Card</strong><span>Session 2027–28</span></div></header><section class="student-banner"><div class="student-avatar">${escapeReportText(initials(record.name))}</div><div><div class="student-name">${escapeReportText(record.name)}</div><div class="student-id">${escapeReportText(record.admissionNo)}</div></div><div class="result-stamp ${record.passed ? "" : "fail"}">${record.passed ? "Promoted" : "Needs Improvement"}</div></section><section class="meta-grid"><div class="meta-item"><span>Examination</span><strong>${escapeReportText(loaded.exam)}</strong></div><div class="meta-item"><span>Class & Section</span><strong>${escapeReportText(`${loaded.className}-${loaded.section}`)}</strong></div><div class="meta-item"><span>Academic Session</span><strong>2027–28</strong></div><div class="meta-item"><span>Admission Number</span><strong>${escapeReportText(record.admissionNo)}</strong></div></section><table class="marks-table"><thead><tr><th>Subject</th><th>Maximum</th><th>Obtained</th><th>Percentage</th><th>Grade</th><th>Status</th></tr></thead><tbody>${record.subjects.map((subject) => { const percentage = (subject.score / subject.total) * 100; const pass = percentage >= 35; return `<tr><td>${escapeReportText(subject.name)}</td><td>${subject.total}</td><td><strong>${subject.score}</strong></td><td>${percentage.toFixed(0)}%</td><td><strong>${gradeFor(percentage)}</strong></td><td>${pass ? "Pass" : "Fail"}</td></tr>`; }).join("")}</tbody></table><section class="summary-grid"><div class="summary-item"><strong>${record.obtained}/${record.maximum}</strong><span>Total Marks</span></div><div class="summary-item"><strong>${record.percentage}%</strong><span>Percentage</span></div><div class="summary-item"><strong>${record.grade}</strong><span>Overall Grade</span></div><div class="summary-item"><strong>#${record.rank}</strong><span>Class Rank</span></div></section><div class="remarks"><strong>Class Teacher's Remarks:</strong> ${escapeReportText(remarks)}</div><section class="signatures"><div class="signature">Class Teacher</div><div class="signature">Parent / Guardian</div><div class="signature">Principal</div></section><footer class="document-foot">Computer-generated academic report · PAL IT HUB School Management System</footer></article>`);
+    printHtml("Student Report Card", `<article class="report-sheet"><header class="school-head"><div class="brand"><div class="brand-mark">PI</div><div><div class="school-name">PAL IT HUB</div><div class="school-copy">12 Knowledge Park, Lucknow, Uttar Pradesh · www.pal.education</div></div></div><div class="document-title"><strong>Academic Report Card</strong><span>Session ${escapeReportText(loaded.session)}</span></div></header><section class="student-banner"><div class="student-avatar">${escapeReportText(initials(record.name))}</div><div><div class="student-name">${escapeReportText(record.name)}</div><div class="student-id">${escapeReportText(record.admissionNo)}</div></div><div class="result-stamp ${record.passed ? "" : "fail"}">${record.passed ? "Promoted" : "Needs Improvement"}</div></section><section class="meta-grid"><div class="meta-item"><span>Examination</span><strong>${escapeReportText(loaded.exam)}</strong></div><div class="meta-item"><span>Class & Section</span><strong>${escapeReportText(`${loaded.className}-${loaded.section}`)}</strong></div><div class="meta-item"><span>Academic Session</span><strong>${escapeReportText(loaded.session)}</strong></div><div class="meta-item"><span>Admission Number</span><strong>${escapeReportText(record.admissionNo)}</strong></div></section><table class="marks-table"><thead><tr><th>Subject</th><th>Maximum</th><th>Obtained</th><th>Percentage</th><th>Grade</th><th>Status</th></tr></thead><tbody>${record.subjects.map((subject) => { const percentage = (subject.score / subject.total) * 100; const pass = percentage >= 35; return `<tr><td>${escapeReportText(subject.name)}</td><td>${subject.total}</td><td><strong>${subject.score}</strong></td><td>${percentage.toFixed(0)}%</td><td><strong>${gradeFor(percentage)}</strong></td><td>${pass ? "Pass" : "Fail"}</td></tr>`; }).join("")}</tbody></table><section class="summary-grid"><div class="summary-item"><strong>${record.obtained}/${record.maximum}</strong><span>Total Marks</span></div><div class="summary-item"><strong>${record.percentage}%</strong><span>Percentage</span></div><div class="summary-item"><strong>${record.grade}</strong><span>Overall Grade</span></div><div class="summary-item"><strong>#${record.rank}</strong><span>Class Rank</span></div></section><div class="remarks"><strong>Class Teacher's Remarks:</strong> ${escapeReportText(remarks)}</div><section class="signatures"><div class="signature">Class Teacher</div><div class="signature">Parent / Guardian</div><div class="signature">Principal</div></section><footer class="document-foot">Computer-generated academic report · PAL IT HUB School Management System</footer></article>`);
   };
 
   const stats: { label: string; value: string; copy: string; tone: string; icon: IconType }[] = [
@@ -229,8 +218,8 @@ export default function ClassResult() {
       <section className="class-result-filter-panel panel overflow-hidden">
         <PanelHead icon="chart" title="Result Filters" subtitle="Pick the exam and class to analyse" action={<span className={stale ? "status-warning" : published ? "status-success" : "status-warning"}>{stale ? "Selection changed" : published ? "Published" : "Draft Result"}</span>} />
         <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3.5 p-3.5 sm:gap-x-4 sm:p-5 md:grid-cols-4 xl:grid-cols-[1.3fr_1fr_.7fr_auto] [&>:first-child]:col-span-2 xl:[&>:first-child]:col-span-1 md:[&>:first-child]:col-span-2 [&>:last-child]:col-span-2 md:[&>:last-child]:col-span-4 xl:[&>:last-child]:col-span-1">
-          <Dropdown label="Examination" value={exam} onChange={changeSelection(setExam)} options={examOptions.map((value) => ({ label: value, value }))} />
-          <Dropdown label="Class" value={className} onChange={changeSelection(setClassName)} options={classOptions.map((value) => ({ label: value, value }))} />
+          <Dropdown label="Examination" value={String(examId ?? "")} onChange={(event) => { const selected = exams.find((item) => item.id === Number(event.target.value)); setExamId(selected?.id ?? null); setExam(selected?.name ?? ""); }} options={exams.map((value) => ({ label: `${value.name} (${value.session})`, value: String(value.id) }))} />
+          <Dropdown label="Class" value={className} onChange={(event) => { const selected = event.target.value; setClassName(selected); const nextSections = classSections[selected] ?? []; setSectionOptions(nextSections); setSection(nextSections[0] ?? ""); }} options={classOptions.map((value) => ({ label: value, value }))} />
           <Dropdown label="Section" value={section} onChange={changeSelection(setSection)} options={sectionOptions.map((value) => ({ label: value, value }))} />
           <Button onClick={loadResult} isLoading={loading} loadingText="Loading result..." icon={<ResultIcon type="load" className="size-4" />}>View Result</Button>
         </div>
@@ -346,7 +335,7 @@ export default function ClassResult() {
             <span className="font-display grid size-12 shrink-0 place-items-center rounded-2xl bg-(--app-accent-dark) text-base font-extrabold text-white shadow-lg">PI</span>
             <div><div className="font-display text-xl font-extrabold tracking-tight text-slate-950">PAL IT HUB</div><div className="mt-0.5 text-[0.65rem] text-slate-500">12 Knowledge Park, Lucknow · www.pal.education</div></div>
           </div>
-          <div className="sm:text-right"><div className="font-display text-sm font-extrabold uppercase tracking-[0.15em] text-(--app-accent-dark)">Academic Report Card</div><div className="mt-1 text-[0.65rem] font-semibold text-slate-400">Academic Session 2027–28</div></div>
+          <div className="sm:text-right"><div className="font-display text-sm font-extrabold uppercase tracking-[0.15em] text-(--app-accent-dark)">Academic Report Card</div><div className="mt-1 text-[0.65rem] font-semibold text-slate-400">Academic Session {loaded.session}</div></div>
         </header>
 
         <div className="p-4 sm:p-5">
@@ -356,7 +345,7 @@ export default function ClassResult() {
             <span className={`report-card-result-stamp shrink-0 rounded-lg border-2 px-2.5 py-1.5 text-[0.6rem] font-extrabold uppercase tracking-wider sm:px-3 sm:text-xs ${selectedRecord.passed ? "border-emerald-500 text-emerald-700" : "border-rose-500 text-rose-700"}`}>{selectedRecord.passed ? "Promoted" : "Needs Improvement"}</span>
           </section>
 
-          <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Examination", loaded.exam], ["Class & Section", `${loaded.className}-${loaded.section}`], ["Academic Session", "2027–28"], ["Admission Number", selectedRecord.admissionNo]].map(([label, value]) => <div key={label} className="report-card-meta rounded-xl border border-slate-100 p-2.5 sm:p-3"><dt className="text-[0.55rem] font-bold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-1 truncate text-xs font-bold text-slate-800" title={value}>{value}</dd></div>)}</dl>
+          <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Examination", loaded.exam], ["Class & Section", `${loaded.className}-${loaded.section}`], ["Academic Session", loaded.session], ["Admission Number", selectedRecord.admissionNo]].map(([label, value]) => <div key={label} className="report-card-meta rounded-xl border border-slate-100 p-2.5 sm:p-3"><dt className="text-[0.55rem] font-bold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-1 truncate text-xs font-bold text-slate-800" title={value}>{value}</dd></div>)}</dl>
 
           <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
             <table className="report-card-marks w-full min-w-[38rem] text-xs">

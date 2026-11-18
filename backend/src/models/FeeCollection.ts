@@ -136,6 +136,13 @@ export const feeCollectionRepository = {
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    // Fee collection records use the admission id as studentId. Admissions
+    // are not login users, so an old users(userId) foreign key prevents real
+    // admitted students from being charged.
+    await sql`
+      ALTER TABLE fee_payments
+      DROP CONSTRAINT IF EXISTS "fee_payments_studentId_fkey"
+    `;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_fee_payments_student_id ON fee_payments("studentId")
     `;

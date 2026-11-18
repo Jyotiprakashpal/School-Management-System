@@ -95,6 +95,7 @@ export const classSubjectMapRepository = {
         UNIQUE("className", section, year, "subjectCode")
       )
     `;
+    await sql`ALTER TABLE class_subject_maps ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_class_subject_maps_class_section_year ON class_subject_maps("className", section, year)
     `;

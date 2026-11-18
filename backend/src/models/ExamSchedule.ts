@@ -110,6 +110,7 @@ export const examScheduleRepository = {
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    await sql`ALTER TABLE exam_schedules ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_exam_schedules_exam_id ON exam_schedules("examId")
     `;

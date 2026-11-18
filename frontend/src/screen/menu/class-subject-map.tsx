@@ -2,36 +2,19 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, ClassSubjectMapSkeleton, Dropdown, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { del, get, post, put } from "../../api/methods";
+import { getAuthUser } from "../../auth/session";
+import { onClassSubjectMapChanged } from "../../api/socket";
 
 type MappingType = "Required" | "Optional";
 type SubjectMapping = { code: string; id: number; periods: number; subject: string; teacher: string; type: MappingType };
 
-const classes = ["Nursery", "LKG", "UKG", "Class 1", "Class 2", "Class 3", "Class 4", "Class 5"];
-const sections = ["A", "B", "C"];
-const years = ["2026–27", "2027–28"];
-const teachers = ["Priya Sharma", "Ravi Verma", "Neha Singh", "Anjali Gupta", "Meera Joshi", "Karan Malhotra"];
 const UNASSIGNED = "Unassigned";
 const WEEK_CAPACITY = 36;
 const TEACHER_LIMIT = 18;
 
-const subjectPool: Record<string, { code: string; subject: string; teacher: string; periods: number; type: MappingType }> = {
-  eng: { code: "ENG-01", subject: "English", teacher: "Priya Sharma", periods: 6, type: "Required" },
-  mat: { code: "MAT-01", subject: "Mathematics", teacher: "Ravi Verma", periods: 6, type: "Required" },
-  evs: { code: "EVS-01", subject: "Environmental Studies", teacher: "Neha Singh", periods: 4, type: "Required" },
-  hin: { code: "HIN-01", subject: "Hindi", teacher: "Anjali Gupta", periods: 5, type: "Required" },
-  art: { code: "ART-01", subject: "Art & Craft", teacher: "Meera Joshi", periods: 2, type: "Optional" },
-  sci: { code: "SCI-01", subject: "Science", teacher: "Neha Singh", periods: 5, type: "Required" },
-  sst: { code: "SST-01", subject: "Social Studies", teacher: "Karan Malhotra", periods: 4, type: "Required" },
-  cmp: { code: "CMP-01", subject: "Computer Science", teacher: UNASSIGNED, periods: 2, type: "Optional" },
-};
-
 const keyOf = (className: string, section: string, year: string) => `${className}|${section}|${year}`;
-
-function defaultMapping(className: string): SubjectMapping[] {
-  const level = classes.indexOf(className);
-  const picks = level < 3 ? ["eng", "mat", "evs", "hin", "art"] : level < 5 ? ["eng", "mat", "evs", "hin", "art", "cmp"] : ["eng", "mat", "sci", "sst", "hin", "cmp"];
-  return picks.map((pick, index) => ({ id: level * 100 + index + 1, ...subjectPool[pick] }));
-}
 
 type IconType = "link" | "book" | "teacher" | "plus" | "trash" | "copy" | "download" | "reset" | "search" | "clock" | "save" | "alert";
 
@@ -70,9 +53,14 @@ const initials = (name: string) => name.split(" ").map((part) => part[0]).join("
 
 export default function ClassSubjectMap() {
   const [initialLoading, setInitialLoading] = useState(true);
-  const [className, setClassName] = useState("UKG");
-  const [section, setSection] = useState("A");
-  const [year, setYear] = useState("2027–28");
+  const [className, setClassName] = useState("");
+  const [section, setSection] = useState("");
+  const [year, setYear] = useState("");
+  const [classes, setClasses] = useState<string[]>([]);
+  const [sections, setSections] = useState<string[]>([]);
+  const [years, setYears] = useState<string[]>([]);
+  const [teachers, setTeachers] = useState<string[]>([]);
+  const [catalog, setCatalog] = useState<{ code: string; name: string }[]>([]);
   const [drafts, setDrafts] = useState<Record<string, SubjectMapping[]>>({});
   const [saved, setSaved] = useState<Record<string, SubjectMapping[]>>({});
   const [saving, setSaving] = useState(false);
@@ -85,17 +73,30 @@ export default function ClassSubjectMap() {
   const [copyFrom, setCopyFrom] = useState({ className: "Nursery", section: "A" });
   const { showToast } = useToast();
 
+  const loadMappings = async () => {
+    if (!className || !section || !year) return;
+    const response = await get<{ data: { id: number; subjectCode: string; subjectName: string; teacher: string; periods: number; type: MappingType }[] }>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}?className=${encodeURIComponent(className)}&section=${encodeURIComponent(section)}&year=${encodeURIComponent(year)}&page=1&limit=100`, { cache: "no-store" });
+    const rows = (response.data ?? []).map((item) => ({ id: item.id, code: item.subjectCode, subject: item.subjectName, teacher: item.teacher, periods: item.periods, type: item.type }));
+    setSaved((current) => ({ ...current, [keyOf(className, section, year)]: rows }));
+    setDrafts((current) => { const next = { ...current }; delete next[keyOf(className, section, year)]; return next; });
+  };
   useEffect(() => {
-    const loadClassSubjectMap = window.setTimeout(() => {
-      setInitialLoading(false);
-    }, 1000);
-
-    return () => window.clearTimeout(loadClassSubjectMap);
-  }, []);
+    let active = true;
+    void Promise.all([
+      get<string[]>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/classes`), get<string[]>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/sections`), get<string[]>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/years`), get<string[]>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/teachers`), get<{ data: { code: string; name: string }[] }>(`${API_BASE}${API_ENDPOINTS.SUBJECTS}?status=Active&page=1&limit=100`), get<{ data: { name: string; status?: string }[] }>(`${API_BASE}${API_ENDPOINTS.STAFF}?limit=100`),
+    ]).then(([classResponse, sectionResponse, yearResponse, teacherResponse, subjectResponse, staffResponse]) => {
+      if (!active) return;
+      setClasses(classResponse); setSections(sectionResponse); setYears(yearResponse); setTeachers([...new Set(staffResponse.data?.filter((item) => !item.status || item.status === "Active").map((item) => item.name).concat(teacherResponse) ?? teacherResponse)]); setCatalog(subjectResponse.data ?? []);
+      setClassName(classResponse[0] ?? ""); setSection(sectionResponse[0] ?? ""); setYear(yearResponse[0] ?? "");
+    }).catch((error) => showToast(error instanceof Error ? error.message : "Unable to load class-subject data.", { title: "Mapping data unavailable", tone: "error" })).finally(() => { if (active) setInitialLoading(false); });
+    return () => { active = false; };
+  }, [showToast]);
+  useEffect(() => { void loadMappings().catch((error) => showToast(error instanceof Error ? error.message : "Unable to load mappings.", { title: "Mappings unavailable", tone: "error" })); }, [className, section, year]);
+  useEffect(() => onClassSubjectMapChanged(() => void loadMappings()), [className, section, year]);
 
   const key = keyOf(className, section, year);
   const label = `${className}-${section}`;
-  const baseline = saved[key] ?? defaultMapping(className);
+  const baseline = saved[key] ?? [];
   const mappings = drafts[key] ?? baseline;
   const dirty = JSON.stringify(mappings) !== JSON.stringify(baseline);
 
@@ -160,7 +161,7 @@ export default function ClassSubjectMap() {
       showToast("Choose a different class or section to copy from.", { title: "Same class selected", tone: "error" });
       return;
     }
-    const source = (drafts[sourceKey] ?? saved[sourceKey] ?? defaultMapping(copyFrom.className)).map((mapping, index) => ({ ...mapping, id: Date.now() + index }));
+    const source = (drafts[sourceKey] ?? saved[sourceKey] ?? []).map((mapping, index) => ({ ...mapping, id: Date.now() + index }));
     setMappings(() => source);
     setCopyOpen(false);
     showToast(`${source.length} subjects copied from ${copyFrom.className}-${copyFrom.section}. Save to apply.`, { title: "Mapping copied", tone: "info" });
@@ -177,11 +178,19 @@ export default function ClassSubjectMap() {
       return;
     }
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 800));
-    setSaved((current) => ({ ...current, [key]: mappings }));
-    setDrafts((current) => { const next = { ...current }; delete next[key]; return next; });
-    setSaving(false);
-    showToast(`${mappings.length} subject mappings were saved for ${label}.`, { title: "Class mapping saved" });
+    try {
+      const existing = saved[key] ?? [];
+      const existingIds = new Set(mappings.map((mapping) => mapping.id));
+      await Promise.all(existing.filter((mapping) => !existingIds.has(mapping.id)).map((mapping) => del(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/${mapping.id}`)));
+      const result = await Promise.all(mappings.map((mapping) => {
+        const payload = { className, section, year, subjectCode: mapping.code, subjectName: mapping.subject, teacher: mapping.teacher, periods: mapping.periods, type: mapping.type, createdBy: getAuthUser()?.username || undefined };
+        return existing.some((item) => item.id === mapping.id) ? put(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/${mapping.id}`, payload) : post(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}`, payload);
+      }));
+      const next = result.map((item: any) => ({ id: item.id, code: item.subjectCode, subject: item.subjectName, teacher: item.teacher, periods: item.periods, type: item.type }));
+      setSaved((current) => ({ ...current, [key]: next })); setDrafts((current) => { const nextDrafts = { ...current }; delete nextDrafts[key]; return nextDrafts; });
+      showToast(`${mappings.length} subject mappings were saved for ${label}.`, { title: "Class mapping saved" });
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to save mappings.", { title: "Mapping save failed", tone: "error" }); }
+    finally { setSaving(false); }
   };
 
   const exportCsv = () => {
@@ -218,7 +227,7 @@ export default function ClassSubjectMap() {
             <p className="mt-2 max-w-xl text-xs leading-5 text-white/70 sm:text-sm sm:leading-6">Build a balanced weekly curriculum, connect every subject with the right teacher, and keep timetable capacity visible.</p>
             <div className="mt-5 grid grid-cols-2 gap-2 sm:flex">
               <Button onClick={() => { setForm(blankMapping); setAddOpen(true); }} icon={<MapIcon type="plus" className="size-4" />} className="w-full !min-h-11 !bg-white !text-(--app-accent-dark) shadow-xl hover:!bg-white/90 sm:w-auto">Add Subject</Button>
-              <Button variant="outline" onClick={() => { setCopyFrom({ className: classes.find((value) => value !== className) ?? "Nursery", section }); setCopyOpen(true); }} icon={<MapIcon type="copy" className="size-4" />} className="w-full !min-h-11 !border-white/15 !bg-white/10 text-white !shadow-none hover:!bg-white/20 sm:w-auto">Copy Curriculum</Button>
+              <Button variant="outline" onClick={() => { setCopyFrom({ className: classes.find((value) => value !== className) ?? "", section }); setCopyOpen(true); }} icon={<MapIcon type="copy" className="size-4" />} className="w-full !min-h-11 !border-white/15 !bg-white/10 text-white !shadow-none hover:!bg-white/20 sm:w-auto">Copy Curriculum</Button>
             </div>
           </div>
           <div className="class-map-health-card rounded-2xl border border-white/15 bg-white/10 p-4 shadow-xl backdrop-blur-sm sm:p-5">
@@ -241,7 +250,7 @@ export default function ClassSubjectMap() {
           <Dropdown label="Class" value={className} onChange={(event) => setClassName(event.target.value)} options={classes.map((value) => ({ label: value, value }))} />
           <Dropdown label="Section" value={section} onChange={(event) => setSection(event.target.value)} options={sections.map((value) => ({ label: value, value }))} />
           <Dropdown label="Academic Year" value={year} onChange={(event) => setYear(event.target.value)} options={years.map((value) => ({ label: value, value }))} />
-          <Button variant="outline" onClick={() => { setCopyFrom({ className: classes.find((value) => value !== className) ?? "Nursery", section }); setCopyOpen(true); }} icon={<MapIcon type="copy" className="size-4" />}>Copy from class</Button>
+          <Button variant="outline" onClick={() => { setCopyFrom({ className: classes.find((value) => value !== className) ?? "", section }); setCopyOpen(true); }} icon={<MapIcon type="copy" className="size-4" />}>Copy from class</Button>
         </div>
       </section>
 
@@ -349,8 +358,8 @@ export default function ClassSubjectMap() {
       footer={<><Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button><Button onClick={addMapping}>Add to Class</Button></>}
     >
       <div className="grid grid-cols-2 items-start gap-x-3 gap-y-3.5 sm:gap-x-4 sm:gap-y-4 [&>*]:min-w-0 [&>:nth-child(3)]:col-span-2 max-sm:[&>:nth-child(-n+2)]:col-span-2">
-        <Input label="Subject Name *" value={form.subject} onChange={(event) => setForm((current) => ({ ...current, subject: event.target.value }))} placeholder="e.g. Computer Science" />
-        <Input label="Subject Code *" value={form.code} onChange={(event) => setForm((current) => ({ ...current, code: event.target.value }))} placeholder="e.g. CMP-02" />
+        <Dropdown label="Subject Name *" value={form.code} onChange={(event) => { const selected = catalog.find((item) => item.code === event.target.value); setForm((current) => ({ ...current, code: selected?.code ?? "", subject: selected?.name ?? "" })); }} placeholder="Select subject" options={catalog.map((item) => ({ label: `${item.name} (${item.code})`, value: item.code }))} />
+        <Input label="Subject Code *" value={form.code} readOnly placeholder="Selected subject code" />
         <Dropdown label="Assigned Teacher" value={form.teacher} onChange={(event) => setForm((current) => ({ ...current, teacher: event.target.value }))} options={[UNASSIGNED, ...teachers].map((value) => ({ label: value, value }))} />
         <Input label="Weekly Periods" type="number" min="1" max="12" value={form.periods} onChange={(event) => setForm((current) => ({ ...current, periods: event.target.value }))} />
         <Dropdown label="Subject Type" value={form.type} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value as MappingType }))} options={[{ label: "Required", value: "Required" }, { label: "Optional", value: "Optional" }]} />

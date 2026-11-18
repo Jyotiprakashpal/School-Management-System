@@ -103,6 +103,13 @@ export const attendanceRepository = {
         UNIQUE("studentId", date)
       )
     `;
+    // Attendance is recorded against admitted students, whose IDs are not
+    // login-user IDs. Remove the legacy users foreign key on old databases.
+    await sql`
+      ALTER TABLE attendance
+      ADD COLUMN IF NOT EXISTS "createdBy" TEXT,
+      DROP CONSTRAINT IF EXISTS "attendance_studentId_fkey"
+    `;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_attendance_class_section_date ON attendance("className", section, date)
     `;

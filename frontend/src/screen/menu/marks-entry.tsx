@@ -2,16 +2,19 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Dropdown, Input, MarksEntrySkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { get, post } from "../../api/methods";
+import { getAuthUser } from "../../auth/session";
+import { onExamChanged, onMarksChanged } from "../../api/socket";
 
-type MarkRecord = { admissionNo: string; marks: string; name: string; remarks: string; rollNo: number };
+type MarkRecord = { admissionId: number; studentId: string; admissionNo: string; marks: string; name: string; remarks: string; rollNo: number; markId?: number };
+type Exam = { id: number; name: string; session: string; classes: string; status: string };
+type Admission = { id: number; admissionNo: string; fullName: string; className: string | null; section: string | null; status: string | null };
+type ClassOption = { name: string; sections?: string[] };
+type SubjectMap = { subjectName: string; subjectCode: string };
+type SavedMark = { id: number; admissionId: number | null; studentId: string; admissionNo: string; studentName: string; rollNo: number; marksObtained: number | null; remarks: string | null; maximumMarks: number };
 type Filter = "all" | "pending" | "pass" | "fail";
 
-const classOptions = ["Class 8", "Class 9", "Class 10"];
-const sectionOptions = ["A", "B", "C"];
-const subjectOptions = ["English", "Mathematics", "Science", "Social Studies"];
-const firstNames = ["Rahul", "Ravi", "Anaya", "Kabir", "Sara", "Vihaan", "Diya", "Arjun", "Meera", "Aarav", "Sneha", "Mohit"];
-const lastNames = ["Kumar", "Patel", "Singh", "Mehta", "Sharma", "Verma", "Gupta", "Yadav"];
-const remarkPool = ["Excellent work", "Good performance", "Can improve accuracy", "Needs revision", "Keep it up", "Satisfactory"];
 
 const gradeScale: { grade: string; range: string; min: number; chip: string; bar: string }[] = [
   { grade: "A+", range: "90–100%", min: 90, chip: "bg-emerald-500", bar: "bg-emerald-500" },
@@ -31,21 +34,6 @@ const gradeChip = (grade: string) => gradeScale.find((item) => item.grade === gr
 const gradeTone = (grade: string) => (grade === "F" ? "status-danger" : grade === "D" || grade === "C" ? "status-warning" : "status-success");
 const initials = (name: string) => name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
 const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
-
-const buildRoster = (className: string, section: string, subject: string): MarkRecord[] => {
-  const seed = classOptions.indexOf(className) * 5 + sectionOptions.indexOf(section) * 3 + subjectOptions.indexOf(subject);
-  return Array.from({ length: 9 + (seed % 3) }, (_, index) => {
-    const pending = index === 4 || index === 8;
-    const base = 38 + ((index * 17 + seed * 13) % 60);
-    return {
-      rollNo: index + 1,
-      admissionNo: `ADM-26-${1001 + classOptions.indexOf(className) * 200 + sectionOptions.indexOf(section) * 60 + index * 7}`,
-      name: `${firstNames[(index * 5 + seed) % firstNames.length]} ${lastNames[(index * 3 + seed) % lastNames.length]}`,
-      marks: pending ? "" : String(base),
-      remarks: pending ? "" : remarkPool[(index + seed) % remarkPool.length],
-    };
-  });
-};
 
 type IconType = "marks" | "users" | "average" | "trophy" | "check" | "search" | "save" | "download" | "print" | "reset" | "load" | "clear" | "eye";
 
@@ -82,13 +70,19 @@ const resetClass = "border-rose-200! bg-linear-to-r! from-rose-50! to-orange-50!
 
 export default function MarksEntry() {
   const [initialLoading, setInitialLoading] = useState(true);
-  const [exam, setExam] = useState("Half Yearly Examination");
-  const [className, setClassName] = useState("Class 10");
-  const [section, setSection] = useState("A");
-  const [subject, setSubject] = useState("Mathematics");
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [examId, setExamId] = useState<number | null>(null);
+  const [exam, setExam] = useState("");
+  const [className, setClassName] = useState("");
+  const [section, setSection] = useState("");
+  const [subject, setSubject] = useState("");
+  const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
+  const [academicYear, setAcademicYear] = useState("");
+  const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [maximumMarks, setMaximumMarks] = useState("100");
   const [records, setRecords] = useState<MarkRecord[]>([]);
-  const [loadedKey, setLoadedKey] = useState("Class 10-A-Mathematics");
+  const [loadedKey, setLoadedKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -98,14 +92,65 @@ export default function MarksEntry() {
   const [filter, setFilter] = useState<Filter>("all");
   const { showToast } = useToast();
 
-  useEffect(() => {
-    const loadMarksEntry = window.setTimeout(() => {
-      setRecords(buildRoster("Class 10", "A", "Mathematics"));
-      setInitialLoading(false);
-    }, 1000);
+  useEffect(() => onExamChanged(() => window.location.reload()), []);
 
-    return () => window.clearTimeout(loadMarksEntry);
-  }, []);
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      get<{ data: Exam[] }>(`${API_BASE}${API_ENDPOINTS.EXAMS}?page=1&limit=100`, { cache: "no-store" }),
+      get<ClassOption[]>(`${API_BASE}${API_ENDPOINTS.CLASSES}`, { cache: "no-store" }),
+      get<{ name: string; current?: boolean }[]>(`${API_BASE}${API_ENDPOINTS.SESSIONS}/simple`, { cache: "no-store" }),
+      get<{ data: Admission[] }>(`${API_BASE}${API_ENDPOINTS.ADMISSIONS}?status=Active&page=1&limit=100`, { cache: "no-store" }),
+    ]).then(([examResponse, classResponse, sessionResponse, admissionResponse]) => {
+      if (!active) return;
+      const nextExams = examResponse.data ?? [];
+      const nextClasses = classResponse ?? [];
+      const nextAdmissions = admissionResponse.data ?? [];
+      const firstExam = nextExams[0];
+      const firstClass = nextClasses[0]?.name ?? nextAdmissions.find((item) => item.className)?.className ?? "";
+      const firstSection = nextClasses.find((item) => item.name === firstClass)?.sections?.[0] ?? nextAdmissions.find((item) => item.className === firstClass)?.section ?? "";
+      const currentYear = sessionResponse.find((item) => item.current)?.name ?? sessionResponse[0]?.name ?? firstExam?.session ?? "";
+      setExams(nextExams); setClasses(nextClasses); setAdmissions(nextAdmissions); setAcademicYear(currentYear);
+      setExamId(firstExam?.id ?? null); setExam(firstExam?.name ?? ""); setClassName(firstClass); setSection(firstSection);
+    }).catch((error) => showToast(error instanceof Error ? error.message : "Unable to load marks data.", { title: "Marks data unavailable", tone: "error" }))
+      .finally(() => { if (active) setInitialLoading(false); });
+    return () => { active = false; };
+  }, [showToast]);
+
+  useEffect(() => {
+    if (!className || !section || !academicYear) return;
+    void get<{ data: SubjectMap[] }>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}?className=${encodeURIComponent(className)}&section=${encodeURIComponent(section)}&year=${encodeURIComponent(academicYear)}&page=1&limit=100`, { cache: "no-store" })
+      .then(async (response) => {
+        let names = (response.data ?? []).map((item) => item.subjectName).filter(Boolean);
+        if (!names.length) {
+          const subjects = await get<{ data: { name: string }[] }>(`${API_BASE}${API_ENDPOINTS.SUBJECTS}?status=Active&page=1&limit=100`, { cache: "no-store" });
+          names = (subjects.data ?? []).map((item) => item.name);
+        }
+        setSubjectOptions(names);
+        setSubject((current) => names.includes(current) ? current : names[0] ?? "");
+      }).catch(() => { setSubjectOptions([]); setSubject(""); });
+  }, [className, section, academicYear]);
+
+  const fetchRegister = async () => {
+    if (!examId || !className || !section || !subject) { setRecords([]); return; }
+    setLoading(true);
+    try {
+      const [studentResponse, markResponse] = await Promise.all([
+        get<{ data: Admission[] }>(`${API_BASE}${API_ENDPOINTS.ADMISSIONS}?className=${encodeURIComponent(className)}&section=${encodeURIComponent(section)}&status=Active&page=1&limit=100`, { cache: "no-store" }),
+        get<SavedMark[]>(`${API_BASE}${API_ENDPOINTS.MARKS}/exam/${examId}/class/${encodeURIComponent(className)}/section/${encodeURIComponent(section)}/subject/${encodeURIComponent(subject)}`, { cache: "no-store" }),
+      ]);
+      const savedByAdmission = new Map(markResponse.map((mark) => [mark.admissionId ?? Number(mark.studentId), mark]));
+      setRecords((studentResponse.data ?? []).map((student, index) => {
+        const savedMark = savedByAdmission.get(student.id);
+        return { admissionId: student.id, studentId: String(student.id), admissionNo: student.admissionNo, name: student.fullName, rollNo: index + 1, marks: savedMark?.marksObtained == null ? "" : String(savedMark.marksObtained), remarks: savedMark?.remarks ?? "", markId: savedMark?.id };
+      }));
+      setLoadedKey(`${className}-${section}-${subject}`); setDirty(false); setSaved(false); setSearch(""); setFilter("all");
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to load students and marks.", { title: "Marks register unavailable", tone: "error" }); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { if (examId && subject && className && section) void fetchRegister(); }, [examId, className, section, subject]);
+  useEffect(() => onMarksChanged(() => { if (!dirty) void fetchRegister(); }), [examId, className, section, subject, dirty]);
 
   const selectionKey = `${className}-${section}-${subject}`;
   const stale = selectionKey !== loadedKey;
@@ -134,17 +179,8 @@ export default function MarksEntry() {
   });
 
   const loadStudents = async () => {
-    setLoading(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 650));
-    const next = buildRoster(className, section, subject);
-    setRecords(next);
-    setLoadedKey(selectionKey);
-    setDirty(false);
-    setSaved(false);
-    setSearch("");
-    setFilter("all");
-    setLoading(false);
-    showToast(`${next.length} students loaded for ${subject}, ${className}-${section}.`, { title: "Marks register loaded", tone: "info" });
+    await fetchRegister();
+    showToast(`Students loaded for ${subject}, ${className}-${section}.`, { title: "Marks register loaded", tone: "info" });
   };
 
   const updateRecord = (admissionNo: string, field: "marks" | "remarks", value: string) => {
@@ -170,12 +206,16 @@ export default function MarksEntry() {
       showToast(`${summary.pending} students still have no marks entered.`, { title: "Marks entry incomplete", tone: "error" });
       return;
     }
+    if (!examId || !exam) return;
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 900));
-    setSaving(false);
-    setDirty(false);
-    setSaved(true);
-    showToast(`${subject} marks were saved for ${className}-${section}.`, { title: "Marks saved successfully" });
+    try {
+      await post(`${API_BASE}${API_ENDPOINTS.MARKS}/bulk`, {
+        examId, examName: exam, className, section, subject, maximumMarks: Number(maximumMarks),
+        entries: records.map((record) => ({ admissionId: record.admissionId, studentId: record.studentId, admissionNo: record.admissionNo, studentName: record.name, rollNo: record.rollNo, marksObtained: record.marks === "" ? null : Number(record.marks), remarks: record.remarks || undefined, createdBy: getAuthUser()?.username || undefined })),
+      });
+      setSaving(false); setDirty(false); setSaved(true);
+      showToast(`${subject} marks were saved for ${className}-${section}.`, { title: "Marks saved successfully" });
+    } catch (error) { setSaving(false); showToast(error instanceof Error ? error.message : "Unable to save marks.", { title: "Marks save failed", tone: "error" }); }
   };
 
   const clearMarks = () => {
@@ -245,9 +285,9 @@ export default function MarksEntry() {
           <span className={`shrink-0 ${stale ? "status-warning" : dirty ? "status-warning" : saved ? "status-success" : "status-info"}`}>{stale ? "Selection changed" : dirty ? "Unsaved changes" : saved ? "Saved" : "Up to date"}</span>
         </div>
         <div className="marks-filter-surface relative mt-5 grid grid-cols-2 items-end gap-x-3 gap-y-3.5 rounded-2xl border border-white/60 bg-white p-3.5 shadow-2xl shadow-slate-950/15 sm:gap-x-4 sm:gap-y-4 sm:p-5 md:grid-cols-4 xl:grid-cols-[1.3fr_1fr_.7fr_1fr_.7fr_auto] [&>:first-child]:col-span-2 xl:[&>:first-child]:col-span-1 md:[&>:nth-child(4)]:col-span-2 xl:[&>:nth-child(4)]:col-span-1 [&>:last-child]:col-span-2 md:[&>:last-child]:col-span-1 [&>:last-child]:self-end">
-          <div className="sm:col-span-2 xl:col-span-1"><Dropdown label="Examination" value={exam} onChange={(event) => setExam(event.target.value)} options={["Half Yearly Examination", "Unit Test 2", "Annual Examination"].map((value) => ({ label: value, value }))} /></div>
-          <Dropdown label="Class" value={className} onChange={(event) => setClassName(event.target.value)} options={classOptions.map((value) => ({ label: value, value }))} />
-          <Dropdown label="Section" value={section} onChange={(event) => setSection(event.target.value)} options={sectionOptions.map((value) => ({ label: value, value }))} />
+          <div className="sm:col-span-2 xl:col-span-1"><Dropdown label="Examination" value={String(examId ?? "")} onChange={(event) => { const selected = exams.find((item) => item.id === Number(event.target.value)); setExamId(selected?.id ?? null); setExam(selected?.name ?? ""); }} options={exams.map((value) => ({ label: `${value.name} (${value.session})`, value: String(value.id) }))} /></div>
+          <Dropdown label="Class" value={className} onChange={(event) => { setClassName(event.target.value); setSection(classes.find((item) => item.name === event.target.value)?.sections?.[0] ?? ""); }} options={classes.map((value) => ({ label: value.name, value: value.name }))} />
+          <Dropdown label="Section" value={section} onChange={(event) => setSection(event.target.value)} options={(classes.find((item) => item.name === className)?.sections ?? Array.from(new Set(admissions.filter((item) => item.className === className).map((item) => item.section).filter(Boolean) as string[]))).map((value) => ({ label: value, value }))} />
           <Dropdown label="Subject" value={subject} onChange={(event) => setSubject(event.target.value)} options={subjectOptions.map((value) => ({ label: value, value }))} />
           <Input label="Max Marks" type="number" min="1" value={maximumMarks} onChange={(event) => setMaximumMarks(event.target.value)} />
           <Button onClick={loadStudents} isLoading={loading} loadingText="Loading..." icon={<MarksIcon type="load" className="size-4" />} className="max-sm:col-span-2 sm:col-span-2 xl:col-span-1 xl:min-w-36">Load Students</Button>

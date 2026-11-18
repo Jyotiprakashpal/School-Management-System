@@ -4,6 +4,7 @@ export interface MarkEntry {
   id: number;
   examId: number;
   examName: string;
+  admissionId: number | null;
   studentId: string;
   admissionNo: string;
   studentName: string;
@@ -25,6 +26,7 @@ export interface MarkEntry {
 export interface CreateMarkEntryDto {
   examId: number;
   examName: string;
+  admissionId: number;
   studentId: string;
   admissionNo: string;
   studentName: string;
@@ -51,6 +53,7 @@ export interface BulkMarkEntryDto {
   subject: string;
   maximumMarks: number;
   entries: Array<{
+    admissionId: number;
     studentId: string;
     admissionNo: string;
     studentName: string;
@@ -110,7 +113,7 @@ function toMarkEntryResponse(entry: MarkEntryRow): MarkEntry {
 }
 
 const selectMarkEntryColumns = sql`
-  id, "examId", "examName", "studentId", "admissionNo", "studentName", "className", section, "rollNo",
+  id, "examId", "examName", "admissionId", "studentId", "admissionNo", "studentName", "className", section, "rollNo",
   subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "createdBy", "createdAt", "updatedAt"
 `;
 
@@ -121,7 +124,8 @@ export const markEntryRepository = {
         id SERIAL PRIMARY KEY,
         "examId" INTEGER NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
         "examName" VARCHAR(120) NOT NULL,
-        "studentId" TEXT NOT NULL REFERENCES users("userId") ON DELETE CASCADE,
+        "admissionId" INTEGER REFERENCES admissions(id) ON DELETE CASCADE,
+        "studentId" TEXT NOT NULL,
         "admissionNo" VARCHAR(80) NOT NULL,
         "studentName" VARCHAR(120) NOT NULL,
         "className" VARCHAR(50) NOT NULL,
@@ -140,6 +144,14 @@ export const markEntryRepository = {
         UNIQUE("examId", "studentId", subject)
       )
     `;
+    await sql`ALTER TABLE mark_entries DROP CONSTRAINT IF EXISTS "mark_entries_studentId_fkey"`;
+    await sql`ALTER TABLE mark_entries DROP CONSTRAINT IF EXISTS "mark_entries_admissionId_fkey"`;
+    await sql`ALTER TABLE mark_entries ADD COLUMN IF NOT EXISTS "admissionId" INTEGER`;
+    await sql`ALTER TABLE mark_entries ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
+    await sql`ALTER TABLE mark_entries DROP CONSTRAINT IF EXISTS mark_entries_admission_id_fkey`;
+    await sql`ALTER TABLE mark_entries ADD CONSTRAINT mark_entries_admission_id_fkey FOREIGN KEY ("admissionId") REFERENCES admissions(id) ON DELETE CASCADE`;
+    await sql`UPDATE mark_entries m SET "admissionId" = a.id FROM admissions a WHERE m."admissionId" IS NULL AND m."admissionNo" = a."admissionNo"`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_mark_entries_exam_admission_subject ON mark_entries("examId", "admissionId", subject) WHERE "admissionId" IS NOT NULL`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_mark_entries_exam_id ON mark_entries("examId")
     `;
@@ -226,8 +238,8 @@ export const markEntryRepository = {
     const passed = marksObtained !== null && marksObtained !== undefined ? (marksObtained / maximumMarks) * 100 >= 35 : null;
 
     const [entry] = await sql<MarkEntryRow[]>`
-      INSERT INTO mark_entries ("examId", "examName", "studentId", "admissionNo", "studentName", "className", section, "rollNo", subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "createdBy")
-      VALUES (${data.examId}, ${data.examName}, ${data.studentId}, ${data.admissionNo}, ${data.studentName}, ${data.className}, ${data.section}, ${data.rollNo}, ${data.subject}, ${data.maximumMarks}, ${marksObtained}, ${grade}, ${percentage}, ${passed}, ${data.remarks || null}, ${data.createdBy || null})
+        INSERT INTO mark_entries ("examId", "examName", "admissionId", "studentId", "admissionNo", "studentName", "className", section, "rollNo", subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "createdBy")
+      VALUES (${data.examId}, ${data.examName}, ${data.admissionId}, ${data.studentId}, ${data.admissionNo}, ${data.studentName}, ${data.className}, ${data.section}, ${data.rollNo}, ${data.subject}, ${data.maximumMarks}, ${marksObtained}, ${grade}, ${percentage}, ${passed}, ${data.remarks || null}, ${data.createdBy || null})
       ON CONFLICT ("examId", "studentId", subject) DO UPDATE SET
         "marksObtained" = EXCLUDED."marksObtained",
         "maximumMarks" = EXCLUDED."maximumMarks",
@@ -251,8 +263,8 @@ export const markEntryRepository = {
       const passed = marksObtained !== null ? (marksObtained / data.maximumMarks) * 100 >= 35 : null;
 
       const [created] = await sql<MarkEntryRow[]>`
-        INSERT INTO mark_entries ("examId", "examName", "studentId", "admissionNo", "studentName", "className", section, "rollNo", subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "createdBy")
-        VALUES (${data.examId}, ${data.examName}, ${entry.studentId}, ${entry.admissionNo}, ${entry.studentName}, ${data.className}, ${data.section}, ${entry.rollNo}, ${data.subject}, ${data.maximumMarks}, ${marksObtained}, ${grade}, ${percentage}, ${passed}, ${entry.remarks || null}, ${entry.createdBy || null})
+        INSERT INTO mark_entries ("examId", "examName", "admissionId", "studentId", "admissionNo", "studentName", "className", section, "rollNo", subject, "maximumMarks", "marksObtained", grade, percentage, passed, remarks, "createdBy")
+        VALUES (${data.examId}, ${data.examName}, ${entry.admissionId}, ${entry.studentId}, ${entry.admissionNo}, ${entry.studentName}, ${data.className}, ${data.section}, ${entry.rollNo}, ${data.subject}, ${data.maximumMarks}, ${marksObtained}, ${grade}, ${percentage}, ${passed}, ${entry.remarks || null}, ${entry.createdBy || null})
         ON CONFLICT ("examId", "studentId", subject) DO UPDATE SET
           "marksObtained" = EXCLUDED."marksObtained",
           "maximumMarks" = EXCLUDED."maximumMarks",

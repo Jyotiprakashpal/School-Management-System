@@ -12,9 +12,12 @@ import {
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
-import { get } from "../../api/methods"
+import { get, post } from "../../api/methods"
+import { getAuthUser } from "../../auth/session"
+import { onAdmissionsChanged, onFeeCollectionChanged, onFeeStructureChanged } from "../../api/socket"
 
 type AdmissionRecord = {
+  id: number
   admissionNo: string
   fullName: string
   fatherName: string | null
@@ -28,6 +31,7 @@ type AdmissionRecord = {
 }
 
 type StudentRow = string[]
+type StudentFeeHead = { id: number; name: string; total: number; paid: number }
 
 const admissionToRow = (student: AdmissionRecord): StudentRow => [
   student.admissionNo,
@@ -41,6 +45,7 @@ const admissionToRow = (student: AdmissionRecord): StudentRow => [
   student.gender || "—",
   student.admissionDate ? student.admissionDate.slice(0, 10) : "",
   student.academicYear || "—",
+  String(student.id),
 ]
 
 const studentFields = [
@@ -262,45 +267,6 @@ type ProfileTransaction = {
   month: string
   receipt: string
 }
-
-const initialProfileTransactions: ProfileTransaction[] = [
-  {
-    receipt: "RC-2707-0148",
-    feeType: "Tuition Fee",
-    month: "July",
-    amount: 500,
-    balance: 3500,
-    date: "08 Jul 2027",
-    mode: "UPI",
-  },
-  {
-    receipt: "RC-2706-0112",
-    feeType: "Computer Fee",
-    month: "June",
-    amount: 600,
-    balance: 400,
-    date: "16 Jun 2027",
-    mode: "Cash",
-  },
-  {
-    receipt: "RC-2705-0076",
-    feeType: "Tuition Fee",
-    month: "May",
-    amount: 1000,
-    balance: 4000,
-    date: "10 May 2027",
-    mode: "Card",
-  },
-  {
-    receipt: "RC-2704-0021",
-    feeType: "Admission Fee",
-    month: "April",
-    amount: 500,
-    balance: 0,
-    date: "04 Apr 2027",
-    mode: "Cash",
-  },
-]
 
 function QrMark() {
   const modules = Array.from({ length: 21 * 21 }, (_, index) => {
@@ -524,15 +490,11 @@ function StudentProfileView({
   const [transportOpen, setTransportOpen] = useState(false)
   const [transportFee, setTransportFee] = useState("1200")
   const [transportDraft, setTransportDraft] = useState("1200")
-  const [feeAmount, setFeeAmount] = useState("500")
+  const [feeAmount, setFeeAmount] = useState("")
   const [feeMode, setFeeMode] = useState("UPI")
-  const [feeType, setFeeType] = useState("Tuition Fee")
-  const [feeHeads, setFeeHeads] = useState([
-    { name: "Admission Fee", total: 500, paid: 500 },
-    { name: "Computer Fee", total: 1000, paid: 600 },
-    { name: "Tuition Fee", total: 5000, paid: 1500 },
-  ])
-  const [transactions, setTransactions] = useState(initialProfileTransactions)
+  const [feeType, setFeeType] = useState("")
+  const [feeHeads, setFeeHeads] = useState<StudentFeeHead[]>([])
+  const [transactions, setTransactions] = useState<ProfileTransaction[]>([])
   const [subjectMarks, setSubjectMarks] = useState([
     "128",
     "134",
@@ -544,6 +506,56 @@ function StudentProfileView({
   const [marksDraft, setMarksDraft] = useState(subjectMarks)
   const [selectedReceipt, setSelectedReceipt] =
     useState<ProfileTransaction | null>(null)
+  const [feeRefreshKey, setFeeRefreshKey] = useState(0)
+  useEffect(() => {
+    const refresh = () => setFeeRefreshKey((value) => value + 1)
+    const unsubscribePayments = onFeeCollectionChanged(refresh)
+    const unsubscribeStructure = onFeeStructureChanged(refresh)
+    return () => {
+      unsubscribePayments()
+      unsubscribeStructure()
+    }
+  }, [])
+  useEffect(() => {
+    let active = true
+    const className = student[3]
+    const academicYear = student[10]
+    if (!className || className === "—" || !academicYear || academicYear === "—") return
+    type Payment = {
+      feeHeadId: number
+      feeHeadName: string
+      paidAmount: number | string
+      balanceAmount: number | string
+      receiptNumber: string
+      paymentDate: string
+      paymentMode: string
+    }
+    void Promise.all([
+      get<{ id: number; name: string; amount: number }[]>(`${API_BASE}${API_ENDPOINTS.FEES}/class/${encodeURIComponent(className)}/year/${encodeURIComponent(academicYear)}`, { cache: "no-store" }),
+      get<Payment[]>(`${API_BASE}${API_ENDPOINTS.FEE_COLLECTIONS}/student/${encodeURIComponent(student[11])}?academicYear=${encodeURIComponent(academicYear)}`, { cache: "no-store" }).catch(() => [] as Payment[]),
+    ])
+      .then(([heads, payments]) => {
+        const paidByHead = new Map<number, number>()
+        payments.forEach((payment) => paidByHead.set(payment.feeHeadId, (paidByHead.get(payment.feeHeadId) ?? 0) + Number(payment.paidAmount)))
+        if (active) {
+          setFeeHeads(heads.map((head) => ({ id: head.id, name: head.name, total: Number(head.amount), paid: paidByHead.get(head.id) ?? 0 })))
+          setFeeType(heads.find((head) => Number(head.amount) > (paidByHead.get(head.id) ?? 0))?.name ?? heads[0]?.name ?? "")
+          setTransactions(payments.map((payment) => ({
+            receipt: payment.receiptNumber,
+            feeType: payment.feeHeadName,
+            month: new Date(payment.paymentDate).toLocaleDateString("en-IN", { month: "long" }),
+            amount: Number(payment.paidAmount),
+            balance: Number(payment.balanceAmount),
+            date: new Date(payment.paymentDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+            mode: payment.paymentMode,
+          })))
+        }
+      })
+      .catch((error) => {
+        if (active) showToast(error instanceof Error ? error.message : "Unable to load student fees.", { title: "Fees unavailable", tone: "error" })
+      })
+    return () => { active = false }
+  }, [showToast, student, feeRefreshKey])
   const initials = student[1]
     .split(" ")
     .map((part) => part[0])
@@ -590,7 +602,7 @@ function StudentProfileView({
     })
   }
 
-  const collectFee = () => {
+  const collectFee = async () => {
     const amount = Number(feeAmount)
     const selected = feeHeads.find((fee) => fee.name === feeType)
     const balance = selected ? selected.total - selected.paid : 0
@@ -601,7 +613,23 @@ function StudentProfileView({
       )
       return
     }
-    const receipt = `RC-2707-${String(149 + transactions.length).padStart(4, "0")}`
+    if (!selected) return
+    try {
+      const payment = await post<{ receiptNumber: string }>(`${API_BASE}${API_ENDPOINTS.FEE_COLLECTIONS}`, {
+        studentId: student[11],
+        admissionNo: student[0],
+        studentName: student[1],
+        className: student[3],
+        section: student[7] === "—" ? "General" : student[7],
+        feeHeadId: selected.id,
+        feeHeadName: selected.name,
+        amount: selected.total,
+        paidAmount: amount,
+        paymentMode: feeMode,
+        academicYear: student[10],
+        collectedBy: getAuthUser()?.username || "System",
+      })
+      const receipt = payment.receiptNumber
     const newTransaction: ProfileTransaction = {
       receipt,
       feeType,
@@ -629,6 +657,9 @@ function StudentProfileView({
       `₹${amount.toLocaleString("en-IN")} was collected and receipt ${receipt} was generated.`,
       { title: "Fee collected successfully" },
     )
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to collect fee.", { title: "Fee collection failed", tone: "error" })
+    }
   }
 
   const saveMarks = () => {
@@ -668,7 +699,7 @@ function StudentProfileView({
     <div className="min-h-screen dashboard-bg pb-16">
       <Header
         title="Student Profile"
-        subtitle={`${student[0]} · Academic session 2027–28`}
+        subtitle={`${student[0]} · Academic session ${student[10]}`}
       />
       <main className="space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
         <div className="flex items-center justify-between gap-3">
@@ -706,7 +737,7 @@ function StudentProfileView({
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-medium text-white/80">
                     <span>{student[0]}</span>
                     <span className="size-1 rounded-full bg-white/50" />
-                    <span>{student[3]} · Section A</span>
+                    <span>{student[3]} · Section {student[7]}</span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <span className="rounded-full bg-white/15 px-2.5 py-1 text-[0.65rem] font-bold ring-1 ring-white/20 backdrop-blur-sm">
@@ -1494,7 +1525,7 @@ function StudentProfileView({
                   <div className="mt-4 flex justify-between text-xs">
                     <span className="text-slate-400">Receipt</span>
                     <strong>
-                      {selectedReceipt?.receipt ?? transactions[0].receipt}
+                      {selectedReceipt?.receipt ?? transactions[0]?.receipt ?? "-"}
                     </strong>
                   </div>
                 </div>
@@ -1504,8 +1535,8 @@ function StudentProfileView({
                     ["Admission No.", student[0]],
                     ["Fee Head", selectedReceipt?.feeType ?? "All fee heads"],
                     ["Payment Mode", selectedReceipt?.mode ?? "Multiple"],
-                    ["Date", selectedReceipt?.date ?? "12 Jul 2027"],
-                    ["Received By", "Super Admin"],
+                    ["Date", selectedReceipt?.date ?? "-"],
+                    ["Received By", "Recorded payment"],
                   ].map(([label, value]) => (
                     <div
                       key={label}
@@ -1714,7 +1745,10 @@ export default function AllStudents() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
   const { showToast } = useToast()
+
+  useEffect(() => onAdmissionsChanged(() => setRefreshKey((value) => value + 1)), [])
 
   useEffect(() => {
     let active = true
@@ -1729,9 +1763,12 @@ export default function AllStudents() {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [showToast])
+  }, [showToast, refreshKey])
 
   const classOptions = [...new Set(rows.map((row) => row[3]).filter((value) => value && value !== "—"))]
+  const maleStudents = rows.filter((row) => row[8]?.trim().toLowerCase() === "male").length
+  const femaleStudents = rows.filter((row) => row[8]?.trim().toLowerCase() === "female").length
+  const genderPercentage = (count: number) => rows.length ? `${Math.round((count / rows.length) * 100)}% of students` : "No student data"
   const filteredRows = rows.filter((row) => {
     const matchesSearch =
       !search ||
@@ -1958,16 +1995,16 @@ export default function AllStudents() {
             },
             {
               label: "Male Students",
-              value: "6",
+              value: String(maleStudents),
               tone: "violet",
-              copy: "67% of students",
+              copy: genderPercentage(maleStudents),
               icon: "user" as ProfileIconName,
             },
             {
               label: "Female Students",
-              value: "3",
+              value: String(femaleStudents),
               tone: "amber",
-              copy: "33% of students",
+              copy: genderPercentage(femaleStudents),
               icon: "user" as ProfileIconName,
             },
           ].map((stat) => (

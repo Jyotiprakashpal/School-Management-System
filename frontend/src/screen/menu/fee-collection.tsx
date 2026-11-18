@@ -10,6 +10,10 @@ import {
 } from "../../components"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { get, post } from "../../api/methods"
+import { getAuthUser } from "../../auth/session"
+import { onFeeCollectionChanged, onFeeStructureChanged } from "../../api/socket"
 import {
   feeBalance,
   nextReceiptNumber,
@@ -144,8 +148,9 @@ const balanceOf = feeBalance
 
 export default function FeeCollection() {
   const [students, setStudents] = useStudents()
-  const [activeId, setActiveId] = useState<number | null>(1)
+  const [activeId, setActiveId] = useState<number | null>(null)
   const [transactions, setTransactions] = useTransactions()
+  const [academicYear, setAcademicYear] = useState("")
   const [studentSearch, setStudentSearch] = useState("")
   const [paymentAmount, setPaymentAmount] = useState("")
   const [paymentMode, setPaymentMode] = useState("Cash")
@@ -160,12 +165,58 @@ export default function FeeCollection() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
   const { showToast } = useToast()
 
   useEffect(() => {
-    const hydrateCollection = window.setTimeout(() => setLoading(false), 750)
-    return () => window.clearTimeout(hydrateCollection)
+    const refresh = () => setRefreshKey((value) => value + 1)
+    const unsubscribePayments = onFeeCollectionChanged(refresh)
+    const unsubscribeStructure = onFeeStructureChanged(refresh)
+    return () => {
+      unsubscribePayments()
+      unsubscribeStructure()
+    }
   }, [])
+
+  useEffect(() => {
+    let active = true
+    type Admission = { id: number; admissionNo: string; fullName: string; fatherName: string | null; className: string | null; section: string | null; mobile: string | null; academicYear: string | null; status: string | null }
+    type Fee = { id: number; className: string; name: string; amount: number | string; year: string }
+    type Assignment = { className: string; year: string }
+    type Payment = { id: number; studentId: string; admissionNo: string; studentName: string; feeHeadId: number; feeHeadName: string; amount: number | string; paidAmount: number | string; paymentMode: string; transactionId: string | null; receiptNumber: string; paymentDate: string; notes: string | null }
+    void Promise.all([
+      get<{ data: Admission[] }>(`${API_BASE}${API_ENDPOINTS.ADMISSIONS}?page=1&limit=100`, { cache: "no-store" }),
+      get<{ data: Fee[] }>(`${API_BASE}${API_ENDPOINTS.FEES}?page=1&limit=100`, { cache: "no-store" }),
+      get<{ data: Assignment[] }>(`${API_BASE}${API_ENDPOINTS.FEES}/assignments?page=1&limit=100`, { cache: "no-store" }),
+      get<{ data: Payment[] }>(`${API_BASE}${API_ENDPOINTS.FEE_COLLECTIONS}?page=1&limit=100`, { cache: "no-store" }),
+    ]).then(([admissionResponse, feeResponse, assignmentResponse, paymentResponse]) => {
+      if (!active) return
+      const assignments = assignmentResponse.data
+      const years = [...new Set(assignments.map((entry) => entry.year))]
+      const selectedYear = years[0] ?? feeResponse.data[0]?.year ?? ""
+      const payments = paymentResponse.data
+      const realStudents = admissionResponse.data
+        .filter((admission) => admission.status !== "Inactive" && admission.className && assignments.some((entry) => entry.className === admission.className && (!admission.academicYear || entry.year === admission.academicYear)))
+        .map((admission) => {
+          const assignment = assignments.find((entry) => entry.className === admission.className && (entry.year === admission.academicYear || !admission.academicYear))
+          const year = assignment?.year ?? selectedYear
+          const heads = feeResponse.data.filter((fee) => fee.className === admission.className && fee.year === year)
+          const fees = heads.map((fee) => {
+            const paid = payments.filter((payment) => payment.studentId === String(admission.id) && payment.feeHeadId === fee.id).reduce((sum, payment) => sum + Number(payment.paidAmount), 0)
+            return { id: fee.id, name: fee.name, amount: Number(fee.amount), paid, selected: false }
+          })
+          return { id: admission.id, name: admission.fullName, adm: admission.admissionNo, className: `${admission.className}${admission.section ? `-${admission.section}` : ""}`, father: admission.fatherName ?? "", phone: admission.mobile ?? "", fees }
+        })
+        .filter((student) => student.fees.length > 0)
+      setAcademicYear(selectedYear)
+      setStudents(realStudents)
+      setTransactions(payments.map((payment) => ({ receipt: payment.receiptNumber, studentId: Number(payment.studentId), heads: payment.feeHeadName, amount: Number(payment.paidAmount), date: payment.paymentDate.slice(0, 10), mode: payment.paymentMode, reference: payment.transactionId ?? "", remarks: payment.notes ?? "" })))
+      setActiveId((current) => current ?? realStudents[0]?.id ?? null)
+    }).catch((error) => {
+      if (active) showToast(error instanceof Error ? error.message : "Unable to load fee collection data.", { title: "Fee collection unavailable", tone: "error" })
+    }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [setStudents, setTransactions, showToast, refreshKey])
 
   const student = students.find((item) => item.id === activeId) ?? null
   const selectedFees = student?.fees.filter((fee) => fee.selected) ?? []
@@ -353,26 +404,52 @@ export default function FeeCollection() {
     }
 
     setCollecting(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 900))
     let remaining = amountValue
     const applied: string[] = []
+    const allocations = new Map<number, number>()
+    const classSeparator = student.className.lastIndexOf("-")
+    const className = classSeparator > 0 ? student.className.slice(0, classSeparator) : student.className
+    const section = classSeparator > 0 ? student.className.slice(classSeparator + 1) : "A"
     const nextFees = student.fees.map((fee) => {
       if (!fee.selected || remaining <= 0) return { ...fee, selected: false }
       const part = Math.min(balanceOf(fee), remaining)
       remaining -= part
+      allocations.set(fee.id, part)
       applied.push(fee.name)
       return { ...fee, paid: fee.paid + part, selected: false }
     })
-    const transaction: Transaction = {
-      receipt: nextReceipt,
-      studentId: student.id,
-      heads: applied.join(", "),
-      amount: amountValue,
-      date: paymentDate,
-      mode: paymentMode,
-      reference: reference.trim(),
-      remarks: remarks.trim(),
-    }
+    try {
+      const paymentRecords = await Promise.all(selectedFees.filter((fee) => (allocations.get(fee.id) ?? 0) > 0).map((fee) => {
+        const paidAmount = allocations.get(fee.id) ?? 0
+        return post<{ receiptNumber: string; paymentDate: string; paidAmount: number | string }>(`${API_BASE}${API_ENDPOINTS.FEE_COLLECTIONS}`, {
+          studentId: String(student.id),
+          admissionNo: student.adm,
+          studentName: student.name,
+          className,
+          section,
+          feeHeadId: fee.id,
+          feeHeadName: fee.name,
+          amount: fee.amount,
+          paidAmount,
+          paymentMode,
+          transactionId: reference.trim() || undefined,
+          paymentDate,
+          academicYear,
+          collectedBy: getAuthUser()?.username || "System",
+          createdBy: getAuthUser()?.username || "System",
+          notes: remarks.trim() || undefined,
+        })
+      }))
+      const transaction: Transaction = {
+        receipt: paymentRecords[0]?.receiptNumber ?? nextReceipt,
+        studentId: student.id,
+        heads: applied.join(", "),
+        amount: amountValue,
+        date: paymentDate,
+        mode: paymentMode,
+        reference: reference.trim(),
+        remarks: remarks.trim(),
+      }
     setStudents((current) =>
       current.map((item) =>
         item.id === student.id ? { ...item, fees: nextFees } : item,
@@ -387,6 +464,10 @@ export default function FeeCollection() {
     showToast(`${money(amountValue)} was collected from ${student.name}.`, {
       title: "Fee collected successfully",
     })
+    } catch (error) {
+      setCollecting(false)
+      showToast(error instanceof Error ? error.message : "Unable to save fee payment.", { title: "Payment failed", tone: "error" })
+    }
   }
 
   const historyRows = useMemo(() => {
