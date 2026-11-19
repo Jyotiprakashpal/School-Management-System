@@ -70,6 +70,14 @@ export const notificationRepository = {
     await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "isRead" BOOLEAN DEFAULT false`;
     await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
     await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW()`;
+    // Normalize legacy actor values (userId/username) to the user's display name.
+    await sql`
+      UPDATE notifications n
+      SET "createdBy" = u.name
+      FROM users u
+      WHERE n."createdBy" IS NOT NULL
+        AND n."createdBy" IN (u."userId", u.username)
+    `;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications("userId")
     `;
@@ -92,7 +100,7 @@ export const notificationRepository = {
 
     await this.create({
       userId: user.userId,
-      createdBy: user.userId,
+      createdBy: user.name,
       title: 'Account activity',
       message: `${user.name} account is ready to use`,
       type: 'success',

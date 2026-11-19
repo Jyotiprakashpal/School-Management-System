@@ -24,7 +24,7 @@ const getActorUsername = async (req: Request): Promise<string | null> => {
   if (!userId) return null;
 
   const user = await userRepository.findById(userId);
-  return user?.username || user?.name || null;
+  return user?.name || user?.username || null;
 };
 
 const createNotification = async (req: Request, data: {

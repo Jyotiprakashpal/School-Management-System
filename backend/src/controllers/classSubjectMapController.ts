@@ -19,7 +19,7 @@ const getActorUsername = async (req: Request): Promise<string> => {
   const id = Number(token.match(/^session-(\d+)-/)?.[1] || 0);
   if (!id) return 'System';
   const user = await userRepository.findById(id);
-  return user?.username || user?.name || 'System';
+  return user?.name || user?.username || 'System';
 };
 
 const createNotification = async (req: Request, data: {

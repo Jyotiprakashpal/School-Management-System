@@ -23,7 +23,7 @@ const getActorUserId = async (req: Request): Promise<string | undefined> => {
   const numericId = Number(token.match(/^session-(\d+)-/)?.[1] || 0);
   if (!numericId) return undefined;
   const user = await userRepository.findById(numericId);
-  return user?.username || undefined;
+  return user?.name || user?.username || undefined;
 };
 
 const createNotification = async (req: Request, data: {
