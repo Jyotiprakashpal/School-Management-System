@@ -11,6 +11,7 @@ import {
 } from '../models/FeeCollection.js';
 import { feeRepository } from '../models/Fee.js';
 import { notificationRepository } from '../models/Notification.js';
+import { cashflowRepository } from '../models/Cashflow.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
@@ -177,6 +178,20 @@ export const createFeePayment = async (req: Request<{}, FeePayment | { error: st
 
     const payment = await feeCollectionRepository.createPayment(req.body);
 
+    if (payment.paidAmount > 0) {
+      await cashflowRepository.createCashflow({
+        type: 'Income',
+        category: payment.feeHeadName || 'Student Fees',
+        description: `Fee collection from ${payment.studentName}`,
+        amount: payment.paidAmount,
+        date: new Date(payment.paymentDate).toISOString().slice(0, 10),
+        mode: payment.paymentMode,
+        reference: `FEE-${payment.id}`,
+        academicYear: payment.academicYear,
+        createdBy: payment.createdBy || req.body.createdBy,
+      });
+    }
+
     getIO(req).to('fee_collections').emit('payment:created', payment);
 
     await createNotification(req, {
@@ -219,6 +234,22 @@ export const updateFeePayment = async (req: Request<{ id: string }, FeePayment |
       return res.status(404).json({ error: 'Payment not found' });
     }
 
+    const income = await cashflowRepository.findByReference(`FEE-${payment.id}`);
+    if (payment.paidAmount > 0) {
+      const payload = {
+        category: payment.feeHeadName || 'Student Fees',
+        description: `Fee collection from ${payment.studentName}`,
+        amount: payment.paidAmount,
+        date: new Date(payment.paymentDate).toISOString().slice(0, 10),
+        mode: payment.paymentMode,
+        reference: `FEE-${payment.id}`,
+      };
+      if (income) await cashflowRepository.updateCashflow(income.id, payload);
+      else await cashflowRepository.createCashflow({ type: 'Income', ...payload, academicYear: payment.academicYear, createdBy: payment.createdBy || currentPayment.createdBy || undefined });
+    } else if (income) {
+      await cashflowRepository.deleteCashflow(income.id);
+    }
+
     getIO(req).to('fee_collections').emit('payment:updated', payment);
 
     await createNotification(req, {
@@ -249,6 +280,7 @@ export const deleteFeePayment = async (req: Request<{ id: string }>, res: Respon
     }
 
     await feeCollectionRepository.deletePayment(id);
+    await cashflowRepository.deleteByReference(`FEE-${payment.id}`);
 
     getIO(req).to('fee_collections').emit('payment:deleted', { id });
 

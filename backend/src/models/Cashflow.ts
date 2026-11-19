@@ -137,6 +137,15 @@ export const cashflowRepository = {
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    // Older installations created cashflows before expense-specific fields
+    // were added. Ensure those columns exist before expense reads/writes.
+    await sql`ALTER TABLE cashflows ADD COLUMN IF NOT EXISTS voucher VARCHAR(100)`;
+    await sql`ALTER TABLE cashflows ADD COLUMN IF NOT EXISTS payee VARCHAR(200)`;
+    await sql`ALTER TABLE cashflows ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Pending'`;
+    await sql`ALTER TABLE cashflows ADD COLUMN IF NOT EXISTS "academicYear" VARCHAR(20)`;
+    await sql`ALTER TABLE cashflows ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
+    await sql`ALTER TABLE cashflows ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW()`;
+    await sql`ALTER TABLE cashflows ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW()`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_cashflows_type ON cashflows(type)
     `;
@@ -249,6 +258,18 @@ export const cashflowRepository = {
       SELECT ${selectExpenseColumns} FROM cashflows WHERE voucher = ${voucher} AND type = 'Expense'
     `;
     return expense ? toExpenseResponse(expense) : null;
+  },
+
+  async findByReference(reference: string): Promise<Cashflow | null> {
+    const [cashflow] = await sql<CashflowRow[]>`
+      SELECT ${selectCashflowColumns} FROM cashflows WHERE reference = ${reference} LIMIT 1
+    `;
+    return cashflow ? toCashflowResponse(cashflow) : null;
+  },
+
+  async deleteByReference(reference: string): Promise<boolean> {
+    const result = await sql`DELETE FROM cashflows WHERE reference = ${reference}`;
+    return result.count > 0;
   },
 
   async createCashflow(data: CreateCashflowDto): Promise<Cashflow> {

@@ -9,6 +9,9 @@ import {
 } from "../../components"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
+import { getAuthUser } from "../../auth/session"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { del, get, post, put } from "../../api/methods"
 
 type ExpenseStatus = "Approved" | "Pending"
 
@@ -25,85 +28,10 @@ type Expense = {
   voucher: string
 }
 
-const initialExpenses: Expense[] = [
-  {
-    id: 1,
-    voucher: "EXP-2609-008",
-    category: "Maintenance",
-    description: "Classroom repair and paint",
-    amount: 5000,
-    date: "2026-09-21",
-    mode: "Cash",
-    payee: "Sharma Hardware",
-    reference: "INV-451",
-    status: "Approved",
-  },
-  {
-    id: 2,
-    voucher: "EXP-2609-007",
-    category: "Utilities",
-    description: "September electricity bill",
-    amount: 4500,
-    date: "2026-09-18",
-    mode: "Bank Transfer",
-    payee: "State Power Corp.",
-    reference: "ELEC-9091",
-    status: "Approved",
-  },
-  {
-    id: 3,
-    voucher: "EXP-2609-006",
-    category: "Academic",
-    description: "Science laboratory supplies",
-    amount: 2800,
-    date: "2026-09-14",
-    mode: "UPI",
-    payee: "Modern Lab Works",
-    reference: "MLW-183",
-    status: "Pending",
-  },
-  {
-    id: 4,
-    voucher: "EXP-2609-005",
-    category: "Transport",
-    description: "School bus fuel",
-    amount: 3200,
-    date: "2026-09-10",
-    mode: "Card",
-    payee: "City Fuel Station",
-    reference: "CFS-882",
-    status: "Approved",
-  },
-  {
-    id: 5,
-    voucher: "EXP-2609-004",
-    category: "Office",
-    description: "Printer paper and stationery",
-    amount: 1750,
-    date: "2026-09-06",
-    mode: "Cash",
-    payee: "National Stationers",
-    reference: "NS-240",
-    status: "Approved",
-  },
-  {
-    id: 6,
-    voucher: "EXP-2608-003",
-    category: "Events",
-    description: "Independence Day decorations",
-    amount: 2400,
-    date: "2026-08-12",
-    mode: "UPI",
-    payee: "Celebration House",
-    reference: "CH-714",
-    status: "Approved",
-  },
-]
-
 const blankExpense = {
   amount: "",
   category: "",
-  date: "2026-09-28",
+  date: new Date().toISOString().slice(0, 10),
   description: "",
   mode: "Bank Transfer",
   payee: "",
@@ -226,7 +154,7 @@ export default function Expenses() {
   const [query, setQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("All Categories")
   const [statusFilter, setStatusFilter] = useState("All Status")
-  const [period, setPeriod] = useState("September 2026")
+  const [period, setPeriod] = useState("All Periods")
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
@@ -239,13 +167,13 @@ export default function Expenses() {
   const monthlyBudget = 25000
 
   useEffect(() => {
-    const loadExpenses = window.setTimeout(() => {
-      setExpenses(initialExpenses)
-      setInitialLoading(false)
-    }, 1000)
-
-    return () => window.clearTimeout(loadExpenses)
-  }, [])
+    let active = true
+    void get<{ data: Expense[] }>(`${API_BASE}${API_ENDPOINTS.EXPENSES}/expenses?limit=100`)
+      .then((response) => { if (active) setExpenses(response.data.map((item) => ({ ...item, amount: Number(item.amount) }))) })
+      .catch((error) => showToast(error instanceof Error ? error.message : "Unable to load expenses.", { title: "Expenses unavailable", tone: "error" }))
+      .finally(() => { if (active) setInitialLoading(false) })
+    return () => { active = false }
+  }, [showToast])
 
   const visibleExpenses = useMemo(
     () =>
@@ -259,25 +187,17 @@ export default function Expenses() {
           expense.category === categoryFilter
         const matchesStatus =
           statusFilter === "All Status" || expense.status === statusFilter
-        const month =
-          period === "September 2026"
-            ? "2026-09"
-            : period === "August 2026"
-              ? "2026-08"
-              : ""
         return (
           matchesQuery &&
           matchesCategory &&
           matchesStatus &&
-          (!month || expense.date.startsWith(month))
+          (period === "All Periods" || expense.date.startsWith(period))
         )
       }),
     [categoryFilter, expenses, period, query, statusFilter],
   )
 
-  const septemberExpenses = expenses.filter((expense) =>
-    expense.date.startsWith("2026-09"),
-  )
+  const septemberExpenses = expenses
   const monthlySpend = septemberExpenses.reduce(
     (sum, expense) => sum + expense.amount,
     0,
@@ -303,12 +223,15 @@ export default function Expenses() {
       ).sort((first, second) => second[1] - first[1]),
     [expenses],
   )
+  const expenseCategories = Array.from(new Set(expenses.map((expense) => expense.category))).sort()
+  const expensePeriods = Array.from(new Set(expenses.map((expense) => expense.date.slice(0, 7)))).sort().reverse()
 
   if (initialLoading) return <ExpensesSkeleton />
 
   const refreshExpenses = async () => {
     setLoading(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 650))
+    const response = await get<{ data: Expense[] }>(`${API_BASE}${API_ENDPOINTS.EXPENSES}/expenses?limit=100`)
+    setExpenses(response.data.map((item) => ({ ...item, amount: Number(item.amount) })))
     setLoading(false)
     showToast(
       `${visibleExpenses.length} expense records match the selected filters.`,
@@ -354,34 +277,27 @@ export default function Expenses() {
       return
     }
     setSaving(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 900))
-    if (editingId) {
-      setExpenses((current) =>
-        current.map((expense) =>
-          expense.id === editingId ? { ...expense, ...form, amount } : expense,
-        ),
-      )
-    } else {
-      const voucher = `EXP-2609-${String(expenses.length + 3).padStart(3, "0")}`
-      setExpenses((current) => [
-        { id: Date.now(), voucher, ...form, amount },
-        ...current,
-      ])
+    try {
+      const payload = { ...form, amount, createdBy: getAuthUser()?.name || getAuthUser()?.username }
+      if (editingId) {
+        const updated = await put<Expense>(`${API_BASE}${API_ENDPOINTS.EXPENSES}/expenses/${editingId}`, payload)
+        setExpenses((current) => current.map((expense) => expense.id === editingId ? { ...updated, amount: Number(updated.amount) } : expense))
+      } else {
+        const created = await post<Expense>(`${API_BASE}${API_ENDPOINTS.EXPENSES}/expenses`, payload)
+        setExpenses((current) => [{ ...created, amount: Number(created.amount) }, ...current])
+      }
+      setEditorOpen(false)
+      showToast(`Expense was ${editingId ? "updated" : "recorded"} successfully.`, { title: editingId ? "Expense updated" : "Expense added" })
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to save the expense.", { title: "Expense save failed", tone: "error" })
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
-    setEditorOpen(false)
-    showToast(
-      `Expense was ${editingId ? "updated" : "recorded"} successfully.`,
-      { title: editingId ? "Expense updated" : "Expense added" },
-    )
   }
 
-  const approveExpense = (expense: Expense) => {
-    setExpenses((current) =>
-      current.map((item) =>
-        item.id === expense.id ? { ...item, status: "Approved" } : item,
-      ),
-    )
+  const approveExpense = async (expense: Expense) => {
+    const approved = await put<Expense>(`${API_BASE}${API_ENDPOINTS.EXPENSES}/expenses/${expense.id}/approve`)
+    setExpenses((current) => current.map((item) => item.id === expense.id ? { ...approved, amount: Number(approved.amount) } : item))
     setSelectedExpense((current) =>
       current?.id === expense.id ? { ...current, status: "Approved" } : current,
     )
@@ -390,8 +306,9 @@ export default function Expenses() {
     })
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteExpense) return
+    await del(`${API_BASE}${API_ENDPOINTS.EXPENSES}/expenses/${deleteExpense.id}`)
     setExpenses((current) =>
       current.filter((expense) => expense.id !== deleteExpense.id),
     )
@@ -579,8 +496,8 @@ export default function Expenses() {
                 label="Period"
                 value={period}
                 onChange={(event) => setPeriod(event.target.value)}
-                options={["September 2026", "August 2026", "All Periods"].map(
-                  (value) => ({ label: value, value }),
+                options={["All Periods", ...expensePeriods].map(
+                  (value) => ({ label: value === "All Periods" ? value : formatDate(`${value}-01`).replace(/01 /, ""), value }),
                 )}
               />
               <Dropdown
@@ -588,15 +505,7 @@ export default function Expenses() {
                 label="Category"
                 value={categoryFilter}
                 onChange={(event) => setCategoryFilter(event.target.value)}
-                options={[
-                  "All Categories",
-                  "Maintenance",
-                  "Utilities",
-                  "Academic",
-                  "Transport",
-                  "Office",
-                  "Events",
-                ].map((value) => ({ label: value, value }))}
+                options={["All Categories", ...expenseCategories].map((value) => ({ label: value, value }))}
               />
               <Dropdown
                 className="h-10 border-white bg-white px-3 text-xs shadow-sm"

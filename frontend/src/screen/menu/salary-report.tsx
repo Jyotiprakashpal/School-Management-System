@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Dropdown, SalaryReportSkeleton, useToast } from "../../components";
+import { get } from "../../api/methods";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { onPayrollCreated, onPayrollDeleted, onPayrollStatusChanged, onPayrollUpdated } from "../../api/socket";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 
@@ -24,23 +27,64 @@ type EmployeeSalary = {
   status: "Paid" | "Pending";
 };
 
-const initialMonthlyPayroll: MonthlyPayroll[] = [
-  { id: 1, month: "April 2026", employees: 6, gross: 202000, deductions: 10800, net: 191200, paid: 191200, status: "Complete" },
-  { id: 2, month: "May 2026", employees: 6, gross: 202000, deductions: 10800, net: 191200, paid: 191200, status: "Complete" },
-  { id: 3, month: "June 2026", employees: 6, gross: 204500, deductions: 11100, net: 193400, paid: 193400, status: "Complete" },
-  { id: 4, month: "July 2026", employees: 6, gross: 204500, deductions: 11100, net: 193400, paid: 193400, status: "Complete" },
-  { id: 5, month: "August 2026", employees: 6, gross: 208200, deductions: 11800, net: 196400, paid: 196400, status: "Complete" },
-  { id: 6, month: "September 2026", employees: 6, gross: 214700, deductions: 10500, net: 204200, paid: 45200, status: "Partial" },
-];
+type PayrollRecord = {
+  id: number;
+  employeeId: string;
+  name: string;
+  department: string;
+  basic: number;
+  allowances: number;
+  deductions: number;
+  netSalary: number;
+  status: "Paid" | "Pending" | "Processed";
+  month: string;
+  year: number;
+};
 
-const initialEmployeeSalaries: EmployeeSalary[] = [
-  { id: 1, employeeId: "EMP-26-1001", name: "Raj Kumar", department: "Administration", gross: 48000, net: 45200, status: "Paid" },
-  { id: 2, employeeId: "EMP-26-1002", name: "Priya Sharma", department: "Academics", gross: 31700, net: 30100, status: "Pending" },
-  { id: 3, employeeId: "EMP-26-1003", name: "Ravi Verma", department: "Academics", gross: 33500, net: 31750, status: "Pending" },
-  { id: 4, employeeId: "EMP-26-1004", name: "Neha Singh", department: "Academics", gross: 32700, net: 31000, status: "Pending" },
-  { id: 5, employeeId: "EMP-26-1005", name: "Anjali Gupta", department: "Finance", gross: 29300, net: 27850, status: "Pending" },
-  { id: 6, employeeId: "EMP-26-1006", name: "Mohan Yadav", department: "Transport", gross: 24500, net: 23300, status: "Pending" },
-];
+type PayrollListResponse = { data: PayrollRecord[] };
+
+function toNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function reportData(records: PayrollRecord[]) {
+  const periods = new Map<string, PayrollRecord[]>();
+  records.forEach((record) => {
+    const key = `${record.year}-${record.month}`;
+    periods.set(key, [...(periods.get(key) ?? []), record]);
+  });
+
+  const monthly = [...periods.entries()].sort(([first], [second]) => first.localeCompare(second)).map(([key, items], index) => {
+    const first = items[0];
+    const gross = items.reduce((sum, item) => sum + toNumber(item.basic) + toNumber(item.allowances), 0);
+    const deductions = items.reduce((sum, item) => sum + toNumber(item.deductions), 0);
+    const net = items.reduce((sum, item) => sum + (toNumber(item.netSalary) || toNumber(item.basic) + toNumber(item.allowances) - toNumber(item.deductions)), 0);
+    const paid = items.filter((item) => item.status === "Paid").reduce((sum, item) => sum + (toNumber(item.netSalary) || gross - deductions), 0);
+    return { id: index + 1, month: `${first.month} ${first.year}`, employees: items.length, gross, deductions, net, paid, status: paid >= net ? "Complete" : "Partial" } as MonthlyPayroll;
+  });
+
+  const latestByEmployee = new Map<string, PayrollRecord>();
+  [...records].sort((first, second) => `${first.year}-${first.month}`.localeCompare(`${second.year}-${second.month}`)).forEach((record) => {
+    latestByEmployee.set(record.employeeId, record);
+  });
+  const employees = [...latestByEmployee.values()].map((record) => ({
+    id: record.id,
+    employeeId: record.employeeId,
+    name: record.name,
+    department: record.department || "Unassigned",
+    gross: toNumber(record.basic) + toNumber(record.allowances),
+    net: toNumber(record.netSalary) || toNumber(record.basic) + toNumber(record.allowances) - toNumber(record.deductions),
+    status: record.status === "Paid" ? "Paid" : "Pending",
+  } as EmployeeSalary));
+
+  return { monthly, employees };
+}
+
+async function fetchReportData() {
+  const response = await get<PayrollListResponse>(`${API_BASE}${API_ENDPOINTS.SALARY}?limit=100`, { cache: "no-store" });
+  return reportData(response.data ?? []);
+}
 
 function SalaryReportIcon({ type }: { type: "report" | "trend" | "salary" | "people" | "download" }) {
   const paths = {
@@ -91,8 +135,8 @@ export default function SalaryReport() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [monthlyPayroll, setMonthlyPayroll] = useState<MonthlyPayroll[]>([]);
   const [employeeSalaries, setEmployeeSalaries] = useState<EmployeeSalary[]>([]);
-  const [academicYear, setAcademicYear] = useState("2026–27");
-  const [period, setPeriod] = useState("April–September");
+  const [academicYear, setAcademicYear] = useState("");
+  const [period, setPeriod] = useState("All Periods");
   const [department, setDepartment] = useState("All Departments");
   const [paymentStatus, setPaymentStatus] = useState("All Status");
   const [refreshing, setRefreshing] = useState(false);
@@ -102,13 +146,34 @@ export default function SalaryReport() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    const loadSalaryReport = window.setTimeout(() => {
-      setMonthlyPayroll(initialMonthlyPayroll);
-      setEmployeeSalaries(initialEmployeeSalaries);
-      setInitialLoading(false);
-    }, 1000);
-
-    return () => window.clearTimeout(loadSalaryReport);
+    let mounted = true;
+    const loadSalaryReport = async () => {
+      try {
+        const data = await fetchReportData();
+        if (!mounted) return;
+        setMonthlyPayroll(data.monthly);
+        setEmployeeSalaries(data.employees);
+        const years = data.monthly.map((item) => Number(item.month.split(" ").at(-1))).filter(Boolean);
+        if (years.length) setAcademicYear(`${Math.min(...years)}-${String(Math.max(...years) + 1).slice(-2)}`);
+        if (data.monthly.length) setPeriod(data.monthly[data.monthly.length - 1].month);
+      } catch (error) {
+        console.error("Failed to load salary report", error);
+      } finally {
+        if (mounted) setInitialLoading(false);
+      }
+    };
+    void loadSalaryReport();
+    const removeCreated = onPayrollCreated(() => void loadSalaryReport());
+    const removeUpdated = onPayrollUpdated(() => void loadSalaryReport());
+    const removeStatusChanged = onPayrollStatusChanged(() => void loadSalaryReport());
+    const removeDeleted = onPayrollDeleted(() => void loadSalaryReport());
+    return () => {
+      mounted = false;
+      removeCreated();
+      removeUpdated();
+      removeStatusChanged();
+      removeDeleted();
+    };
   }, []);
 
   const visibleEmployees = useMemo(() => employeeSalaries.filter((employee) => {
@@ -129,14 +194,22 @@ export default function SalaryReport() {
   const totalNet = monthlyPayroll.reduce((sum, item) => sum + item.net, 0);
   const totalPaid = monthlyPayroll.reduce((sum, item) => sum + item.paid, 0);
   const pendingPayroll = totalNet - totalPaid;
-  const paymentCompletion = Math.round(totalPaid / totalNet * 100);
-  const maxPayroll = Math.max(...monthlyPayroll.map((item) => item.gross));
+  const paymentCompletion = totalNet ? Math.round(totalPaid / totalNet * 100) : 0;
+  const maxPayroll = Math.max(1, ...monthlyPayroll.map((item) => item.gross));
+  const highestPayroll = monthlyPayroll.reduce<MonthlyPayroll | null>((highest, item) => !highest || item.net > highest.net ? item : highest, null);
+  const currentPayroll = monthlyPayroll[monthlyPayroll.length - 1];
 
   const loadReport = async () => {
     setRefreshing(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 700));
+    try {
+      const data = await fetchReportData();
+      setMonthlyPayroll(data.monthly);
+      setEmployeeSalaries(data.employees);
+      showToast(`${period} salary analytics have been refreshed.`, { title: "Report updated", tone: "info" });
+    } catch {
+      showToast("Salary report could not be loaded. Please try again.", { title: "Report failed", tone: "error" });
+    }
     setRefreshing(false);
-    showToast(`${period} salary analytics have been refreshed.`, { title: "Report updated", tone: "info" });
   };
 
   const exportReport = async (format: "CSV" | "PDF") => {
@@ -333,9 +406,9 @@ export default function SalaryReport() {
       <section className="panel salary-report-filters">
         <div className="panel-title flex-wrap gap-3"><div className="flex items-center gap-3"><span className="settings-icon grid size-9 place-items-center rounded-xl"><SalaryReportIcon type="report" /></span><div><div className="font-display text-sm font-bold text-slate-900">Report Parameters</div><div className="mt-0.5 text-xs text-slate-400">Refine payroll data and employee records</div></div></div><span className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 sm:inline-flex">{visibleEmployees.length} employees matched</span></div>
         <div className="grid gap-3 p-4 sm:grid-cols-2 sm:gap-4 sm:p-5 xl:grid-cols-[1fr_1fr_1fr_1fr_auto] xl:items-end">
-          <Dropdown label="Academic Year" value={academicYear} onChange={(event) => setAcademicYear(event.target.value)} options={["2026–27", "2027–28"].map((value) => ({ label: value, value }))} />
-          <Dropdown label="Report Period" value={period} onChange={(event) => setPeriod(event.target.value)} options={["April–September", "September 2026", "Quarter 2", "Full Academic Year"].map((value) => ({ label: value, value }))} />
-          <Dropdown label="Department" value={department} onChange={(event) => setDepartment(event.target.value)} options={["All Departments", "Academics", "Administration", "Finance", "Transport"].map((value) => ({ label: value, value }))} />
+          <Dropdown label="Academic Year" value={academicYear} onChange={(event) => setAcademicYear(event.target.value)} options={[academicYear].filter(Boolean).map((value) => ({ label: value, value }))} />
+          <Dropdown label="Report Period" value={period} onChange={(event) => setPeriod(event.target.value)} options={["All Periods", ...monthlyPayroll.map((item) => item.month)].map((value) => ({ label: value, value }))} />
+          <Dropdown label="Department" value={department} onChange={(event) => setDepartment(event.target.value)} options={["All Departments", ...[...new Set(employeeSalaries.map((employee) => employee.department))]].map((value) => ({ label: value, value }))} />
           <Dropdown label="Payment Status" value={paymentStatus} onChange={(event) => setPaymentStatus(event.target.value)} options={["All Status", "Paid", "Pending"].map((value) => ({ label: value, value }))} />
           <Button className="w-full sm:col-span-2 xl:col-span-1 xl:w-auto" onClick={loadReport} isLoading={refreshing} loadingText="Loading report...">Apply Filters</Button>
         </div>
@@ -343,7 +416,7 @@ export default function SalaryReport() {
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
-          { label: "Gross Earnings", value: compactCurrency(totalGross), tone: "teal", copy: "April–September", icon: "salary" as const, iconStyle: "metric-icon-teal" },
+          { label: "Gross Earnings", value: compactCurrency(totalGross), tone: "teal", copy: period, icon: "salary" as const, iconStyle: "metric-icon-teal" },
           { label: "Total Deductions", value: formatCurrency(totalDeductions), tone: "amber", copy: "Tax, PF, and adjustments", icon: "report" as const, iconStyle: "bg-amber-100 text-amber-600" },
           { label: "Net Payroll", value: compactCurrency(totalNet), tone: "red", copy: "Salary liability", icon: "trend" as const, iconStyle: "bg-rose-100 text-rose-600" },
           { label: "Total Paid", value: compactCurrency(totalPaid), tone: "green", copy: `${paymentCompletion}% disbursed`, icon: "people" as const, iconStyle: "bg-emerald-100 text-emerald-600" },
@@ -360,13 +433,13 @@ export default function SalaryReport() {
               <div className="pointer-events-none absolute inset-x-0 top-3/4 border-t border-dashed border-slate-200" />
               <div className="relative flex h-64 items-end gap-2 border-b border-slate-200 sm:gap-5">{monthlyPayroll.map((item) => <div key={item.id} className="salary-chart-group flex h-full flex-1 flex-col justify-end"><div className="flex h-52 items-end justify-center gap-1"><div className={`${chartHeight(item.gross, maxPayroll)} salary-chart-bar w-2 rounded-t-md bg-gradient-to-t from-violet-600 to-violet-400 sm:w-4`} title={`Gross ${formatCurrency(item.gross)}`} /><div className={`${chartHeight(item.net, maxPayroll)} salary-chart-bar w-2 rounded-t-md bg-gradient-to-t from-cyan-600 to-cyan-400 sm:w-4`} title={`Net ${formatCurrency(item.net)}`} /><div className={`${chartHeight(item.paid, maxPayroll)} salary-chart-bar w-2 rounded-t-md bg-gradient-to-t from-emerald-600 to-emerald-400 sm:w-4`} title={`Paid ${formatCurrency(item.paid)}`} /></div><div className="py-3 text-center text-[0.65rem] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">{item.month.slice(0, 3)}</div></div>)}</div>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">{[["Highest Payroll", "September", formatCurrency(monthlyPayroll[5].net)], ["Average Net", formatCurrency(Math.round(totalNet / monthlyPayroll.length)), "Per month"], ["Completion", `${paymentCompletion}%`, "Year to date"]].map(([label, value, copy]) => <div key={label} className="salary-insight-card rounded-xl border p-2.5 sm:p-3"><div className="text-[0.58rem] font-bold uppercase tracking-wide text-slate-400 sm:text-xs sm:normal-case sm:tracking-normal">{label}</div><div className="mt-1 truncate font-display text-xs font-bold text-slate-800 sm:text-sm">{value}</div><div className="mt-1 hidden text-xs text-slate-400 sm:block">{copy}</div></div>)}</div>
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">{[["Highest Payroll", highestPayroll?.month ?? "No data", formatCurrency(highestPayroll?.net ?? 0)], ["Average Net", formatCurrency(monthlyPayroll.length ? Math.round(totalNet / monthlyPayroll.length) : 0), "Per month"], ["Completion", `${paymentCompletion}%`, "Year to date"]].map(([label, value, copy]) => <div key={label} className="salary-insight-card rounded-xl border p-2.5 sm:p-3"><div className="text-[0.58rem] font-bold uppercase tracking-wide text-slate-400 sm:text-xs sm:normal-case sm:tracking-normal">{label}</div><div className="mt-1 truncate font-display text-xs font-bold text-slate-800 sm:text-sm">{value}</div><div className="mt-1 hidden text-xs text-slate-400 sm:block">{copy}</div></div>)}</div>
           </div>
         </section>
 
         <aside className="space-y-5 xl:sticky xl:top-28">
           <section className="salary-team-panel panel overflow-hidden"><div className="salary-team-header p-5"><div className="flex items-center gap-2"><span className="settings-icon grid size-9 place-items-center rounded-xl"><SalaryReportIcon type="people" /></span><div className="font-display text-sm font-bold text-slate-900">Payroll by Team</div></div><p className="mt-2 text-xs leading-5 text-slate-400">September net payroll distribution.</p></div><div className="space-y-4 p-5 pt-1">{departmentTotals.map(([departmentName, amount]) => <div key={departmentName}><div className="flex justify-between gap-3 text-xs"><span className="font-semibold text-slate-700">{departmentName}</span><span className="font-medium text-slate-500">{formatCurrency(amount)}</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`${progressWidth(amount, departmentTotals[0]?.[1] ?? 1)} salary-team-progress h-full rounded-full`} /></div></div>)}</div></section>
-          <section className="salary-pending-card rounded-2xl border border-amber-100 bg-amber-50 p-5"><div className="flex items-center gap-2 text-amber-700"><SalaryReportIcon type="salary" /><div className="font-display text-sm font-bold">September Pending</div></div><div className="mt-3 font-display text-2xl font-bold text-amber-800">{formatCurrency(monthlyPayroll[5].net - monthlyPayroll[5].paid)}</div><p className="mt-2 text-xs leading-5 text-amber-700">Five salaries remain pending in the current payroll cycle.</p></section>
+          <section className="salary-pending-card rounded-2xl border border-amber-100 bg-amber-50 p-5"><div className="flex items-center gap-2 text-amber-700"><SalaryReportIcon type="salary" /><div className="font-display text-sm font-bold">{currentPayroll?.month ?? "Current Payroll"} Pending</div></div><div className="mt-3 font-display text-2xl font-bold text-amber-800">{formatCurrency(currentPayroll ? currentPayroll.net - currentPayroll.paid : 0)}</div><p className="mt-2 text-xs leading-5 text-amber-700">Unpaid salary amount in the current payroll cycle.</p></section>
         </aside>
       </div>
 
@@ -394,7 +467,7 @@ export default function SalaryReport() {
       </section>
 
       <section className="panel">
-        <div className="salary-data-header panel-title relative overflow-hidden py-3"><div className="flex min-w-0 items-center gap-3"><span className="settings-icon grid size-9 shrink-0 place-items-center rounded-xl"><SalaryReportIcon type="people" /></span><div className="min-w-0"><div className="truncate font-display text-sm font-bold text-slate-900 sm:text-base">September Employee Ledger</div><div className="mt-0.5 hidden text-xs text-slate-400 sm:block">{visibleEmployees.length} employees match the report filters</div></div></div><span className="salary-data-count shrink-0 rounded-full px-2.5 py-1 text-[0.62rem] font-bold sm:hidden">{visibleEmployees.length} matched</span></div>
+        <div className="salary-data-header panel-title relative overflow-hidden py-3"><div className="flex min-w-0 items-center gap-3"><span className="settings-icon grid size-9 shrink-0 place-items-center rounded-xl"><SalaryReportIcon type="people" /></span><div className="min-w-0"><div className="truncate font-display text-sm font-bold text-slate-900 sm:text-base">Employee Salary Ledger</div><div className="mt-0.5 hidden text-xs text-slate-400 sm:block">{visibleEmployees.length} employees match the report filters</div></div></div><span className="salary-data-count shrink-0 rounded-full px-2.5 py-1 text-[0.62rem] font-bold sm:hidden">{visibleEmployees.length} matched</span></div>
         <div className="grid gap-3 p-3 sm:hidden">
           {visibleEmployees.map((employee) => <article key={employee.id} className="salary-report-mobile-card relative overflow-hidden rounded-2xl border p-4">
             <div className="flex items-start gap-3">

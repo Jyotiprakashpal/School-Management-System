@@ -9,6 +9,7 @@ import {
 } from '../models/AdmissionEnquiry.js';
 import { notificationRepository } from '../models/Notification.js';
 import { userRepository } from '../models/User.js';
+import { cashflowRepository } from '../models/Cashflow.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
@@ -124,6 +125,19 @@ export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error:
       revenue
     });
 
+    if (enquiry.revenue > 0) {
+      await cashflowRepository.createCashflow({
+        type: 'Income',
+        category: 'Admission Fees',
+        description: `Admission enquiry revenue from ${enquiry.name}`,
+        amount: enquiry.revenue,
+        date: new Date().toISOString().slice(0, 10),
+        mode: 'Cash',
+        reference: `ENQUIRY-${enquiry.studentId}`,
+        createdBy: await getActorUserId(req),
+      });
+    }
+
     // Emit real-time event
     getIO(req).to('enquiries').emit('enquiry:created', enquiry);
 
@@ -175,6 +189,22 @@ export const updateEnquiry = async (req: Request<{ studentId: string }, Admissio
       return res.status(404).json({ error: 'Enquiry not found' });
     }
 
+    const income = await cashflowRepository.findByReference(`ENQUIRY-${enquiry.studentId}`);
+    if (enquiry.revenue > 0) {
+      const payload = {
+        category: 'Admission Fees',
+        description: `Admission enquiry revenue from ${enquiry.name}`,
+        amount: enquiry.revenue,
+        date: new Date(enquiry.updatedAt).toISOString().slice(0, 10),
+        mode: 'Cash',
+        reference: `ENQUIRY-${enquiry.studentId}`,
+      };
+      if (income) await cashflowRepository.updateCashflow(income.id, payload);
+      else await cashflowRepository.createCashflow({ type: 'Income', ...payload, createdBy: await getActorUserId(req) });
+    } else if (income) {
+      await cashflowRepository.deleteCashflow(income.id);
+    }
+
     // Emit real-time event
     getIO(req).to('enquiries').emit('enquiry:updated', enquiry);
 
@@ -207,6 +237,7 @@ export const deleteEnquiry = async (req: Request<{ studentId: string }>, res: Re
     const enquiry = await admissionEnquiryRepository.findByStudentId(studentId);
 
     await admissionEnquiryRepository.delete(studentId);
+    await cashflowRepository.deleteByReference(`ENQUIRY-${studentId}`);
 
     // Emit real-time event
     getIO(req).to('enquiries').emit('enquiry:deleted', { studentId });

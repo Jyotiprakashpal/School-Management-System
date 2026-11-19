@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, DatePicker, Dropdown, IncomeVsExpenseSkeleton, Input, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { getAuthUser } from "../../auth/session";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { del, get, post } from "../../api/methods";
 
 type CashflowType = "Expense" | "Income";
 
@@ -21,26 +24,6 @@ type MonthlySummary = {
   income: number;
   month: string;
 };
-
-const monthlyData: MonthlySummary[] = [
-  { month: "Apr", income: 18200, expense: 7250 },
-  { month: "May", income: 21500, expense: 8100 },
-  { month: "Jun", income: 19800, expense: 9650 },
-  { month: "Jul", income: 23400, expense: 8800 },
-  { month: "Aug", income: 22100, expense: 10250 },
-  { month: "Sep", income: 24850, expense: 17250 },
-];
-
-const initialCashflows: Cashflow[] = [
-  { id: 1, type: "Income", category: "Tuition Fees", description: "September fee collection", amount: 16800, date: "2026-09-26", mode: "Bank Transfer", reference: "INC-2609-018" },
-  { id: 2, type: "Expense", category: "Maintenance", description: "Classroom repairs", amount: 5000, date: "2026-09-21", mode: "Cash", reference: "EXP-2609-008" },
-  { id: 3, type: "Expense", category: "Utilities", description: "Electricity bill", amount: 4500, date: "2026-09-18", mode: "Bank Transfer", reference: "EXP-2609-007" },
-  { id: 4, type: "Income", category: "Transport Fees", description: "Monthly transport collection", amount: 5050, date: "2026-09-16", mode: "UPI", reference: "INC-2609-017" },
-  { id: 5, type: "Expense", category: "Transport", description: "School bus fuel", amount: 3200, date: "2026-09-10", mode: "Card", reference: "EXP-2609-005" },
-  { id: 6, type: "Income", category: "Examination Fees", description: "Half yearly examination fees", amount: 3000, date: "2026-09-08", mode: "Cash", reference: "INC-2609-016" },
-  { id: 7, type: "Expense", category: "Office", description: "Stationery and printer supplies", amount: 1750, date: "2026-09-06", mode: "Cash", reference: "EXP-2609-004" },
-  { id: 8, type: "Expense", category: "Academic", description: "Laboratory supplies", amount: 2800, date: "2026-09-03", mode: "UPI", reference: "EXP-2609-003" },
-];
 
 const blankCashflow = {
   amount: "",
@@ -70,7 +53,12 @@ function formatCurrency(value: number) {
 }
 
 function formatDate(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const raw = String(value || "");
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    ? new Date(`${raw}T00:00:00`)
+    : new Date(raw);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function csvCell(value: string | number) {
@@ -113,24 +101,41 @@ export default function IncomeVsExpense() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    const loadIncomeVsExpense = window.setTimeout(() => {
-      setCashflows(initialCashflows);
-      setInitialLoading(false);
-    }, 1000);
+    let active = true;
+    void Promise.all([
+      get<{ data: Cashflow[] }>(`${API_BASE}${API_ENDPOINTS.EXPENSES}/cashflows?limit=100`),
+      get<{ data: Array<{ name: string; current: boolean }> }>(`${API_BASE}${API_ENDPOINTS.SESSIONS}?limit=100`),
+    ]).then(([cashflowResponse, sessionResponse]) => {
+      if (!active) return;
+      setCashflows(cashflowResponse.data.map((item) => ({ ...item, amount: Number(item.amount) })));
+      const current = sessionResponse.data.find((session) => session.current);
+      if (current) setAcademicYear(current.name);
+    }).catch((error) => {
+      showToast(error instanceof Error ? error.message : "Unable to load financial data.", { title: "Finance unavailable", tone: "error" });
+    }).finally(() => { if (active) setInitialLoading(false); });
+    return () => { active = false; };
+  }, [showToast]);
 
-    return () => window.clearTimeout(loadIncomeVsExpense);
-  }, []);
-
-  const chartData = useMemo(() => monthlyData.map((month) => month.month === "Sep" ? {
-    ...month,
-    income: cashflows.filter((cashflow) => cashflow.type === "Income").reduce((sum, cashflow) => sum + cashflow.amount, 0),
-    expense: cashflows.filter((cashflow) => cashflow.type === "Expense").reduce((sum, cashflow) => sum + cashflow.amount, 0),
-  } : month), [cashflows]);
+  const chartData = useMemo(() => {
+    const months = new Map<string, MonthlySummary>();
+    cashflows.forEach((cashflow) => {
+      const rawDate = String(cashflow.date || "");
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate)
+        ? new Date(`${rawDate}T00:00:00`)
+        : new Date(rawDate);
+      if (Number.isNaN(date.getTime())) return;
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      const current = months.get(key) || { month: date.toLocaleString("en-IN", { month: "short" }), income: 0, expense: 0 };
+      current[cashflow.type === "Income" ? "income" : "expense"] += Number(cashflow.amount);
+      months.set(key, current);
+    });
+    return Array.from(months.values());
+  }, [cashflows]);
   const totalIncome = chartData.reduce((sum, month) => sum + month.income, 0);
   const totalExpense = chartData.reduce((sum, month) => sum + month.expense, 0);
   const netBalance = totalIncome - totalExpense;
-  const savingsRate = Math.round(netBalance / totalIncome * 100);
-  const maxChartValue = Math.max(...chartData.flatMap((month) => [month.income, month.expense]));
+  const savingsRate = totalIncome > 0 ? Math.round(netBalance / totalIncome * 100) : 0;
+  const maxChartValue = Math.max(1, ...chartData.flatMap((month) => [month.income, month.expense]));
 
   const visibleCashflows = useMemo(() => cashflows.filter((cashflow) => {
     const matchesType = typeFilter === "All Transactions" || cashflow.type === typeFilter;
@@ -147,7 +152,8 @@ export default function IncomeVsExpense() {
 
   const refreshDashboard = async () => {
     setLoading(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 700));
+    const response = await get<{ data: Cashflow[] }>(`${API_BASE}${API_ENDPOINTS.EXPENSES}/cashflows?limit=100`);
+    setCashflows(response.data.map((item) => ({ ...item, amount: Number(item.amount) })));
     setLoading(false);
     showToast(`${period} financial performance has been refreshed.`, { title: "Dashboard updated", tone: "info" });
   };
@@ -164,10 +170,13 @@ export default function IncomeVsExpense() {
       return;
     }
     setSaving(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 900));
-    const prefix = form.type === "Income" ? "INC" : "EXP";
-    const transaction = { id: Date.now(), ...form, amount, reference: form.reference || `${prefix}-2609-${String(cashflows.length + 20).padStart(3, "0")}` };
-    setCashflows((current) => [transaction, ...current]);
+    const transaction = await post<Cashflow>(`${API_BASE}${API_ENDPOINTS.EXPENSES}/cashflows`, {
+      ...form,
+      amount,
+      academicYear,
+      createdBy: getAuthUser()?.name || getAuthUser()?.username,
+    });
+    setCashflows((current) => [{ ...transaction, amount: Number(transaction.amount) }, ...current]);
     setSaving(false);
     setEditorOpen(false);
     showToast(`${form.type} of ${formatCurrency(amount)} was recorded.`, { title: `${form.type} added` });
@@ -210,8 +219,9 @@ export default function IncomeVsExpense() {
     showToast(`${visibleCashflows.length} transactions were exported.`, { title: "Report downloaded" });
   };
 
-  const deleteTransaction = () => {
+  const deleteTransaction = async () => {
     if (!deletingCashflow) return;
+    await del(`${API_BASE}${API_ENDPOINTS.EXPENSES}/cashflows/${deletingCashflow.id}`);
     setCashflows((current) => current.filter((cashflow) => cashflow.id !== deletingCashflow.id));
     showToast(`${deletingCashflow.reference} was removed from the cash-flow ledger.`, { title: "Transaction deleted", tone: "info" });
     setDeletingCashflow(null);

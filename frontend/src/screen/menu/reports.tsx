@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, DatePicker, Dropdown, Input, ReportsSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
+import { del, get, post } from "../../api/methods";
 
 type ReportCategory = "Academic" | "Attendance" | "Finance" | "Students";
 
@@ -24,7 +26,7 @@ type GeneratedReport = {
   title: string;
 };
 
-const templates: ReportTemplate[] = [
+const fallbackTemplates: ReportTemplate[] = [
   { id: 1, title: "Class-wise Fee Summary", description: "Collection, pending dues, and payment completion by class.", category: "Finance", format: "PDF / CSV", type: "fees" },
   { id: 2, title: "Income vs Expense", description: "Monthly financial performance with income and spending comparison.", category: "Finance", format: "PDF", type: "chart" },
   { id: 3, title: "Fee Defaulters", description: "Students with outstanding fee balances and contact details.", category: "Finance", format: "PDF / CSV", type: "fees" },
@@ -154,6 +156,7 @@ async function saveReportFile(report: GeneratedReport) {
 
 export default function Reports() {
   const [initialLoading, setInitialLoading] = useState(true);
+  const [templates, setTemplates] = useState<ReportTemplate[]>([]);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All Categories");
   const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
@@ -166,13 +169,17 @@ export default function Reports() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    const loadReports = window.setTimeout(() => {
-      setGeneratedReports(initialGenerated);
-      setInitialLoading(false);
-    }, 1000);
-
-    return () => window.clearTimeout(loadReports);
-  }, []);
+    let active = true;
+    void Promise.all([
+      get<{ data: ReportTemplate[] }>(`${API_BASE}${API_ENDPOINTS.REPORTS}/templates?limit=100`),
+      get<{ data: Array<{ id: number; title: string; period: string; format: string; size: string; status: "Ready" | "Scheduled" | "Generating"; createdAt: string }> }>(`${API_BASE}${API_ENDPOINTS.REPORTS}/generated?limit=100`),
+    ]).then(([templateResponse, generatedResponse]) => {
+      if (!active) return;
+      setTemplates(templateResponse.data);
+      setGeneratedReports(generatedResponse.data.filter((item) => item.status !== "Generating").map((item) => ({ ...item, created: new Date(item.createdAt).toLocaleString("en-IN"), status: item.status as "Ready" | "Scheduled" })));
+    }).catch((error) => showToast(error instanceof Error ? error.message : "Unable to load reports.", { title: "Reports unavailable", tone: "error" })).finally(() => { if (active) setInitialLoading(false); });
+    return () => { active = false; };
+  }, [showToast]);
 
   const filteredTemplates = useMemo(() => templates.filter((report) => {
     const matchesSearch = `${report.title} ${report.description}`.toLowerCase().includes(query.toLowerCase());
@@ -212,6 +219,18 @@ export default function Reports() {
       size: scheduled ? "—" : configuration.format === "PDF" ? "1.4 MB" : "620 KB",
       status: scheduled ? "Scheduled" : "Ready",
     };
+    const persisted = await post<{ id: number; title: string; period: string; format: string; size: string; status: "Ready" | "Scheduled" | "Generating" }>(`${API_BASE}${API_ENDPOINTS.REPORTS}/${scheduled ? "schedule" : "generate"}`, {
+      templateId: selectedTemplate.id,
+      title: configuration.reportName,
+      description: selectedTemplate.description,
+      category: selectedTemplate.category,
+      format: configuration.format,
+      period: configuration.period,
+      configuration,
+      status: scheduled ? "Scheduled" : "Ready",
+    });
+    generated.id = persisted.id;
+    generated.size = persisted.size || generated.size;
     setGeneratedReports((current) => [generated, ...current]);
     if (scheduled) {
       setGenerating(false);
@@ -248,8 +267,9 @@ export default function Reports() {
     }
   };
 
-  const deleteGeneratedReport = () => {
+  const deleteGeneratedReport = async () => {
     if (!deletingReport) return;
+    await del(`${API_BASE}${API_ENDPOINTS.REPORTS}/generated/${deletingReport.id}`);
     setGeneratedReports((current) => current.filter((report) => report.id !== deletingReport.id));
     showToast(`${deletingReport.title} was removed from report history.`, { title: "Report removed", tone: "info" });
     setDeletingReport(null);
