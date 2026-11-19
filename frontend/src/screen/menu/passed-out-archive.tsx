@@ -7,10 +7,14 @@ import {
   PremiumPagination,
   useToast,
 } from "../../components"
+import { get, post, del } from "../../api/methods"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { getAuthUser } from "../../auth/session"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
 
 type ArchivedStudent = {
+  id?: number
   admissionNo: string
   className: string
   fatherName: string
@@ -181,7 +185,7 @@ const initialsOf = (name: string) =>
     .toUpperCase()
 
 export default function PassedOutArchive() {
-  const [students, setStudents] = useState(initialStudents)
+  const [students, setStudents] = useState<ArchivedStudent[]>([])
   const [search, setSearch] = useState("")
   const [year, setYear] = useState("")
   const [classFilter, setClassFilter] = useState("")
@@ -201,9 +205,21 @@ export default function PassedOutArchive() {
   const { showToast } = useToast()
 
   useEffect(() => {
-    const hydrateArchive = window.setTimeout(() => setLoading(false), 750)
-    return () => window.clearTimeout(hydrateArchive)
-  }, [])
+    let mounted = true
+    const loadArchive = async () => {
+      try {
+        const response = await get<{ data: ArchivedStudent[] }>(`${API_BASE}${API_ENDPOINTS.ARCHIVED_STUDENTS}?limit=1000`, { cache: "no-store" })
+        if (mounted) setStudents(response.data ?? [])
+      } catch (error) {
+        console.error("Failed to load archived students", error)
+        if (mounted) showToast("Archived students could not be loaded.", { title: "Load failed", tone: "error" })
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    void loadArchive()
+    return () => { mounted = false }
+  }, [showToast])
 
   const filteredStudents = useMemo(
     () =>
@@ -361,19 +377,18 @@ export default function PassedOutArchive() {
     )
   }
 
-  const confirmRestore = () => {
+  const confirmRestore = async () => {
     if (!restoreTarget) return
-    setStudents((current) =>
-      current.filter(
-        (student) => student.admissionNo !== restoreTarget.admissionNo,
-      ),
-    )
-    showToast(
-      `${restoreTarget.name} has been moved back to the active student directory.`,
-      { title: "Student restored" },
-    )
-    setRestoreTarget(null)
-    setSelectedStudent(null)
+    try {
+      if (!restoreTarget.id) throw new Error("Archive record id is missing")
+      await del(`${API_BASE}${API_ENDPOINTS.ARCHIVED_STUDENTS}/${restoreTarget.id}`)
+      setStudents((current) => current.filter((student) => student.admissionNo !== restoreTarget.admissionNo))
+      showToast(`${restoreTarget.name} has been removed from the archive.`, { title: "Archive record restored" })
+      setRestoreTarget(null)
+      setSelectedStudent(null)
+    } catch {
+      showToast("The archive record could not be restored.", { title: "Restore failed", tone: "error" })
+    }
   }
 
   const saveRecord = async () => {
@@ -402,7 +417,23 @@ export default function PassedOutArchive() {
       return
     }
     setSaving(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 700))
+    try {
+      const record = await post<ArchivedStudent>(`${API_BASE}${API_ENDPOINTS.ARCHIVED_STUDENTS}`, {
+        ...form,
+        createdBy: getAuthUser()?.username || getAuthUser()?.name || "System",
+      })
+      setStudents((current) => [record, ...current])
+      setAddOpen(false)
+      setForm(emptyForm)
+      setCurrentPage(1)
+      showToast(`${record.name} was archived with ${record.tcNumber}.`, { title: "Archive record added" })
+    } catch {
+      showToast("The archive record could not be saved.", { title: "Save failed", tone: "error" })
+    } finally {
+      setSaving(false)
+    }
+    return
+    /*
     const shortYear =
       form.passingYear.slice(2, 4) + form.passingYear.slice(7, 9)
     const record: ArchivedStudent = {
@@ -422,7 +453,7 @@ export default function PassedOutArchive() {
     setCurrentPage(1)
     showToast(`${record.name} was archived with ${record.tcNumber}.`, {
       title: "Archive record added",
-    })
+    }) */
   }
 
   const setField = (key: keyof typeof emptyForm, value: string) =>

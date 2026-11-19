@@ -182,6 +182,20 @@ export const admissionRepository = {
     await sql`
       CREATE INDEX IF NOT EXISTS idx_admissions_mobile ON admissions(mobile)
     `;
+    const [{ count }] = await sql<{ count: string }[]>`SELECT COUNT(*)::text AS count FROM admissions`;
+    if (Number(count) === 0) {
+      const year = new Date().getFullYear();
+      await sql`
+        INSERT INTO admissions (
+          "admissionNo", "fullName", "fatherName", gender, "className", section,
+          status, "admissionDate", "academicYear", mobile, "createdBy"
+        ) VALUES (
+          'ADM-DEMO-001', 'Demo Student', 'Demo Parent', 'Male', 'Nursery', 'A',
+          'Active', CURRENT_DATE, ${`${year}-${String(year + 1).slice(-2)}`}, '9000000001', 'System'
+        )
+        ON CONFLICT ("admissionNo") DO NOTHING
+      `;
+    }
   },
 
   async findMany(params: AdmissionQuery): Promise<{ data: Admission[]; total: number }> {

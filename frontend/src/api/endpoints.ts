@@ -72,6 +72,8 @@ export const API_ENDPOINTS = {
   GENDERS: "/genders",
   BLOOD_GROUPS: "/blood-groups",
   SALARY: "/salary",
+  PROMOTIONS: "/promotions",
+  ARCHIVED_STUDENTS: "/archived-students",
   
   ADMIN_SETTINGS: "/admin-settings",
   BACKUP: "/backup",

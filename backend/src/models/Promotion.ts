@@ -40,14 +40,6 @@ function toPromotionBatchResponse(batch: PromotionBatchRow): PromotionBatch {
   return { ...batch, createdAt: new Date(batch.createdAt) };
 }
 
-const selectPromotionBatchColumns = sql`
-  id, "academicYear", "fromClass", "createdBy", "createdAt"
-`;
-
-const selectPromotionMoveColumns = sql`
-  id, "promotionId", "admissionNo", name, "previousClass", "targetClass", "createdBy", "createdAt"
-`;
-
 export const promotionRepository = {
   async initializeTable(): Promise<void> {
     await sql`
@@ -59,6 +51,8 @@ export const promotionRepository = {
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    await sql`ALTER TABLE promotion_batches ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
+    await sql`ALTER TABLE promotion_batches ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_promotion_batches_academic_year ON promotion_batches("academicYear")
     `;
@@ -81,6 +75,8 @@ export const promotionRepository = {
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    await sql`ALTER TABLE promotion_moves ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
+    await sql`ALTER TABLE promotion_moves ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_promotion_moves_promotion_id ON promotion_moves("promotionId")
     `;
@@ -90,6 +86,39 @@ export const promotionRepository = {
     await sql`
       CREATE INDEX IF NOT EXISTS idx_promotion_moves_target_class ON promotion_moves("targetClass")
     `;
+    const [{ count }] = await sql<{ count: string }[]>`SELECT COUNT(*)::text AS count FROM promotion_batches`;
+    if (Number(count) === 0) {
+      const [student] = await sql<{ admissionNo: string; fullName: string; className: string }[]>`
+        SELECT "admissionNo", "fullName", "className"
+        FROM admissions
+        WHERE "className" IS NOT NULL AND "className" <> ''
+        ORDER BY id
+        LIMIT 1
+      `;
+      if (student) {
+        const [nextClass] = await sql<{ name: string }[]>`
+          SELECT name FROM school_classes
+          WHERE active = TRUE AND name <> ${student.className}
+          ORDER BY id
+          LIMIT 1
+        `;
+        if (nextClass) {
+          const [batch] = await sql<{ id: number }[]>`
+            INSERT INTO promotion_batches ("academicYear", "fromClass", "createdBy")
+            VALUES (${`${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(-2)}`}, ${student.className}, 'System')
+            RETURNING id
+          `;
+          await sql`
+            INSERT INTO promotion_moves ("promotionId", "admissionNo", name, "previousClass", "targetClass", "createdBy")
+            VALUES (${batch.id}, ${student.admissionNo}, ${student.fullName}, ${student.className}, ${nextClass.name}, 'System')
+          `;
+          await sql`
+            UPDATE admissions SET "className" = ${nextClass.name}, "updatedAt" = NOW()
+            WHERE "admissionNo" = ${student.admissionNo}
+          `;
+        }
+      }
+    }
   },
 
   async findMany(params: PromotionQuery): Promise<{ data: PromotionBatch[]; total: number }> {
@@ -100,7 +129,7 @@ export const promotionRepository = {
     const fromClass = params.fromClass || null;
 
     const batches = await sql<PromotionBatchRow[]>`
-      SELECT ${selectPromotionBatchColumns}
+      SELECT id, "academicYear", "fromClass", "createdBy", "createdAt"
       FROM promotion_batches
       WHERE (${academicYear}::text IS NULL OR "academicYear" = ${academicYear})
         AND (${fromClass}::text IS NULL OR "fromClass" = ${fromClass})
@@ -121,7 +150,7 @@ export const promotionRepository = {
     
     if (batchIds.length > 0) {
       const moves = await sql<PromotionMove[]>`
-        SELECT ${selectPromotionMoveColumns}
+        SELECT id, "promotionId", "admissionNo", name, "previousClass", "targetClass", "createdBy", "createdAt"
         FROM promotion_moves
         WHERE "promotionId" IN ${sql(batchIds)}
         ORDER BY "createdAt"
@@ -144,12 +173,12 @@ export const promotionRepository = {
 
   async findById(id: number): Promise<PromotionBatch | null> {
     const [batch] = await sql<PromotionBatchRow[]>`
-      SELECT ${selectPromotionBatchColumns} FROM promotion_batches WHERE id = ${id}
+      SELECT id, "academicYear", "fromClass", "createdBy", "createdAt" FROM promotion_batches WHERE id = ${id}
     `;
     if (!batch) return null;
 
     const moves = await sql<PromotionMove[]>`
-      SELECT ${selectPromotionMoveColumns}
+      SELECT id, "promotionId", "admissionNo", name, "previousClass", "targetClass", "createdBy", "createdAt"
       FROM promotion_moves
       WHERE "promotionId" = ${id}
       ORDER BY "createdAt"
@@ -162,7 +191,7 @@ export const promotionRepository = {
     const [batch] = await sql<PromotionBatchRow[]>`
       INSERT INTO promotion_batches ("academicYear", "fromClass", "createdBy")
       VALUES (${data.academicYear}, ${data.fromClass}, ${data.createdBy || null})
-      RETURNING ${selectPromotionBatchColumns}
+      RETURNING id, "academicYear", "fromClass", "createdBy", "createdAt"
     `;
 
     if (data.moves.length > 0) {
@@ -171,6 +200,11 @@ export const promotionRepository = {
           INSERT INTO promotion_moves ("promotionId", "admissionNo", name, "previousClass", "targetClass", "createdBy")
           VALUES (${batch.id}, ${move.admissionNo}, ${move.name}, ${move.previousClass}, ${move.targetClass}, ${move.createdBy || null})
         `;
+        await sql`
+          UPDATE admissions
+          SET "className" = ${move.targetClass}, "updatedAt" = NOW()
+          WHERE "admissionNo" = ${move.admissionNo}
+        `;
       }
     }
 
@@ -178,6 +212,16 @@ export const promotionRepository = {
   },
 
   async delete(id: number): Promise<boolean> {
+    const moves = await sql<{ admissionNo: string; previousClass: string }[]>`
+      SELECT "admissionNo", "previousClass" FROM promotion_moves WHERE "promotionId" = ${id}
+    `;
+    for (const move of moves) {
+      await sql`
+        UPDATE admissions
+        SET "className" = ${move.previousClass}, "updatedAt" = NOW()
+        WHERE "admissionNo" = ${move.admissionNo}
+      `;
+    }
     const rows = await sql<{ id: number }[]>`
       DELETE FROM promotion_batches WHERE id = ${id} RETURNING id
     `;

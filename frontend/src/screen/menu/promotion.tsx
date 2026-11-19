@@ -7,6 +7,9 @@ import {
   PromotionSkeleton,
   useToast,
 } from "../../components"
+import { get, post, del } from "../../api/methods"
+import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
+import { getAuthUser } from "../../auth/session"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
 
@@ -30,10 +33,11 @@ type HistoryEntry = {
     previousClass: string
     targetClass: string
   }[]
-  time: string
+  time?: string
+  createdAt?: string
 }
 
-const classes = ["Nursery", "LKG", "UKG", "Class 1", "Class 2", "Class 3"]
+const classes: string[] = []
 
 const initialRoster: RosterStudent[] = [
   {
@@ -316,8 +320,10 @@ function PromotionIcon({
   )
 }
 
-const nextClass = (className: string) =>
-  classes[Math.min(classes.indexOf(className) + 1, classes.length - 1)]
+const nextClass = (className: string, classList: string[] = classes) => {
+  const index = classList.indexOf(className)
+  return classList[Math.min(index + 1, classList.length - 1)] ?? className
+}
 const initialsOf = (name: string) =>
   name
     .split(" ")
@@ -332,31 +338,21 @@ const resultClass: Record<Result, string> = {
 }
 
 export default function Promotion() {
-  const [roster, setRoster] = useState(initialRoster)
-  const [currentClass, setCurrentClass] = useState("UKG")
-  const [section, setSection] = useState("A")
-  const [targetClass, setTargetClass] = useState("Class 1")
-  const [academicYear, setAcademicYear] = useState("2027–28")
-  const [loaded, setLoaded] = useState({ className: "UKG", section: "A" })
-  const [selected, setSelected] = useState<Set<string>>(
-    () =>
-      new Set(
-        initialRoster
-          .filter(
-            (s) =>
-              s.className === "UKG" &&
-              s.section === "A" &&
-              s.result === "Passed",
-          )
-          .map((s) => s.admissionNo),
-      ),
-  )
+  const [roster, setRoster] = useState<RosterStudent[]>([])
+  const [availableClasses, setAvailableClasses] = useState<string[]>([])
+  const [availableSections, setAvailableSections] = useState<string[]>([])
+  const [currentClass, setCurrentClass] = useState("")
+  const [section, setSection] = useState("")
+  const [targetClass, setTargetClass] = useState("")
+  const [academicYear, setAcademicYear] = useState("")
+  const [loaded, setLoaded] = useState({ className: "", section: "" })
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [targets, setTargets] = useState<Record<string, string>>({})
   const [search, setSearch] = useState("")
   const [resultFilter, setResultFilter] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
-  const [history, setHistory] = useState<HistoryEntry[]>(demoHistory)
+  const [history, setHistory] = useState<HistoryEntry[]>([])
   const [loadingStudents, setLoadingStudents] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [promoting, setPromoting] = useState(false)
@@ -364,9 +360,45 @@ export default function Promotion() {
   const { showToast } = useToast()
 
   useEffect(() => {
-    const hydratePromotion = window.setTimeout(() => setLoading(false), 750)
-    return () => window.clearTimeout(hydratePromotion)
-  }, [])
+    let mounted = true
+    const load = async () => {
+      try {
+        const [studentsResponse, historyResponse] = await Promise.all([
+          get<{ data: Array<{ admissionNo: string; fullName: string; className: string; section: string; status?: string }> }>(`${API_BASE}${API_ENDPOINTS.ADMISSIONS}?limit=1000`, { cache: "no-store" }),
+          get<{ data: HistoryEntry[] }>(`${API_BASE}${API_ENDPOINTS.PROMOTIONS}?limit=100`, { cache: "no-store" }),
+        ])
+        if (!mounted) return
+        const students = studentsResponse.data ?? []
+        const nextRoster = students
+          .filter((student) => student.admissionNo && student.fullName && student.className?.trim())
+          .map((student) => ({ admissionNo: student.admissionNo, name: student.fullName, className: student.className.trim(), section: student.section?.trim() || "A", result: "Passed" as Result }))
+        const classResponse = await get<Array<{ name: string; active?: boolean }>>(`${API_BASE}${API_ENDPOINTS.CLASSES}`, { cache: "no-store" })
+        const nextClasses = classResponse.filter((item) => item.active !== false && item.name?.trim()).map((item) => item.name.trim())
+        const enrolledClass = nextRoster[0]?.className ?? nextClasses[0] ?? ""
+        setRoster(nextRoster)
+        setAvailableClasses(nextClasses)
+        setCurrentClass(enrolledClass)
+        setSection(nextRoster.find((student) => student.className === enrolledClass)?.section ?? "")
+        setTargetClass(nextClass(enrolledClass, nextClasses))
+        setHistory((historyResponse.data ?? []).map((entry) => ({ ...entry, time: entry.time ?? (entry.createdAt ? new Date(entry.createdAt).toLocaleString("en-IN") : "") })))
+        const year = new Date().getFullYear()
+        setAcademicYear(`${year}-${String(year + 1).slice(-2)}`)
+      } catch (error) {
+        console.error("Failed to load promotion data", error)
+        showToast("Promotion data could not be loaded.", { title: "Load failed", tone: "error" })
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    void load()
+    return () => { mounted = false }
+  }, [showToast])
+
+  useEffect(() => {
+    const sections = [...new Set(roster.filter((student) => student.className === currentClass).map((student) => student.section))]
+    setAvailableSections(sections)
+    if (sections.length && !sections.includes(section)) setSection(sections[0])
+  }, [currentClass, roster, section])
 
   const eligible = useMemo(
     () =>
@@ -375,8 +407,7 @@ export default function Promotion() {
       ),
     [roster, loaded],
   )
-  const targetOf = (student: RosterStudent) =>
-    targets[student.admissionNo] ?? nextClass(student.className)
+  const targetOf = (student: RosterStudent) => targets[student.admissionNo] ?? nextClass(student.className, availableClasses)
   const filtered = useMemo(
     () =>
       eligible.filter((student) => {
@@ -472,7 +503,7 @@ export default function Promotion() {
 
   const changeCurrentClass = (value: string) => {
     setCurrentClass(value)
-    setTargetClass(nextClass(value))
+    setTargetClass(nextClass(value, availableClasses))
   }
 
   const toggleStudent = (admissionNo: string) =>
@@ -518,7 +549,6 @@ export default function Promotion() {
 
   const promoteStudents = async () => {
     setPromoting(true)
-    await new Promise((resolve) => window.setTimeout(resolve, 800))
     const moves = selectedStudents.map((student) => ({
       admissionNo: student.admissionNo,
       name: student.name,
@@ -528,51 +558,37 @@ export default function Promotion() {
     const moveMap = new Map(
       moves.map((move) => [move.admissionNo, move.targetClass]),
     )
-    setRoster((current) =>
-      current.map((student) =>
-        moveMap.has(student.admissionNo)
-          ? {
-              ...student,
-              className: moveMap.get(student.admissionNo) as string,
-            }
-          : student,
-      ),
-    )
-    setHistory((current) => [
-      {
-        id: Date.now(),
+    try {
+      const created = await post<HistoryEntry>(`${API_BASE}${API_ENDPOINTS.PROMOTIONS}`, {
         academicYear: academicYear.trim(),
-        from: `${loaded.className}-${loaded.section}`,
-        moves,
-        time: `Today, ${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
-      },
-      ...current,
-    ])
-    setSelected(new Set())
-    setPromoting(false)
-    setConfirmOpen(false)
-    showToast(
-      `${moves.length} students were promoted successfully for ${academicYear.trim()}.`,
-      { title: "Promotion completed" },
-    )
+        fromClass: `${loaded.className}-${loaded.section}`,
+        createdBy: getAuthUser()?.username || getAuthUser()?.name || "System",
+        moves: moves.map((move) => ({ ...move, createdBy: getAuthUser()?.username || getAuthUser()?.name || "System" })),
+      })
+      setRoster((current) => current.map((student) => moveMap.has(student.admissionNo) ? { ...student, className: moveMap.get(student.admissionNo) as string } : student))
+      setHistory((current) => [{ ...created, time: created.time ?? new Date().toLocaleString("en-IN") }, ...current])
+      setSelected(new Set())
+      setConfirmOpen(false)
+      showToast(`${moves.length} students were promoted successfully.`, { title: "Promotion completed" })
+    } catch {
+      showToast("The promotion could not be saved.", { title: "Promotion failed", tone: "error" })
+    } finally {
+      setPromoting(false)
+    }
   }
 
-  const undoPromotion = (entry: HistoryEntry) => {
+  const undoPromotion = async (entry: HistoryEntry) => {
     const back = new Map(
       entry.moves.map((move) => [move.admissionNo, move.previousClass]),
     )
-    setRoster((current) =>
-      current.map((student) =>
-        back.has(student.admissionNo)
-          ? { ...student, className: back.get(student.admissionNo) as string }
-          : student,
-      ),
-    )
-    setHistory((current) => current.filter((item) => item.id !== entry.id))
-    showToast(
-      `${entry.moves.length} students were returned to ${entry.from}.`,
-      { title: "Promotion reverted", tone: "info" },
-    )
+    try {
+      await del(`${API_BASE}${API_ENDPOINTS.PROMOTIONS}/${entry.id}`)
+      setRoster((current) => current.map((student) => back.has(student.admissionNo) ? { ...student, className: back.get(student.admissionNo) as string } : student))
+      setHistory((current) => current.filter((item) => item.id !== entry.id))
+      showToast(`${entry.moves.length} students were returned to ${entry.from}.`, { title: "Promotion reverted", tone: "info" })
+    } catch {
+      showToast("The promotion could not be reverted.", { title: "Revert failed", tone: "error" })
+    }
   }
 
   const exportList = () => {
@@ -742,16 +758,14 @@ export default function Promotion() {
               value={currentClass}
               onChange={(event) => changeCurrentClass(event.target.value)}
               placeholder="Select class"
-              options={classes
-                .slice(0, -1)
-                .map((value) => ({ label: value, value }))}
+              options={availableClasses.map((value) => ({ label: value, value }))}
             />
             <Dropdown
               label="Section"
               value={section}
               onChange={(event) => setSection(event.target.value)}
               placeholder="Select section"
-              options={["A", "B", "C"].map((value) => ({
+              options={availableSections.map((value) => ({
                 label: value,
                 value,
               }))}
@@ -761,7 +775,7 @@ export default function Promotion() {
               value={targetClass}
               onChange={(event) => setTargetClass(event.target.value)}
               placeholder="Select class"
-              options={classes.map((value) => ({ label: value, value }))}
+              options={availableClasses.map((value) => ({ label: value, value }))}
             />
             <Input
               label="Academic Year"
@@ -911,7 +925,7 @@ export default function Promotion() {
                         aria-label={`Promote ${student.name} to`}
                         className="promotion-target-select rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-600 outline-none focus:border-teal-400"
                       >
-                        {classes.map((value) => (
+                        {availableClasses.map((value) => (
                           <option key={value}>{value}</option>
                         ))}
                       </select>

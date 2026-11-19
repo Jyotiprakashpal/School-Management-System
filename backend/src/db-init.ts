@@ -40,6 +40,7 @@ export async function initializeDatabase(): Promise<void> {
   await notificationRepository.initializeTable();
   await notificationRepository.seedActivity();
   await admissionRepository.initializeTable();
+  await schoolClassRepository.initializeTable();
   await archivedStudentRepository.initializeTable();
   await promotionRepository.initializeTable();
   await feeRepository.initializeTable();
@@ -62,7 +63,6 @@ export async function initializeDatabase(): Promise<void> {
   await roleRepository.initializeTable();
   await userSessionRepository.initializeTable();
   await noticeRepository.initializeTable();
-  await schoolClassRepository.initializeTable();
   await departmentRepository.initializeTable();
   await religionRepository.initializeTable();
   await categoryRepository.initializeTable();

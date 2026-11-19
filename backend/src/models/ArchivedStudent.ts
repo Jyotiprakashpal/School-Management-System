@@ -81,6 +81,9 @@ export const archivedStudentRepository = {
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    await sql`ALTER TABLE archived_students ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
+    await sql`ALTER TABLE archived_students ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
+    await sql`ALTER TABLE archived_students ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_archived_students_admission_no ON archived_students("admissionNo")
     `;
