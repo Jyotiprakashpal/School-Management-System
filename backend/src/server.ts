@@ -74,7 +74,7 @@ app.get('/api/health', async (_req: Request, res: Response) => {
     await sql`SELECT 1`;
     res.json({
       status: 'ok',
-      message: 'School Management API is running',
+      message: 'All systems operational',
       database: 'connected'
     });
   } catch (error) {

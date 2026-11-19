@@ -3103,6 +3103,45 @@
   background: var(--app-accent);
 }
 
+[data-theme="dark"] .dashboard-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .dashboard-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .dashboard-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .dashboard-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .dashboard-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .dashboard-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .dashboard-skeleton .skeleton-block-light {
+  background: rgb(255 255 255 / 14%);
+}
+
+[data-theme="dark"] .dashboard-skeleton .border-slate-100,
+[data-theme="dark"] .dashboard-skeleton .divide-slate-100 > :not(:last-child) {
+  border-color: #263244;
+}
+
 [data-theme="dark"] .settings-skeleton {
   background:
     radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
