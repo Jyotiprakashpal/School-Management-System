@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react"
 import { Button, ISTClock } from "../components"
 import { getAuthUser, onAuthUserChanged, type AuthUser } from "../auth/session"
-import { onCurrentUserUpdated } from "../api/socket"
+import { API_BASE, API_ENDPOINTS } from "../api/endpoints"
+import { get, put } from "../api/methods"
+import {
+  onCurrentUserUpdated,
+  onNotificationChanged,
+  onNotificationCreated,
+  type NotificationRealtime,
+} from "../api/socket"
 
 type HeaderProps = {
   title: string
@@ -11,6 +18,54 @@ type HeaderProps = {
 }
 
 type NotificationKind = "attendance" | "fee" | "notice" | "system"
+
+type HeaderNotification = {
+  id: number
+  userId: string | null
+  createdBy: string | null
+  title: string
+  message: string
+  time: string
+  kind: NotificationKind
+  unread: boolean
+}
+
+type NotificationsResponse = {
+  data: NotificationRealtime[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+function notificationKind(notification: NotificationRealtime): NotificationKind {
+  if (notification.entityType === "attendance") return "attendance"
+  if (["fee", "payment"].includes(notification.entityType)) return "fee"
+  if (["notice", "admission", "enquiry"].includes(notification.entityType)) return "notice"
+  return "system"
+}
+
+function relativeTime(value: string) {
+  const elapsed = Math.max(0, Date.now() - new Date(value).getTime())
+  const minutes = Math.floor(elapsed / 60000)
+  if (minutes < 1) return "Just now"
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} hr ago`
+  const days = Math.floor(hours / 24)
+  return days === 1 ? "Yesterday" : `${days} days ago`
+}
+
+function mapNotification(notification: NotificationRealtime): HeaderNotification {
+  return {
+    id: notification.id,
+    userId: notification.userId,
+    createdBy: notification.createdBy,
+    title: notification.title,
+    message: notification.message,
+    time: relativeTime(notification.createdAt),
+    kind: notificationKind(notification),
+    unread: !notification.isRead,
+  }
+}
 
 function roleLabel(role: string) {
   return role.replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -24,49 +79,6 @@ function initials(user: AuthUser | null) {
     .slice(0, 2)
     .toUpperCase()
 }
-
-const initialNotifications = [
-  {
-    id: 1,
-    title: "Attendance pending",
-    message: "Four classes have not submitted today's attendance.",
-    time: "5 min ago",
-    kind: "attendance" as NotificationKind,
-    unread: true,
-  },
-  {
-    id: 2,
-    title: "Fee payment received",
-    message: "₹12,500 was collected from Ananya Sharma.",
-    time: "12 min ago",
-    kind: "fee" as NotificationKind,
-    unread: true,
-  },
-  {
-    id: 3,
-    title: "New admission enquiry",
-    message: "A new enquiry was received for Class 6.",
-    time: "28 min ago",
-    kind: "notice" as NotificationKind,
-    unread: true,
-  },
-  {
-    id: 4,
-    title: "Notice published",
-    message: "The parent–teacher meeting notice is now live.",
-    time: "2 hr ago",
-    kind: "notice" as NotificationKind,
-    unread: false,
-  },
-  {
-    id: 5,
-    title: "Backup completed",
-    message: "The scheduled system backup completed successfully.",
-    time: "Yesterday",
-    kind: "system" as NotificationKind,
-    unread: false,
-  },
-]
 
 function AddIcon() {
   return (
@@ -196,17 +208,111 @@ export default function Header({
   onAction,
 }: HeaderProps) {
   const [user, setUser] = useState<AuthUser | null>(() => getAuthUser())
-  const [notifications, setNotifications] = useState(initialNotifications)
+  const [notifications, setNotifications] = useState<HeaderNotification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notificationFilter, setNotificationFilter] =
-    useState<"unread" | "all">("unread")
+    useState<"unread" | "all">("all")
   const [profileOpen, setProfileOpen] = useState(false)
   const notificationRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
+  const notificationCursorRef = useRef<string | null>(null)
+  const notificationLoadingRef = useRef(false)
+  const notificationHasMoreRef = useRef(true)
+  const [notificationLoading, setNotificationLoading] = useState(false)
+  const [notificationHasMore, setNotificationHasMore] = useState(true)
 
   useEffect(() => onAuthUserChanged(() => setUser(getAuthUser())), [])
   useEffect(() => onCurrentUserUpdated(setUser), [])
-  const unreadCount = notifications.filter((item) => item.unread).length
+  useEffect(() => {
+    let cancelled = false
+    const loadUnreadCount = async () => {
+      try {
+        const response = await get<{ total: number }>(
+          `${API_BASE}${API_ENDPOINTS.NOTIFICATIONS}?page=1&limit=1&isRead=false`,
+        )
+        if (!cancelled) setUnreadCount(response.total)
+      } catch (error) {
+        console.error("Failed to load unread notification count", error)
+      }
+    }
+    const loadNotifications = async (reset = false) => {
+      if (notificationLoadingRef.current || (!reset && !notificationHasMoreRef.current)) return
+      notificationLoadingRef.current = true
+      setNotificationLoading(true)
+      try {
+        const cursor = reset ? null : notificationCursorRef.current
+        const cursorQuery = cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""
+        const response = await get<NotificationsResponse>(
+          `${API_BASE}${API_ENDPOINTS.NOTIFICATIONS}?page=1&limit=20${cursorQuery}`,
+        )
+        if (!cancelled) {
+          const next = response.data.map(mapNotification)
+          setNotifications((current) =>
+            reset ? next : [...current, ...next.filter((item) => !current.some((existing) => existing.id === item.id))],
+          )
+          notificationCursorRef.current = response.nextCursor
+          notificationHasMoreRef.current = response.hasMore
+          setNotificationHasMore(response.hasMore)
+        }
+      } catch (error) {
+        console.error("Failed to load notifications", error)
+        if (!cancelled) setNotifications([])
+      } finally {
+        notificationLoadingRef.current = false
+        if (!cancelled) setNotificationLoading(false)
+      }
+    }
+
+    notificationCursorRef.current = null
+    notificationHasMoreRef.current = true
+    setNotificationHasMore(true)
+    void loadUnreadCount()
+    void loadNotifications(true)
+    const refresh = () => {
+      void loadUnreadCount()
+      void loadNotifications(true)
+    }
+    const removeCreated = onNotificationCreated((notification) => {
+      setNotifications((current) =>
+        [mapNotification(notification), ...current.filter((item) => item.id !== notification.id)].slice(0, 50),
+      )
+    })
+    const removeChanged = onNotificationChanged(refresh)
+    return () => {
+      cancelled = true
+      // Allow a new auth-user effect to start a fresh request if this request
+      // was cancelled during the initial session hydration.
+      notificationLoadingRef.current = false
+      removeCreated()
+      removeChanged()
+    }
+  }, [user?.id, notificationsOpen])
+
+  const loadMoreNotifications = () => {
+    if (!notificationLoadingRef.current && notificationHasMoreRef.current) {
+      const cursor = notificationCursorRef.current
+      if (!cursor) return
+      notificationLoadingRef.current = true
+      setNotificationLoading(true)
+      void get<NotificationsResponse>(
+        `${API_BASE}${API_ENDPOINTS.NOTIFICATIONS}?page=1&limit=20&cursor=${encodeURIComponent(cursor)}`,
+      ).then((response) => {
+        const next = response.data.map(mapNotification)
+        setNotifications((current) => [
+          ...current,
+          ...next.filter((item) => !current.some((existing) => existing.id === item.id)),
+        ])
+        notificationCursorRef.current = response.nextCursor
+        notificationHasMoreRef.current = response.hasMore
+        setNotificationHasMore(response.hasMore)
+      }).catch((error) => console.error("Failed to load more notifications", error))
+        .finally(() => {
+          notificationLoadingRef.current = false
+          setNotificationLoading(false)
+        })
+    }
+  }
   const visibleNotifications =
     notificationFilter === "unread"
       ? notifications.filter((item) => item.unread)
@@ -235,17 +341,25 @@ export default function Header({
   }, [notificationsOpen, profileOpen])
 
   const readNotification = (id: number) => {
+    const notification = notifications.find((item) => item.id === id)
     setNotifications((current) =>
       current.map((item) =>
         item.id === id ? { ...item, unread: false } : item,
       ),
     )
+    if (notification?.unread) setUnreadCount((current) => Math.max(0, current - 1))
+    if (user) {
+      const readerId = notification?.userId || String(user.id)
+      void put(`${API_BASE}${API_ENDPOINTS.NOTIFICATIONS}/${id}/read/${readerId}`)
+    }
   }
 
   const readAllNotifications = () => {
     setNotifications((current) =>
       current.map((item) => ({ ...item, unread: false })),
     )
+    setUnreadCount(0)
+    if (user) void put(`${API_BASE}${API_ENDPOINTS.NOTIFICATIONS}/read-all/${user.id}`)
   }
 
   return (
@@ -395,7 +509,15 @@ export default function Header({
                 </div>
               </div>
 
-              <div className="notification-history max-h-[min(24rem,calc(100dvh-16rem))] min-h-48 overflow-y-auto overscroll-contain bg-slate-50/70 p-2 sm:p-3">
+              <div
+                className="notification-history max-h-[min(24rem,calc(100dvh-16rem))] min-h-48 overflow-y-auto overscroll-contain bg-slate-50/70 p-2 sm:p-3"
+                onScroll={(event) => {
+                  const element = event.currentTarget
+                  if (element.scrollHeight - element.scrollTop - element.clientHeight < 96) {
+                    loadMoreNotifications()
+                  }
+                }}
+              >
                 {visibleNotifications.map((notification) => (
                   <Button
                     key={notification.id}
@@ -410,8 +532,8 @@ export default function Header({
                     <NotificationIcon kind={notification.kind} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
-                        <span className="truncate text-[0.68rem] font-bold uppercase tracking-wider text-slate-400">
-                          {notification.kind}
+                        <span className="truncate text-[0.68rem] font-bold tracking-wider text-slate-400">
+                          {notification.createdBy || "System"}
                         </span>
                         <span className="size-1 rounded-full bg-slate-300" />
                         <span className="shrink-0 text-[0.65rem] font-medium text-slate-400">
@@ -432,6 +554,16 @@ export default function Header({
                     </span>
                   </Button>
                 ))}
+                {notificationLoading && (
+                  <div className="px-3 py-3 text-center text-xs font-medium text-slate-400">
+                    Loading older notifications…
+                  </div>
+                )}
+                {!notificationLoading && notificationHasMore && visibleNotifications.length > 0 && (
+                  <div className="px-3 py-2 text-center text-[0.65rem] font-medium text-slate-400">
+                    Scroll for older notifications
+                  </div>
+                )}
                 {!visibleNotifications.length && (
                   <div className="grid min-h-56 place-items-center p-6 text-center">
                     <div>

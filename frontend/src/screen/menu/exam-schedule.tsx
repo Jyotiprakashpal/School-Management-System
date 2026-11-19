@@ -381,8 +381,8 @@ export default function ExamSchedule() {
     >
       <div className="grid grid-cols-2 items-start gap-x-3 gap-y-3.5 sm:gap-x-4 sm:gap-y-4 [&>*]:min-w-0 max-sm:[&>:nth-child(-n+4)]:col-span-2 max-sm:[&>:nth-child(7)]:col-span-2 max-sm:[&>:nth-child(8)]:col-span-2">
         <DatePicker label="Exam Date" required value={form.date} onChange={(value) => setField("date", value)} />
-        <Dropdown label="Subject *" value={form.subject} onChange={(event) => setField("subject", event.target.value)} placeholder="Select subject" options={(subjectOptions[form.className] ?? []).map((value) => ({ label: value, value }))} />
-        <Dropdown label="Class & Section" value={form.className} onChange={(event) => setField("className", event.target.value)} options={classOptions.map((value) => ({ label: value, value }))} />
+        <Dropdown label="Class & Section" value={form.className} onChange={(event) => { setField("className", event.target.value); setField("subject", ""); }} placeholder="Select class & section" options={classOptions.map((value) => ({ label: value, value }))} />
+        <Dropdown label="Subject *" value={form.subject} onChange={(event) => setField("subject", event.target.value)} placeholder={form.className ? "Select subject assigned to this class" : "Select Class & Section first"} disabled={!form.className} options={(subjectOptions[form.className] ?? []).map((value) => ({ label: value, value }))} />
         <Input label="Maximum Marks" type="number" min="1" value={form.maxMarks} onChange={(event) => setField("maxMarks", event.target.value)} />
         <Input label="Start Time" type="time" value={form.startTime} onChange={(event) => setField("startTime", event.target.value)} />
         <Input label="End Time" type="time" value={form.endTime} onChange={(event) => setField("endTime", event.target.value)} />

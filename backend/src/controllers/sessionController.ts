@@ -2,8 +2,17 @@ import { Request, Response } from 'express';
 import { Server as SocketIOServer } from 'socket.io';
 import { sessionRepository, AcademicSession, CreateSessionDto, UpdateSessionDto, SessionQuery } from '../models/Session.js';
 import { notificationRepository } from '../models/Notification.js';
+import { userRepository } from '../models/User.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
+
+const getActorUsername = async (req: Request): Promise<string> => {
+  const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
+  const id = Number(token.match(/^session-(\d+)-/)?.[1] || 0);
+  if (!id) return 'System';
+  const user = await userRepository.findById(id);
+  return user?.username || user?.name || 'System';
+};
 
 const createNotification = async (req: Request, data: {
   userId?: string;
@@ -16,7 +25,8 @@ const createNotification = async (req: Request, data: {
   try {
     const notification = await notificationRepository.create({
       ...data,
-      entityType: 'session' as any
+      entityType: 'session' as any,
+      createdBy: await getActorUsername(req)
     });
     getIO(req).to(`user:${data.userId || 'all'}`).emit('notification:created', notification);
     if (!data.userId) {

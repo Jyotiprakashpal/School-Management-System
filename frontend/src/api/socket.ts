@@ -52,7 +52,32 @@ socket.on("connect", () => {
   socket.emit("join", "class_subject_maps")
   socket.emit("join", "exam_schedules")
   socket.emit("join", "class_results")
+  socket.emit("join", "notifications")
 })
+
+export type NotificationRealtime = {
+  id: number
+  userId: string | null
+  title: string
+  message: string
+  type: "info" | "success" | "warning" | "error"
+  entityType: string
+  entityId: string | null
+  isRead: boolean
+  createdBy: string | null
+  createdAt: string
+}
+
+export function onNotificationCreated(listener: (notification: NotificationRealtime) => void) {
+  socket.on("notification:created", listener)
+  return () => socket.off("notification:created", listener)
+}
+
+export function onNotificationChanged(listener: () => void) {
+  const events = ["notification:read", "notification:allRead", "notification:deleted"]
+  events.forEach((event) => socket.on(event, listener))
+  return () => events.forEach((event) => socket.off(event, listener))
+}
 
 export function onCurrentUserUpdated(listener: (user: AuthUser) => void) {
   const handleUpdate = (user: AuthUser) => {

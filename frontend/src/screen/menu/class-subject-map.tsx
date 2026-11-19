@@ -70,7 +70,8 @@ export default function ClassSubjectMap() {
   const [form, setForm] = useState(blankMapping);
   const [removeTarget, setRemoveTarget] = useState<SubjectMapping | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
-  const [copyFrom, setCopyFrom] = useState({ className: "Nursery", section: "A" });
+  const [copyFrom, setCopyFrom] = useState({ className: "", section: "" });
+  const [sectionsByClass, setSectionsByClass] = useState<Record<string, string[]>>({});
   const { showToast } = useToast();
 
   const loadMappings = async () => {
@@ -83,14 +84,37 @@ export default function ClassSubjectMap() {
   useEffect(() => {
     let active = true;
     void Promise.all([
-      get<string[]>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/classes`), get<string[]>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/sections`), get<string[]>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/years`), get<string[]>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/teachers`), get<{ data: { code: string; name: string }[] }>(`${API_BASE}${API_ENDPOINTS.SUBJECTS}?status=Active&page=1&limit=100`), get<{ data: { name: string; status?: string }[] }>(`${API_BASE}${API_ENDPOINTS.STAFF}?limit=100`),
-    ]).then(([classResponse, sectionResponse, yearResponse, teacherResponse, subjectResponse, staffResponse]) => {
+      get<{ name: string; sections?: string[] }[]>(`${API_BASE}${API_ENDPOINTS.CLASSES}`),
+      get<{ name: string; current?: boolean }[]>(`${API_BASE}${API_ENDPOINTS.SESSIONS}/simple`),
+      get<string[]>(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/teachers`),
+      get<{ data: { code: string; name: string }[] }>(`${API_BASE}${API_ENDPOINTS.SUBJECTS}?status=Active&page=1&limit=100`),
+      get<{ data: { name: string; status?: string }[] }>(`${API_BASE}${API_ENDPOINTS.STAFF}?limit=100`),
+    ]).then(([classResponse, sessionResponse, teacherResponse, subjectResponse, staffResponse]) => {
       if (!active) return;
-      setClasses(classResponse); setSections(sectionResponse); setYears(yearResponse); setTeachers([...new Set(staffResponse.data?.filter((item) => !item.status || item.status === "Active").map((item) => item.name).concat(teacherResponse) ?? teacherResponse)]); setCatalog(subjectResponse.data ?? []);
-      setClassName(classResponse[0] ?? ""); setSection(sectionResponse[0] ?? ""); setYear(yearResponse[0] ?? "");
+      const nextClasses = classResponse.map((item) => item.name).filter(Boolean);
+      const nextSectionsByClass = Object.fromEntries(classResponse.map((item) => [item.name, item.sections ?? []]));
+      const nextSections = nextSectionsByClass[nextClasses[0]] ?? [];
+      const nextYears = sessionResponse.map((item) => item.name).filter(Boolean);
+      const currentSession = sessionResponse.find((item) => item.current) ?? sessionResponse[0];
+      setClasses(nextClasses);
+      setSections(nextSections);
+      setSectionsByClass(nextSectionsByClass);
+      setYears(nextYears);
+      setTeachers([...new Set(staffResponse.data?.filter((item) => !item.status || item.status === "Active").map((item) => item.name).concat(teacherResponse) ?? teacherResponse)]);
+      setCatalog(subjectResponse.data ?? []);
+      setClassName(nextClasses[0] ?? "");
+      setSection(nextSections[0] ?? "");
+      setYear(currentSession?.name ?? nextYears[0] ?? "");
+      const sourceClass = nextClasses[1] ?? nextClasses[0] ?? "";
+      setCopyFrom({ className: sourceClass, section: nextSectionsByClass[sourceClass]?.[0] ?? "" });
     }).catch((error) => showToast(error instanceof Error ? error.message : "Unable to load class-subject data.", { title: "Mapping data unavailable", tone: "error" })).finally(() => { if (active) setInitialLoading(false); });
     return () => { active = false; };
   }, [showToast]);
+  useEffect(() => {
+    const nextSections = sectionsByClass[className] ?? [];
+    setSections(nextSections);
+    if (!nextSections.includes(section)) setSection(nextSections[0] ?? "");
+  }, [className, sectionsByClass]);
   useEffect(() => { void loadMappings().catch((error) => showToast(error instanceof Error ? error.message : "Unable to load mappings.", { title: "Mappings unavailable", tone: "error" })); }, [className, section, year]);
   useEffect(() => onClassSubjectMapChanged(() => void loadMappings()), [className, section, year]);
 
@@ -173,6 +197,10 @@ export default function ClassSubjectMap() {
   };
 
   const saveMapping = async () => {
+    if (!className || !section || !year) {
+      showToast("Select a class, section, and academic year before saving.", { title: "Mapping details required", tone: "error" });
+      return;
+    }
     if (mappings.some((mapping) => mapping.periods < 1)) {
       showToast("Every mapped subject requires at least one weekly period.", { title: "Invalid weekly periods", tone: "error" });
       return;
@@ -183,7 +211,7 @@ export default function ClassSubjectMap() {
       const existingIds = new Set(mappings.map((mapping) => mapping.id));
       await Promise.all(existing.filter((mapping) => !existingIds.has(mapping.id)).map((mapping) => del(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/${mapping.id}`)));
       const result = await Promise.all(mappings.map((mapping) => {
-        const payload = { className, section, year, subjectCode: mapping.code, subjectName: mapping.subject, teacher: mapping.teacher, periods: mapping.periods, type: mapping.type, createdBy: getAuthUser()?.username || undefined };
+        const payload = { className, section, year, subjectCode: mapping.code.trim().toUpperCase(), subjectName: mapping.subject.trim(), teacher: mapping.teacher || UNASSIGNED, periods: mapping.periods, type: mapping.type, createdBy: getAuthUser()?.username || getAuthUser()?.name || "System" };
         return existing.some((item) => item.id === mapping.id) ? put(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}/${mapping.id}`, payload) : post(`${API_BASE}${API_ENDPOINTS.CLASS_SUBJECT_MAPS}`, payload);
       }));
       const next = result.map((item: any) => ({ id: item.id, code: item.subjectCode, subject: item.subjectName, teacher: item.teacher, periods: item.periods, type: item.type }));
@@ -247,10 +275,10 @@ export default function ClassSubjectMap() {
       <section className="class-map-setup-panel panel overflow-hidden">
         <PanelHead icon="link" title="Class Mapping Setup" subtitle="Pick a class to view or edit its curriculum" action={<span className={dirty ? "status-warning" : "status-success"}>{dirty ? "Unsaved changes" : "All changes saved"}</span>} />
         <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3.5 p-3.5 sm:gap-x-4 sm:p-5 xl:grid-cols-[1fr_1fr_1fr_auto] [&>:last-child]:min-w-0 [&>:last-child]:px-3">
-          <Dropdown label="Class" value={className} onChange={(event) => setClassName(event.target.value)} options={classes.map((value) => ({ label: value, value }))} />
+          <Dropdown label="Class" value={className} onChange={(event) => { const nextClass = event.target.value; const nextSections = sectionsByClass[nextClass] ?? []; setClassName(nextClass); setSection(nextSections[0] ?? ""); }} options={classes.map((value) => ({ label: value, value }))} />
           <Dropdown label="Section" value={section} onChange={(event) => setSection(event.target.value)} options={sections.map((value) => ({ label: value, value }))} />
           <Dropdown label="Academic Year" value={year} onChange={(event) => setYear(event.target.value)} options={years.map((value) => ({ label: value, value }))} />
-          <Button variant="outline" onClick={() => { setCopyFrom({ className: classes.find((value) => value !== className) ?? "", section }); setCopyOpen(true); }} icon={<MapIcon type="copy" className="size-4" />}>Copy from class</Button>
+          <Button variant="outline" onClick={() => { const sourceClass = classes.find((value) => value !== className) ?? ""; setCopyFrom({ className: sourceClass, section: sectionsByClass[sourceClass]?.[0] ?? "" }); setCopyOpen(true); }} icon={<MapIcon type="copy" className="size-4" />}>Copy from class</Button>
         </div>
       </section>
 
@@ -375,8 +403,8 @@ export default function ClassSubjectMap() {
       footer={<><Button variant="outline" onClick={() => setCopyOpen(false)}>Cancel</Button><Button onClick={copyMapping}>Copy Mapping</Button></>}
     >
       <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 sm:gap-x-4">
-        <Dropdown label="Copy from class" value={copyFrom.className} onChange={(event) => setCopyFrom((current) => ({ ...current, className: event.target.value }))} options={classes.map((value) => ({ label: value, value }))} />
-        <Dropdown label="Section" value={copyFrom.section} onChange={(event) => setCopyFrom((current) => ({ ...current, section: event.target.value }))} options={sections.map((value) => ({ label: value, value }))} />
+        <Dropdown label="Copy from class" value={copyFrom.className} onChange={(event) => { const nextClass = event.target.value; setCopyFrom({ className: nextClass, section: sectionsByClass[nextClass]?.[0] ?? "" }); }} options={classes.filter((value) => value !== className).map((value) => ({ label: value, value }))} />
+        <Dropdown label="Section" value={copyFrom.section} onChange={(event) => setCopyFrom((current) => ({ ...current, section: event.target.value }))} options={(sectionsByClass[copyFrom.className] ?? []).map((value) => ({ label: value, value }))} />
         <p className="class-map-copy-warning col-span-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs leading-5 text-amber-700">Current subjects in {label} will be replaced. Nothing is saved until you press Save Mapping.</p>
       </div>
     </Popup>

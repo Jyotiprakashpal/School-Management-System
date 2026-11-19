@@ -5,6 +5,7 @@ import { onPayrollCreated, onPayrollDeleted, onPayrollStatusChanged, onPayrollUp
 import { Button, Dropdown, Input, SalaryManagementSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
+import { getAuthUser } from "../../auth/session";
 
 type PayrollStatus = "Paid" | "Pending" | "Processed";
 
@@ -196,6 +197,8 @@ export default function SalaryManagement() {
     setGenerating(true);
     try {
       const period = payrollPeriod(month);
+      const currentUser = getAuthUser();
+      const createdBy = currentUser?.username || currentUser?.name || "System";
       const processed = await Promise.all(payroll.filter((item) => item.status === "Pending").map((item) => item.id < 0
         ? post<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}`, {
             employeeId: item.employeeId,
@@ -208,6 +211,7 @@ export default function SalaryManagement() {
             month: period.month,
             year: period.year,
             status: "Processed",
+            createdBy,
           })
         : put<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}/${item.id}/status`, { status: "Processed" })
       ));
@@ -243,7 +247,7 @@ export default function SalaryManagement() {
       }
       const saved = editingPayroll.id > 0
         ? await put<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}/${editingPayroll.id}`, { basic, allowances, deductions: itemDeductions })
-        : await post<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}`, { ...editingPayroll, basic, allowances, deductions: itemDeductions, month: period.month, year: period.year, status: "Pending" });
+        : await post<Payroll>(`${API_BASE}${API_ENDPOINTS.SALARY}`, { ...editingPayroll, basic, allowances, deductions: itemDeductions, month: period.month, year: period.year, status: "Pending", createdBy: getAuthUser()?.username || getAuthUser()?.name || "System" });
       setPayroll((current) => current.map((item) => item.id === editingPayroll.id ? saved : item));
       setEditingPayroll(null);
       showToast(`${editingPayroll.name}'s salary calculation was updated.`, { title: "Payroll updated" });

@@ -128,6 +128,21 @@ export const classResultRepository = {
       )
     `;
     await sql`ALTER TABLE class_results DROP CONSTRAINT IF EXISTS "class_results_studentId_fkey"`;
+    await sql`
+      DO $$
+      DECLARE constraint_name TEXT;
+      BEGIN
+        FOR constraint_name IN
+          SELECT con.conname
+          FROM pg_constraint con
+          JOIN pg_class rel ON rel.oid = con.conrelid
+          JOIN pg_attribute attr ON attr.attrelid = rel.oid AND attr.attnum = ANY(con.conkey)
+          WHERE rel.relname = 'class_results' AND attr.attname = 'studentId' AND con.contype = 'f'
+        LOOP
+          EXECUTE format('ALTER TABLE class_results DROP CONSTRAINT %I', constraint_name);
+        END LOOP;
+      END $$;
+    `;
     await sql`ALTER TABLE class_results ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
     await sql`
       CREATE INDEX IF NOT EXISTS idx_class_results_exam_id ON class_results("examId")
@@ -213,7 +228,7 @@ export const classResultRepository = {
     const upserted: ClassResult[] = [];
 
     for (const result of results) {
-      const [upserted] = await sql<any[]>`
+      const [row] = await sql<any[]>`
         INSERT INTO class_results ("examId", "examName", "className", section, "studentId", "admissionNo", "studentName", "rollNo",
           subjects, "totalObtained", "totalMaximum", "overallPercentage", "overallGrade", rank, passed,
           published, "publishedAt", "publishedBy", "createdBy")
@@ -221,7 +236,7 @@ export const classResultRepository = {
           ${result.admissionNo}, ${result.studentName}, ${result.rollNo},
           ${JSON.stringify(result.subjects)}, ${result.totalObtained}, ${result.totalMaximum},
           ${result.overallPercentage}, ${result.overallGrade}, ${result.rank}, ${result.passed},
-          ${result.published}, ${result.publishedAt}, ${result.publishedBy}, ${result.createdBy})
+          ${result.published}, ${result.publishedAt}, ${result.publishedBy || null}, ${result.createdBy || null})
         ON CONFLICT ("examId", "studentId") DO UPDATE SET
           "examName" = EXCLUDED."examName",
           "className" = EXCLUDED."className",
@@ -243,7 +258,7 @@ export const classResultRepository = {
           "updatedAt" = NOW()
         RETURNING *
       `;
-      upserted.push(toClassResultResponse(upserted[0]));
+      upserted.push(toClassResultResponse(row));
     }
 
     return upserted;

@@ -156,7 +156,8 @@ export default function Exams() {
     }
     setSaving(true);
     try {
-      const payload = { ...form, createdBy: getAuthUser()?.username || undefined };
+      const currentUser = getAuthUser();
+      const payload = { ...form, createdBy: currentUser?.username || currentUser?.name || "System" };
       const saved = editingId
         ? await put<Exam>(`${API_BASE}${API_ENDPOINTS.EXAMS}/${editingId}`, payload)
         : await post<Exam>(API_BASE + API_ENDPOINTS.EXAMS, payload);

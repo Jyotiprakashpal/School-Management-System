@@ -12,8 +12,20 @@ import {
 } from '../models/ExamSchedule.js';
 import { examRepository } from '../models/Exam.js';
 import { notificationRepository } from '../models/Notification.js';
+import { userRepository } from '../models/User.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
+
+const getActorUsername = async (req: Request): Promise<string | null> => {
+  const token = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : '';
+  const userId = Number(token.match(/^session-(\d+)-/)?.[1] || 0);
+  if (!userId) return null;
+
+  const user = await userRepository.findById(userId);
+  return user?.username || user?.name || null;
+};
 
 const createNotification = async (req: Request, data: {
   userId?: string;
@@ -26,7 +38,8 @@ const createNotification = async (req: Request, data: {
   try {
     const notification = await notificationRepository.create({
       ...data,
-      entityType: 'exam_schedule' as any
+      entityType: 'exam_schedule' as any,
+      createdBy: await getActorUsername(req) || undefined
     });
     getIO(req).to(`user:${data.userId || 'all'}`).emit('notification:created', notification);
     if (!data.userId) {

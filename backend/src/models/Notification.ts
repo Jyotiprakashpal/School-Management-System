@@ -164,7 +164,7 @@ export const notificationRepository = {
     const [result] = await sql<{ count: string }[]>`
       SELECT COUNT(*)::text AS count
       FROM notifications
-      WHERE "userId" = ${userId} AND "isRead" = false
+      WHERE ("userId" = ${userId} OR "userId" IS NULL) AND "isRead" = false
     `;
     return Number(result?.count || 0);
   },
@@ -183,7 +183,7 @@ export const notificationRepository = {
     const result = await sql`
       UPDATE notifications
        SET "isRead" = true
-       WHERE "userId" = ${userId} AND "isRead" = false
+       WHERE "isRead" = false
     `;
     return result.count;
   },

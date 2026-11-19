@@ -15,6 +15,8 @@ interface PaginatedNotifications {
   page: number;
   limit: number;
   totalPages: number;
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export const getNotifications = async (req: Request<{}, {}, {}, NotificationQuery>, res: Response<PaginatedNotifications | { error: string }>) => {
@@ -26,6 +28,7 @@ export const getNotifications = async (req: Request<{}, {}, {}, NotificationQuer
     const isRead = isReadParam !== undefined ? isReadParam === 'true' : undefined;
     const type = req.query.type as string | undefined;
     const entityType = req.query.entityType as string | undefined;
+    const cursor = req.query.cursor as string | undefined;
 
     const { data, total } = await notificationRepository.findMany({
       page,
@@ -33,7 +36,8 @@ export const getNotifications = async (req: Request<{}, {}, {}, NotificationQuer
       userId,
       isRead,
       type,
-      entityType
+      entityType,
+      cursor
     });
 
     res.json({
@@ -41,7 +45,9 @@ export const getNotifications = async (req: Request<{}, {}, {}, NotificationQuer
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
+      nextCursor: data.length === limit ? data[data.length - 1].createdAt.toISOString() : null,
+      hasMore: data.length === limit
     });
   } catch (error) {
     console.error('Get notifications error:', error);

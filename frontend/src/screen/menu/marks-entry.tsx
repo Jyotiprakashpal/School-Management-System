@@ -211,7 +211,7 @@ export default function MarksEntry() {
     try {
       await post(`${API_BASE}${API_ENDPOINTS.MARKS}/bulk`, {
         examId, examName: exam, className, section, subject, maximumMarks: Number(maximumMarks),
-        entries: records.map((record) => ({ admissionId: record.admissionId, studentId: record.studentId, admissionNo: record.admissionNo, studentName: record.name, rollNo: record.rollNo, marksObtained: record.marks === "" ? null : Number(record.marks), remarks: record.remarks || undefined, createdBy: getAuthUser()?.username || undefined })),
+        entries: records.map((record) => ({ admissionId: record.admissionId, studentId: record.studentId, admissionNo: record.admissionNo, studentName: record.name, rollNo: record.rollNo, marksObtained: record.marks === "" ? null : Number(record.marks), remarks: record.remarks || undefined, createdBy: getAuthUser()?.username || getAuthUser()?.name || "System" })),
       });
       setSaving(false); setDirty(false); setSaved(true);
       showToast(`${subject} marks were saved for ${className}-${section}.`, { title: "Marks saved successfully" });

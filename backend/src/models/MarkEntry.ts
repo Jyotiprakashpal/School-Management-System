@@ -145,9 +145,35 @@ export const markEntryRepository = {
       )
     `;
     await sql`ALTER TABLE mark_entries DROP CONSTRAINT IF EXISTS "mark_entries_studentId_fkey"`;
+    await sql`
+      DO $$
+      DECLARE constraint_name TEXT;
+      BEGIN
+        FOR constraint_name IN
+          SELECT con.conname
+          FROM pg_constraint con
+          JOIN pg_class rel ON rel.oid = con.conrelid
+          JOIN pg_attribute attr ON attr.attrelid = rel.oid AND attr.attnum = ANY(con.conkey)
+          WHERE rel.relname = 'mark_entries' AND attr.attname = 'studentId' AND con.contype = 'f'
+        LOOP
+          EXECUTE format('ALTER TABLE mark_entries DROP CONSTRAINT %I', constraint_name);
+        END LOOP;
+      END $$;
+    `;
     await sql`ALTER TABLE mark_entries DROP CONSTRAINT IF EXISTS "mark_entries_admissionId_fkey"`;
     await sql`ALTER TABLE mark_entries ADD COLUMN IF NOT EXISTS "admissionId" INTEGER`;
     await sql`ALTER TABLE mark_entries ADD COLUMN IF NOT EXISTS "createdBy" TEXT`;
+    await sql`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'mark_entries' AND column_name = 'enteredBy'
+        ) THEN
+          ALTER TABLE mark_entries ALTER COLUMN "enteredBy" DROP NOT NULL;
+        END IF;
+      END $$;
+    `;
     await sql`ALTER TABLE mark_entries DROP CONSTRAINT IF EXISTS mark_entries_admission_id_fkey`;
     await sql`ALTER TABLE mark_entries ADD CONSTRAINT mark_entries_admission_id_fkey FOREIGN KEY ("admissionId") REFERENCES admissions(id) ON DELETE CASCADE`;
     await sql`UPDATE mark_entries m SET "admissionId" = a.id FROM admissions a WHERE m."admissionId" IS NULL AND m."admissionNo" = a."admissionNo"`;

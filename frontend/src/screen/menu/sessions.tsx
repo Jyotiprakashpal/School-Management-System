@@ -4,6 +4,7 @@ import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { del, get, post, put } from "../../api/methods";
+import { getAuthUser } from "../../auth/session";
 
 type AcademicSession = {
   current: boolean;
@@ -13,7 +14,7 @@ type AcademicSession = {
   startDate: string;
 };
 
-type SessionPayload = Pick<AcademicSession, "name" | "startDate" | "endDate">;
+type SessionPayload = Pick<AcademicSession, "name" | "startDate" | "endDate"> & { createdBy: string };
 
 type SessionIconName = "calendar" | "edit" | "plus" | "star" | "trash";
 
@@ -82,7 +83,8 @@ export default function Sessions() {
     if (!validate(form)) return;
     setSaving(true);
     try {
-      const created = await post<AcademicSession>(sessionUrl, { name: form.name.trim(), startDate: form.startDate, endDate: form.endDate } satisfies SessionPayload);
+      const currentUser = getAuthUser();
+      const created = await post<AcademicSession>(sessionUrl, { name: form.name.trim(), startDate: form.startDate, endDate: form.endDate, createdBy: currentUser?.username || currentUser?.name || "System" } satisfies SessionPayload);
       setSessions((current) => [...current, normalizeSession(created)]);
       setForm(blankForm);
       showToast(`${created.name} has been added. Set it as current when you are ready to use it.`, { title: "Session created" });
@@ -102,7 +104,8 @@ export default function Sessions() {
     if (!editingSession || !validate(editForm, editingSession.id)) return;
     setSaving(true);
     try {
-      const updated = await put<AcademicSession>(`${sessionUrl}/${editingSession.id}`, { name: editForm.name.trim(), startDate: editForm.startDate, endDate: editForm.endDate } satisfies SessionPayload);
+      const currentUser = getAuthUser();
+      const updated = await put<AcademicSession>(`${sessionUrl}/${editingSession.id}`, { name: editForm.name.trim(), startDate: editForm.startDate, endDate: editForm.endDate, createdBy: currentUser?.username || currentUser?.name || "System" } satisfies SessionPayload);
       setSessions((current) => current.map((session) => session.id === updated.id ? normalizeSession(updated) : session));
       setEditingSession(null);
       showToast(`${updated.name} has been updated.`, { title: "Session updated" });

@@ -37,7 +37,8 @@ const createNotification = async (req: Request, data: {
   try {
     const notification = await notificationRepository.create({
       ...data,
-      entityType: 'salary' as any
+      entityType: 'salary' as any,
+      createdBy: await getActorUserId(req) || 'System'
     });
     getIO(req).to(`user:${data.userId || 'all'}`).emit('notification:created', notification);
     if (!data.userId) {
