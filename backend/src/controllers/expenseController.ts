@@ -2,8 +2,19 @@ import { Request, Response } from 'express';
 import { Server as SocketIOServer } from 'socket.io';
 import { cashflowRepository } from '../models/Cashflow.js';
 import { notificationRepository } from '../models/Notification.js';
+import { userRepository } from '../models/User.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
+
+const getActorName = async (req: Request): Promise<string> => {
+  const token = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : '';
+  const userId = Number(token.match(/^session-(\d+)-/)?.[1] || 0);
+  if (!userId) return 'System';
+  const user = await userRepository.findById(userId);
+  return user?.name || user?.username || 'System';
+};
 
 const createNotification = async (req: Request, data: {
   userId?: string;
@@ -16,7 +27,8 @@ const createNotification = async (req: Request, data: {
   try {
     const notification = await notificationRepository.create({
       ...data,
-      entityType: data.entityType as any
+      entityType: data.entityType as any,
+      createdBy: await getActorName(req),
     });
     getIO(req).to(`user:${data.userId || 'all'}`).emit('notification:created', notification);
     if (!data.userId) {

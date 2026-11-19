@@ -306,6 +306,10 @@
   .form-label { @apply mb-2 block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500; }
   .form-input { @apply h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-700 shadow-sm outline-none transition duration-200 placeholder:text-slate-300 hover:border-slate-300 focus:border-teal-400 focus:ring-4 focus:ring-teal-50; }
   /* Keep native select options readable in the browser popup. */
+  .app-dropdown,
+  .app-dropdown option,
+  .promotion-target-select,
+  .promotion-target-select option,
   .settings-dropdown,
   .settings-dropdown option {
     color: #334155 !important;
@@ -313,9 +317,15 @@
     opacity: 1 !important;
     -webkit-text-fill-color: #334155 !important;
   }
+  .app-dropdown,
+  .promotion-target-select,
   .settings-dropdown {
     color-scheme: light;
   }
+  .app-dropdown option:checked,
+  .app-dropdown option:hover,
+  .promotion-target-select option:checked,
+  .promotion-target-select option:hover,
   .settings-dropdown option:checked,
   .settings-dropdown option:hover {
     color: #ffffff !important;
