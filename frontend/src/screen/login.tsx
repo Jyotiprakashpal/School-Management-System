@@ -103,6 +103,27 @@ type LoginBranding = {
   academicYear: string
 }
 
+function resolveLogoUrl(logo: string | null | undefined) {
+  if (!logo) return null
+  const value = logo.trim()
+  if (!value) return null
+
+  // Data URLs are returned by the logo upload endpoint and must be used as-is.
+  if (/^(data|blob|https?):/i.test(value)) return value
+
+  // Older records may contain a relative path. Resolve it against the API
+  // server instead of the Vercel frontend origin.
+  try {
+    return new URL(value, `${API_BASE}/`).toString()
+  } catch {
+    return value
+  }
+}
+
+function normalizeLoginBranding(settings: LoginBranding): LoginBranding {
+  return { ...settings, logo: resolveLogoUrl(settings.logo) }
+}
+
 async function getReadableLoginLocation(): Promise<string> {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown location"
   const getIpLocation = async () => {
@@ -200,9 +221,9 @@ export default function Login({ onLogin }: LoginProps) {
 
   useEffect(() => {
     void get<LoginBranding>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`)
-      .then(setBranding)
+      .then((settings) => setBranding(normalizeLoginBranding(settings)))
       .catch(() => setBranding(null))
-    return onSettingsUpdated((updated) => setBranding(updated))
+    return onSettingsUpdated((updated) => setBranding(normalizeLoginBranding(updated)))
   }, [])
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -263,7 +284,7 @@ export default function Login({ onLogin }: LoginProps) {
 
           <div className="relative z-10 flex items-center gap-3 p-8 xl:p-10">
             <div className="grid size-12 place-items-center overflow-hidden rounded-2xl border border-white/20 bg-white/15 text-white backdrop-blur-md">
-              {branding?.logo ? <img src={branding.logo} alt="School logo" className="size-full object-cover" /> : <LoginIcon name="book" className="size-6" />}
+              {branding?.logo ? <img src={branding.logo} alt="School logo" className="size-full object-cover" onError={() => setBranding((current) => current ? { ...current, logo: null } : current)} /> : <LoginIcon name="book" className="size-6" />}
             </div>
             <div>
               <div className="font-display text-lg font-extrabold text-white">
