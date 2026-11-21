@@ -3044,6 +3044,11 @@
   background: color-mix(in srgb, var(--app-accent-faint) 35%, white);
 }
 
+[data-theme] .skeleton-footer {
+  border-color: color-mix(in srgb, var(--app-accent) 12%, white);
+  background: color-mix(in srgb, var(--app-dark-end) 96%, black);
+}
+
 [data-theme] .skeleton-hero {
   background:
     radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--app-accent) 55%, white), transparent 22rem),
@@ -3114,6 +3119,11 @@
   background: #0c1422;
 }
 
+[data-theme="dark"] .skeleton-footer {
+  border-color: #263244;
+  background: #060b14;
+}
+
 [data-theme="dark"] .dashboard-skeleton .skeleton-card {
   border-color: #263244;
   background: #111a2a;
@@ -3139,6 +3149,40 @@
 
 [data-theme="dark"] .dashboard-skeleton .border-slate-100,
 [data-theme="dark"] .dashboard-skeleton .divide-slate-100 > :not(:last-child) {
+  border-color: #263244;
+}
+
+[data-theme="dark"] .admin-settings-skeleton {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(45 212 191 / 6%), transparent 30rem),
+    #080e1a;
+}
+
+[data-theme="dark"] .admin-settings-skeleton .skeleton-header {
+  border-color: #263244;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .admin-settings-skeleton .skeleton-card {
+  border-color: #263244;
+  background: #111a2a;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 18%);
+}
+
+[data-theme="dark"] .admin-settings-skeleton .skeleton-action {
+  border-color: #2d3a4d;
+  background: #0c1422;
+}
+
+[data-theme="dark"] .admin-settings-skeleton .skeleton-block {
+  background: #223046;
+}
+
+[data-theme="dark"] .admin-settings-skeleton .skeleton-block-strong {
+  background: #334155;
+}
+
+[data-theme="dark"] .admin-settings-skeleton .border-slate-100 {
   border-color: #263244;
 }
 

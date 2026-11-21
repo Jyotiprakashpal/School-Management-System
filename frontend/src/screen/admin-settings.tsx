@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { Button, Dropdown, FileUpload, Input, useToast } from "../components";
+import { useEffect, useState, type ReactNode } from "react";
+import { AdminSettingsSkeleton, Button, Dropdown, FileUpload, Input, useToast } from "../components";
 import Header from "../ui/header";
 
 type IconName = "backup" | "calendar" | "check" | "cloud" | "database" | "download" | "key" | "mail" | "refresh" | "settings" | "shield" | "upload";
@@ -30,6 +30,7 @@ const savedBackups = [
 ];
 
 export default function AdminSettings() {
+  const [loading, setLoading] = useState(true);
   const [automaticBackup, setAutomaticBackup] = useState(true);
   const [creating, setCreating] = useState(false);
   const [restoreFile, setRestoreFile] = useState("");
@@ -38,6 +39,13 @@ export default function AdminSettings() {
   const [cloudConnected, setCloudConnected] = useState(true);
   const [savingEmail, setSavingEmail] = useState(false);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const hydrateAdminSettings = window.setTimeout(() => setLoading(false), 900);
+    return () => window.clearTimeout(hydrateAdminSettings);
+  }, []);
+
+  if (loading) return <AdminSettingsSkeleton />;
 
   const createBackup = async () => {
     setCreating(true);
