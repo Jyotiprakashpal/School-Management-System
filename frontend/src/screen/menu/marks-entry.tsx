@@ -261,7 +261,7 @@ export default function MarksEntry() {
 
   return <div className="marks-entry-screen min-h-screen dashboard-bg pb-16">
     <Header title="Marks Entry" subtitle="Enter, validate, and review examination marks by subject" />
-    <main className="mx-auto max-w-[1600px] space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+    <main className="mx-auto w-full min-w-0 max-w-none space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="marks-command-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
         <span className="pointer-events-none absolute -right-14 -top-20 size-64 rounded-full bg-white/10 blur-2xl" />
         <span className="pointer-events-none absolute -bottom-20 left-1/3 size-52 rounded-full bg-white/5 blur-2xl" />

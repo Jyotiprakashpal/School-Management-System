@@ -421,7 +421,7 @@ export default function Attendance() {
         title="Daily Attendance"
         subtitle="Mark and manage class attendance for the selected date"
       />
-      <main className="mx-auto max-w-[100rem] space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 max-w-none space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
         <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-5 text-white shadow-xl shadow-slate-900/10 sm:p-7">
           <div
             aria-hidden="true"
@@ -753,7 +753,7 @@ export default function Attendance() {
       </main>
 
       <div className="daily-attendance-action-bar fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:z-auto sm:mx-6 sm:mt-0 sm:rounded-2xl sm:border sm:shadow-sm xl:mx-8">
-        <div className="mx-auto flex max-w-[100rem] items-center justify-between gap-3">
+        <div className="mx-auto flex w-full min-w-0 max-w-none items-center justify-between gap-3">
           <div className="min-w-0 text-xs text-slate-500">
             <strong className="text-slate-900">
               {marked}/{roster.length}

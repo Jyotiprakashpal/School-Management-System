@@ -243,7 +243,7 @@ export default function ClassSubjectMap() {
 
   return <div className="class-subject-map-screen min-h-screen dashboard-bg pb-16">
     <Header title="Class-Subject Map" subtitle="Assign subjects, teachers, and weekly periods to each class" />
-    <main className="mx-auto max-w-[1600px] space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+    <main className="mx-auto w-full min-w-0 max-w-none space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="class-map-command-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
         <span className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full border border-white/10 bg-white/10" />
         <span className="pointer-events-none absolute -bottom-28 left-1/3 size-60 rounded-full bg-white/5" />

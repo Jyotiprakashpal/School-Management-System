@@ -467,7 +467,7 @@ export default function PassedOutArchive() {
         title="Passed Out Archive"
         subtitle="Former students, passing records, and transfer certificates"
       />
-      <main className="mx-auto max-w-[100rem] space-y-5 p-4 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 max-w-none space-y-5 p-4 sm:p-6 xl:p-8">
         <section className="passed-out-archive-hero relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_58%,var(--app-accent))] p-5 text-white shadow-xl shadow-slate-900/10 sm:p-7">
           <div
             aria-hidden="true"

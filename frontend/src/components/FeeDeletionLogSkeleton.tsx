@@ -57,7 +57,7 @@ export default function FeeDeletionLogSkeleton() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[100rem] space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 max-w-none space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
         <section className="fee-deletion-skeleton-hero relative overflow-hidden rounded-3xl p-5 sm:p-7">
           <span className="absolute -right-16 -top-20 size-64 rounded-full border border-white/10 bg-white/5" />
           <span className="absolute -bottom-28 left-1/3 size-56 rounded-full border-[36px] border-white/5" />

@@ -380,7 +380,7 @@ export default function WhatsAppReminder() {
         title="WhatsApp Fee Reminder"
         subtitle="Notify guardians about pending fees with personalized messages"
       />
-      <main className="mx-auto w-full min-w-0 max-w-[100rem] space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 w-full min-w-0 max-w-none space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
         <section className="whatsapp-reminder-hero relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,#043c32,#087f5b_55%,#25d366)] p-5 text-white shadow-xl shadow-emerald-950/15 sm:p-7">
           <div
             aria-hidden="true"

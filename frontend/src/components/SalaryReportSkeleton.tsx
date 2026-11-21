@@ -104,7 +104,7 @@ export default function SalaryReportSkeleton() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-5 p-3 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 max-w-none space-y-5 p-3 sm:p-6 xl:p-8">
         <section className="salary-report-skeleton-hero relative overflow-hidden rounded-3xl p-5 sm:p-7">
           <span className="absolute -right-20 -top-24 size-72 rounded-full border border-white/10 bg-white/5" />
           <span className="absolute -bottom-24 left-1/3 size-56 rounded-full bg-white/5" />

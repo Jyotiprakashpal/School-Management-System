@@ -206,7 +206,7 @@ export default function UserManagement() {
 
   return <div className="min-h-screen dashboard-bg pb-20">
     <Header title="User Management" subtitle="Manage staff accounts and permissions" />
-    <main className="user-management-main mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+    <main className="user-management-main mx-auto w-full min-w-0 max-w-none space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <nav className="user-management-tabs panel grid grid-cols-3 gap-1.5 p-2 sm:max-w-xl" aria-label="User management sections">
         {tabs.map((tab) => <Button key={tab.id} variant={activeTab === tab.id ? "primary" : "outline"} className="!inline-flex min-h-11 items-center justify-center gap-2 px-2 sm:px-4" onClick={() => setActiveTab(tab.id)} icon={<Icon name={tab.icon} />}>{tab.label}</Button>)}
       </nav>

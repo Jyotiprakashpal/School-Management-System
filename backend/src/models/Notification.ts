@@ -43,6 +43,28 @@ const selectNotificationColumns = sql`
   id, "userId", title, message, type, "entityType", "entityId", "isRead", "createdBy", "createdAt"
 `;
 
+/**
+ * Notifications reference users.userId, while several older callers still
+ * provide the users table numeric id (and student/payroll ids are sometimes
+ * supplied as recipients). Resolve only real application users and use NULL
+ * for non-user recipients so the notification cannot violate the FK.
+ */
+async function resolveNotificationUserId(userId?: string): Promise<string | null> {
+  if (!userId) return null;
+
+  const candidate = String(userId).trim();
+  if (!candidate) return null;
+
+  const [user] = await sql<{ userId: string }[]>`
+    SELECT "userId"
+    FROM users
+    WHERE "userId" = ${candidate} OR id::text = ${candidate}
+    LIMIT 1
+  `;
+
+  return user?.userId || null;
+}
+
 export const notificationRepository = {
   async initializeTable(): Promise<void> {
     await sql`
@@ -110,9 +132,10 @@ export const notificationRepository = {
   },
 
   async create(data: CreateNotificationDto): Promise<Notification> {
+    const resolvedUserId = await resolveNotificationUserId(data.userId);
     const [notification] = await sql<NotificationRow[]>`
       INSERT INTO notifications ("userId", title, message, type, "entityType", "entityId", "createdBy")
-      VALUES (${data.userId || null}, ${data.title}, ${data.message}, ${data.type || 'info'}, ${data.entityType}, ${data.entityId || null}, ${data.createdBy || null})
+      VALUES (${resolvedUserId}, ${data.title}, ${data.message}, ${data.type || 'info'}, ${data.entityType}, ${data.entityId || null}, ${data.createdBy || null})
       RETURNING ${selectNotificationColumns}
     `;
     return toNotificationResponse(notification);

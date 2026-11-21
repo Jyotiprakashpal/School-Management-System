@@ -69,7 +69,7 @@ export default function AttendanceReportSkeleton() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[100rem] space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 max-w-none space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
         <section className="attendance-report-skeleton-hero relative overflow-hidden rounded-3xl p-5 sm:p-7">
           <span className="absolute -right-16 -top-20 size-64 rounded-full border border-white/10 bg-white/5" />
           <div className="relative grid items-center gap-6 sm:grid-cols-[1fr_auto]">

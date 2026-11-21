@@ -411,7 +411,7 @@ export default function FeeDeletionLog() {
         title="Fee Deletion Log"
         subtitle="Review and audit removed fee transactions"
       />
-      <main className="mx-auto max-w-[100rem] space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 max-w-none space-y-4 p-4 sm:space-y-5 sm:p-6 xl:p-8">
         <section className="fee-deletion-hero relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,#3f0d18,#991b1b_55%,#ea580c)] p-5 text-white shadow-xl shadow-red-950/15 sm:p-7">
           <div
             aria-hidden="true"

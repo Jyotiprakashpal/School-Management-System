@@ -57,7 +57,7 @@ export default function SettingsSkeleton() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl p-3 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 max-w-none p-3 sm:p-6 xl:p-8">
         <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start lg:gap-6">
           <aside className="skeleton-card rounded-2xl p-2 lg:p-3">
             <SkeletonBlock className="mx-3 mb-3 mt-2 hidden h-2 w-24 lg:block" />

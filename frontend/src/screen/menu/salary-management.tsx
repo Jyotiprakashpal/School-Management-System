@@ -340,7 +340,7 @@ export default function SalaryManagement() {
 
   return <div className="min-h-screen dashboard-bg pb-16">
     <Header title="Salary Management" subtitle="Calculate payroll, review deductions, process salaries, and issue payslips" />
-    <main className="salary-management-main mx-auto max-w-7xl space-y-5 p-3 sm:p-6 xl:p-8">
+    <main className="salary-management-main mx-auto w-full min-w-0 max-w-none space-y-5 p-3 sm:p-6 xl:p-8">
       <section className="salary-management-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
         <span className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full border border-white/10 bg-white/10" />
         <span className="pointer-events-none absolute -bottom-28 left-1/3 size-60 rounded-full bg-white/5" />

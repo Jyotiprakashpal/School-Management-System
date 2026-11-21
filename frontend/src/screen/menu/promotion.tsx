@@ -634,7 +634,7 @@ export default function Promotion() {
         title="Student Promotion"
         subtitle="Move eligible students into the next class and academic session"
       />
-      <main className="mx-auto max-w-[100rem] space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 max-w-none space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="promotion-hero relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_58%,var(--app-accent))] p-5 text-white shadow-xl shadow-slate-900/10 sm:p-7">
           <div
             aria-hidden="true"

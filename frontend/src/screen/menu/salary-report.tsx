@@ -374,7 +374,7 @@ export default function SalaryReport() {
 
   return <div className="min-h-screen dashboard-bg pb-16">
     <Header title="Salary Report" subtitle="Analyze payroll costs, deductions, payments, and department trends" />
-    <main className="salary-report-main mx-auto max-w-7xl space-y-5 p-3 sm:p-6 xl:p-8">
+    <main className="salary-report-main mx-auto w-full min-w-0 max-w-none space-y-5 p-3 sm:p-6 xl:p-8">
       <section className="salary-report-hero relative overflow-hidden rounded-3xl p-5 text-white sm:p-7">
         <span className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full border border-white/10 bg-white/10" />
         <span className="pointer-events-none absolute -bottom-24 left-1/3 size-56 rounded-full bg-white/5" />

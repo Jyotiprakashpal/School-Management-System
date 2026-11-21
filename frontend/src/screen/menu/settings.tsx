@@ -280,7 +280,7 @@ export default function Settings() {
 
   return <div className="min-h-screen dashboard-bg pb-20">
     <Header title="Settings" subtitle="Personalize your institution and application preferences" />
-    <main className="mx-auto max-w-7xl p-3 sm:p-6 xl:p-8">
+    <main className="mx-auto w-full min-w-0 max-w-none p-3 sm:p-6 xl:p-8">
       <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start lg:gap-6">
         <aside className="panel p-2 lg:sticky lg:top-28 lg:p-3">
           <div className="hidden px-3 pb-3 pt-2 text-xs font-bold uppercase tracking-wider text-slate-400 lg:block">Settings menu</div>

@@ -148,7 +148,7 @@ export default function Sessions() {
 
   return <div className="sessions-screen min-h-screen dashboard-bg pb-20">
     <Header title="Sessions" subtitle="Manage academic years" />
-    <main className="mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+    <main className="mx-auto w-full min-w-0 max-w-none space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <div className="grid gap-4 lg:grid-cols-[minmax(17rem,.72fr)_minmax(0,1.28fr)] lg:items-stretch lg:gap-5">
         <section className="session-current-hero relative overflow-hidden rounded-2xl border p-4 text-white sm:min-h-72 sm:p-6">
           <div className="absolute -right-10 -top-12 size-40 rounded-full border border-white/10 bg-white/10" />

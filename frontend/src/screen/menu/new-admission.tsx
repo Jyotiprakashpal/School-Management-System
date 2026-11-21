@@ -465,7 +465,7 @@ export default function NewAdmission() {
         title="New Admission"
         subtitle="Register a new student and complete their academic profile"
       />
-      <main className="mx-auto max-w-[100rem] space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 max-w-none space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
         <section className="new-admission-hero relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,var(--app-sidebar-start),var(--app-accent-dark)_60%,var(--app-accent))] p-4 text-white shadow-xl shadow-slate-900/15 sm:p-6">
           <div className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full bg-white/10 blur-sm" />
           <div className="pointer-events-none absolute -bottom-28 left-1/3 size-56 rounded-full border-[36px] border-white/5" />

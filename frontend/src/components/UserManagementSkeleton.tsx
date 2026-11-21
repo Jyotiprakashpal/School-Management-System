@@ -88,7 +88,7 @@ export default function UserManagementSkeleton() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full min-w-0 max-w-none space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
         <nav className="skeleton-card grid grid-cols-3 gap-1.5 rounded-2xl p-2 sm:max-w-xl">
           {[24, 20, 24].map((width, index) => (
             <div

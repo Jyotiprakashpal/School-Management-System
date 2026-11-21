@@ -61,7 +61,7 @@ export default function AdminSettings() {
 
   return <div className="min-h-screen dashboard-bg pb-20">
     <Header title="Admin Settings" subtitle="Backup, restore, and recovery" />
-    <main className="admin-settings-main mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
+    <main className="admin-settings-main mx-auto w-full min-w-0 max-w-none space-y-4 p-3 sm:space-y-5 sm:p-6 xl:p-8">
       <section className="panel overflow-hidden">
         <div className="admin-backup-hero grid gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex items-start gap-4">
