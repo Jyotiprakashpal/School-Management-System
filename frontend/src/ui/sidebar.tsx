@@ -5,6 +5,7 @@ import { ThemePicker } from "./theme";
 import { get } from "../api/methods";
 import { API_BASE, API_ENDPOINTS } from "../api/endpoints";
 import { onSettingsUpdated } from "../api/socket";
+import { resolveLogoUrl } from "../screen/login";
 
 const iconPaths: Record<NavigationIconName, ReactNode> = {
   admission: <><path d="M12 3v18M3 12h18" /><circle cx="12" cy="12" r="9" /></>,
@@ -58,9 +59,9 @@ export default function Sidebar({ active, collapsed, onClose, onSelect, onToggle
 
   useEffect(() => {
     void get<SidebarSettings>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`)
-      .then(setSchoolSettings)
+      .then((settings) => setSchoolSettings({ ...settings, logo: resolveLogoUrl(settings.logo) }))
       .catch(() => setSchoolSettings(null));
-    return onSettingsUpdated((settings) => setSchoolSettings(settings));
+    return onSettingsUpdated((settings) => setSchoolSettings({ ...settings, logo: resolveLogoUrl(settings.logo) }));
   }, []);
   const showTooltip = (label: string, target: HTMLElement) => {
     if (!collapsed) return;
@@ -73,7 +74,20 @@ export default function Sidebar({ active, collapsed, onClose, onSelect, onToggle
     <aside className={`sidebar ${collapsed ? "sidebar-collapsed lg:w-20" : "lg:w-64"} fixed inset-y-0 left-0 z-40 flex w-72 flex-col text-white lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="sidebar-brand relative flex h-20 items-center gap-3 border-b border-white/10 px-5">
         <div className="sidebar-brand-icon grid size-11 place-items-center overflow-hidden rounded-2xl bg-white text-emerald-700 shadow-xl shadow-black/10 ring-1 ring-white/60">
-          {schoolSettings?.logo ? <img src={schoolSettings.logo} alt="School logo" className="size-full object-cover" /> : <MenuIcon name="book" />}
+          {schoolSettings?.logo ? (
+            <img
+              src={schoolSettings.logo}
+              alt="School logo"
+              className="size-full object-cover"
+              onError={() =>
+                setSchoolSettings((current) =>
+                  current ? { ...current, logo: null } : current
+                )
+              }
+            />
+          ) : (
+            <MenuIcon name="book" />
+          )}
         </div>
         <div className={`min-w-0 flex-1 ${collapsed ? "lg:hidden" : ""}`}><div className="font-display truncate text-sm font-extrabold tracking-tight">{schoolSettings?.schoolName || "School"}</div><div className="mt-0.5 text-[0.65rem] font-medium truncate text-emerald-100/70">School Management System</div></div>
         <button onClick={onClose} aria-label="Close navigation" className="grid size-9 place-items-center rounded-lg bg-white/10 text-white lg:hidden"><MenuIcon name="arrow" className="size-4 rotate-180" /></button>

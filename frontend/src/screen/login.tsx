@@ -4,6 +4,7 @@ import { get, post } from "../api/methods"
 import { API_BASE, API_ENDPOINTS } from "../api/endpoints"
 import { onSettingsUpdated } from "../api/socket"
 import { storeAuthUser, type AuthUser } from "../auth/session"
+import campusImage from "../assets/school-campus.jpg"
 
 type LoginIconName = "arrow" | "book" | "check" | "eye" | "eyeOff" | "lock" | "mail" | "people" | "person" | "shield" | "spark"
 
@@ -103,21 +104,28 @@ type LoginBranding = {
   academicYear: string
 }
 
-function resolveLogoUrl(logo: string | null | undefined) {
+const BACKEND_BASE = API_BASE.replace(/\/api\/?$/i, "")
+
+export function resolveLogoUrl(logo: string | null | undefined): string | null {
   if (!logo) return null
   const value = logo.trim()
   if (!value) return null
 
-  // Data URLs are returned by the logo upload endpoint and must be used as-is.
-  if (/^(data|blob|https?):/i.test(value)) return value
+  // Data URLs and Blob URLs must be used as-is.
+  if (/^(data|blob):/i.test(value)) return value
 
-  // Older records may contain a relative path. Resolve it against the API
-  // server instead of the Vercel frontend origin.
-  try {
-    return new URL(value, `${API_BASE}/`).toString()
-  } catch {
+  // Handle absolute HTTP/HTTPS URLs.
+  if (/^https?:\/\//i.test(value)) {
+    // If the database has a localhost/127.0.0.1 URL but we are in production, rewrite to production backend.
+    if (import.meta.env.PROD && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(value)) {
+      return value.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i, BACKEND_BASE)
+    }
     return value
   }
+
+  // Relative paths: resolve against the backend host origin instead of the Vercel frontend origin.
+  const cleanPath = value.startsWith("/") ? value : `/${value}`
+  return `${BACKEND_BASE}${cleanPath}`
 }
 
 function normalizeLoginBranding(settings: LoginBranding): LoginBranding {
@@ -279,12 +287,31 @@ export default function Login({ onLogin }: LoginProps) {
     <div className="login-screen h-lvh overflow-hidden">
       <main className="grid h-lvh overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(28rem,.9fr)]">
         <section className="login-visual relative hidden h-full overflow-hidden lg:flex lg:flex-col lg:justify-between">
+          <img
+            src={campusImage}
+            alt="School campus"
+            aria-hidden="true"
+            className="absolute inset-0 size-full object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-teal-950/65 to-cyan-900/25" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/20" />
 
           <div className="relative z-10 flex items-center gap-3 p-8 xl:p-10">
             <div className="grid size-12 place-items-center overflow-hidden rounded-2xl border border-white/20 bg-white/15 text-white backdrop-blur-md">
-              {branding?.logo ? <img src={branding.logo} alt="School logo" className="size-full object-cover" onError={() => setBranding((current) => current ? { ...current, logo: null } : current)} /> : <LoginIcon name="book" className="size-6" />}
+              {branding?.logo ? (
+                <img
+                  src={branding.logo}
+                  alt="School logo"
+                  className="size-full object-cover"
+                  onError={() =>
+                    setBranding((current) =>
+                      current ? { ...current, logo: null } : current
+                    )
+                  }
+                />
+              ) : (
+                <LoginIcon name="book" className="size-6" />
+              )}
             </div>
             <div>
               <div className="font-display text-lg font-extrabold text-white">
