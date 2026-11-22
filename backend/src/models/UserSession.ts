@@ -1,5 +1,7 @@
 import sql from '../config/postgres.js';
 
+export const SESSION_IDLE_MINUTES = 3;
+
 export interface UserSession {
   id: number;
   userId: number;
@@ -40,10 +42,10 @@ export const userSessionRepository = {
     return sql<UserSession[]>`
       SELECT s.id, s."userId" AS "userId", u.username, u.name AS "user",
         s.device, s.location, s.token, s."createdAt" AS "createdAt", s."lastActive" AS "lastActive",
-        CASE WHEN s."lastActive" > NOW() - INTERVAL '15 minutes' THEN 'Active' ELSE 'Inactive' END AS active
+        CASE WHEN s."lastActive" > NOW() - (${SESSION_IDLE_MINUTES} * INTERVAL '1 minute') THEN 'Active' ELSE 'Inactive' END AS active
       FROM user_sessions s
       INNER JOIN users u ON u.id = s."userId"
-      WHERE s."lastActive" > NOW() - INTERVAL '30 days'
+      WHERE s."lastActive" > NOW() - (${SESSION_IDLE_MINUTES} * INTERVAL '1 minute')
       ORDER BY s."lastActive" DESC
     `;
   },
@@ -54,16 +56,16 @@ export const userSessionRepository = {
     // timed-out sessions cannot remain visible indefinitely.
     await sql`
       DELETE FROM user_sessions
-      WHERE "lastActive" <= NOW() - INTERVAL '15 minutes'
+      WHERE "lastActive" <= NOW() - (${SESSION_IDLE_MINUTES} * INTERVAL '1 minute')
     `;
     const pageSize = Math.min(100, Math.max(1, limit));
     const rows = await sql<UserSession[]>`
       SELECT s.id, s."userId" AS "userId", u.username, u.name AS "user",
         s.device, s.location, s.token, s."createdAt" AS "createdAt", s."lastActive" AS "lastActive",
-        CASE WHEN s."lastActive" > NOW() - INTERVAL '15 minutes' THEN 'Active' ELSE 'Inactive' END AS active
+        CASE WHEN s."lastActive" > NOW() - (${SESSION_IDLE_MINUTES} * INTERVAL '1 minute') THEN 'Active' ELSE 'Inactive' END AS active
       FROM user_sessions s
       INNER JOIN users u ON u.id = s."userId"
-      WHERE s."lastActive" > NOW() - INTERVAL '30 days'
+      WHERE s."lastActive" > NOW() - (${SESSION_IDLE_MINUTES} * INTERVAL '1 minute')
         AND (${cursor || null}::timestamptz IS NULL OR s."lastActive" < ${cursor || null}::timestamptz)
       ORDER BY s."lastActive" DESC
       LIMIT ${pageSize + 1}
@@ -87,5 +89,15 @@ export const userSessionRepository = {
       RETURNING id, token
     `;
     return session || null;
+  },
+
+  async touchByToken(token: string): Promise<boolean> {
+    const result = await sql`
+      UPDATE user_sessions
+      SET "lastActive" = NOW()
+      WHERE token = ${token}
+        AND "lastActive" > NOW() - (${SESSION_IDLE_MINUTES} * INTERVAL '1 minute')
+    `;
+    return result.count > 0;
   },
 };

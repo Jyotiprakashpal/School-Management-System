@@ -420,6 +420,21 @@ export const terminateSession = async (req: Request<{ id: string }>, res: Respon
   }
 };
 
+export const heartbeatSession = async (req: Request, res: Response<{ ok: boolean } | { error: string }>) => {
+  try {
+    const authorization = req.headers.authorization;
+    const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : '';
+    if (!token) return res.status(401).json({ error: 'Session token is required' });
+
+    const updated = await userSessionRepository.touchByToken(token);
+    if (!updated) return res.status(401).json({ error: 'Session expired due to inactivity' });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Session heartbeat error:', error);
+    res.status(500).json({ error: 'Failed to update session activity' });
+  }
+};
+
 export const terminateCurrentSession = async (req: Request, res: Response<{ message: string } | { error: string }>) => {
   try {
     const authorization = req.headers.authorization;

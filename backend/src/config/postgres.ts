@@ -11,7 +11,12 @@ if (!connectionString) {
 }
 
 export const sql = postgres(connectionString, {
-  max: Number(process.env.DATABASE_POOL_MAX || 5),
+  // Supabase session-mode poolers have a small shared client limit. Keep the
+  // app pool deliberately small so multiple dev/production instances cannot
+  // exhaust the provider pool.
+  max: Math.max(1, Number(process.env.DATABASE_POOL_MAX || 1)),
+  idle_timeout: Number(process.env.DATABASE_IDLE_TIMEOUT || 20),
+  max_lifetime: Number(process.env.DATABASE_MAX_LIFETIME || 300),
   connect_timeout: 15,
   ssl: process.env.DATABASE_SSL === 'false' ? false : 'require',
   onnotice: () => {},

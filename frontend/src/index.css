@@ -332,6 +332,33 @@
     background-color: var(--app-accent, #0f766e) !important;
     -webkit-text-fill-color: #ffffff !important;
   }
+  /* Dark-mode overrides for native select dropdowns */
+  [data-theme="dark"] .app-dropdown,
+  [data-theme="dark"] .app-dropdown option,
+  [data-theme="dark"] .promotion-target-select,
+  [data-theme="dark"] .promotion-target-select option,
+  [data-theme="dark"] .settings-dropdown,
+  [data-theme="dark"] .settings-dropdown option {
+    color: #e2e8f0 !important;
+    background-color: #111a2a !important;
+    -webkit-text-fill-color: #e2e8f0 !important;
+  }
+  [data-theme="dark"] .app-dropdown,
+  [data-theme="dark"] .promotion-target-select,
+  [data-theme="dark"] .settings-dropdown {
+    color-scheme: dark;
+    border-color: #334155;
+  }
+  [data-theme="dark"] .app-dropdown option:checked,
+  [data-theme="dark"] .app-dropdown option:hover,
+  [data-theme="dark"] .promotion-target-select option:checked,
+  [data-theme="dark"] .promotion-target-select option:hover,
+  [data-theme="dark"] .settings-dropdown option:checked,
+  [data-theme="dark"] .settings-dropdown option:hover {
+    color: #ffffff !important;
+    background-color: var(--app-accent, #0f766e) !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
   .tiny-green { @apply rounded-md bg-emerald-500 px-2.5 py-1.5 text-[0.65rem] font-semibold text-white hover:bg-emerald-600; }
   .tiny-red { @apply rounded-md bg-red-500 px-2.5 py-1.5 text-[0.65rem] font-semibold text-white hover:bg-red-600; }
   .profile-action { @apply shrink-0 rounded-lg border border-violet-200 bg-white px-4 py-2.5 text-xs font-semibold text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-md; }

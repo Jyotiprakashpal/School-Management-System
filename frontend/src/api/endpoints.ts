@@ -44,6 +44,7 @@ export const API_ENDPOINTS = {
   FORGOT_PASSWORD: "/users/forgot-password",
   RESET_PASSWORD: "/users/reset-password",
   SESSIONS: "/sessions",
+  SESSION_HEARTBEAT: "/users/sessions/heartbeat",
   ROLES: "/roles",
   SETTINGS: "/settings",
   SETTINGS_LOGO: "/settings/logo",
