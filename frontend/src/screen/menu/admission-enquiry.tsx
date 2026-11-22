@@ -11,6 +11,7 @@ import {
 import Header from "../../ui/header"
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { del, get, post, put } from "../../api/methods"
+import { getAuthUser } from "../../auth/session"
 import { isValidMobileNumber, sanitizeMobileNumber } from "../../utils/validation"
 
 type Enquiry = {
@@ -409,7 +410,7 @@ export default function AdmissionEnquiry() {
   const filteredEnquiries = enquiries.filter((enquiry) => {
     const matchesSearch =
       !search ||
-      `${enquiry.name} ${enquiry.mobile} ${enquiry.formNumber}`
+      `${enquiry.name} ${enquiry.mobile} ${enquiry.address}`
         .toLowerCase()
         .includes(search.toLowerCase())
     const matchesStatus =
@@ -470,6 +471,7 @@ export default function AdmissionEnquiry() {
       return
     }
     try {
+    const currentUser = getAuthUser()
     const created = await post<AdmissionEnquiryResponse>(
       `${API_BASE}${API_ENDPOINTS.ADMISSION_ENQUIRIES}`,
       {
@@ -480,6 +482,7 @@ export default function AdmissionEnquiry() {
         address: form.address,
         remarks: form.remarks,
         revenue: Number(formPrice) || 0,
+        createdBy: currentUser?.username || currentUser?.name || "System",
       },
     )
     const nextFormNumber = created.studentId
@@ -920,7 +923,7 @@ export default function AdmissionEnquiry() {
                       setSearch(event.target.value)
                       setCurrentPage(1)
                     }}
-                    placeholder="Name, phone or form number..."
+                    placeholder="Name, phone or address..."
                     aria-label="Search enquiries"
                   />
                 </div>
@@ -1014,9 +1017,9 @@ export default function AdmissionEnquiry() {
                         </strong>
                       </span>
                       <span>
-                        <span className="text-slate-400">Form:</span>{" "}
+                        <span className="text-slate-400">Address:</span>{" "}
                         <strong className="text-slate-700">
-                          {enquiry.formNumber}
+                          {enquiry.address}
                         </strong>
                       </span>
                       <span>

@@ -34,9 +34,9 @@ const createAdmissionNo = () => {
   return `ADM-${year}-${String(Date.now()).slice(-6)}`
 }
 
-const createInitialForm = (): FormState => ({
+const createInitialForm = (academicYear = ""): FormState => ({
   admissionNo: createAdmissionNo(),
-  academicYear: "",
+  academicYear,
   status: "Active",
   nationality: "Indian",
   transportFee: "0",
@@ -222,7 +222,8 @@ function DatePickerField({
 }
 
 export default function NewAdmission() {
-  const [form, setForm] = useState<FormState>(createInitialForm)
+  const [currentAcademicYear, setCurrentAcademicYear] = useState("")
+  const [form, setForm] = useState<FormState>(() => createInitialForm())
   const [schoolClasses, setSchoolClasses] = useState<SchoolClass[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [religions, setReligions] = useState<string[]>([])
@@ -238,8 +239,19 @@ export default function NewAdmission() {
     state: string
   }>({ status: "idle", district: "", state: "" })
   const pinRequest = useRef(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const update = (name: string, value: string) =>
     setForm((current) => ({ ...current, [name]: value }))
+
+  const resetForm = (academicYearOverride?: string) => {
+    const year = academicYearOverride ?? currentAcademicYear
+    setForm(createInitialForm(year))
+    setStudentPhoto("")
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+    setPinLookup({ status: "idle", district: "", state: "" })
+  }
 
   useEffect(() => {
     let active = true
@@ -255,13 +267,19 @@ export default function NewAdmission() {
       if (religionResult.status === "fulfilled") setReligions(religionResult.value.data.map((item) => item.name))
       if (genderResult.status === "fulfilled") setGenders(genderResult.value.data.map((item) => item.name))
       if (bloodGroupResult.status === "fulfilled") setBloodGroups(bloodGroupResult.value.data.map((item) => item.name))
-      if (sessionResult.status === "fulfilled") setForm((current) => ({ ...current, academicYear: sessionResult.value.name }))
+      if (sessionResult.status === "fulfilled") {
+        setCurrentAcademicYear(sessionResult.value.name)
+        setForm((current) => ({ ...current, academicYear: sessionResult.value.name }))
+      }
       if (categoryResult.status === "rejected" || religionResult.status === "rejected" || genderResult.status === "rejected" || bloodGroupResult.status === "rejected") {
         showToast("Unable to load admission options.", { title: "Admission options unavailable", tone: "error" })
       }
     })
     const removeSessionListener = onAcademicSessionChanged((session) => {
-      if (session.current) setForm((current) => ({ ...current, academicYear: session.name }))
+      if (session.current) {
+        setCurrentAcademicYear(session.name)
+        setForm((current) => ({ ...current, academicYear: session.name }))
+      }
     })
     return () => { active = false; removeSessionListener() }
   }, [showToast])
@@ -447,6 +465,7 @@ export default function NewAdmission() {
         }.`,
         { title: "Admission saved successfully" },
       )
+      resetForm()
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Unable to save admission.",
@@ -816,6 +835,7 @@ export default function NewAdmission() {
               <label>
                 <span className="form-label">Student Photo</span>
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept="image/jpeg,image/png"
                   className="form-input py-2"
@@ -844,7 +864,7 @@ export default function NewAdmission() {
           <Button
             variant="outline"
             className="new-admission-cancel min-h-11 border-rose-200! text-rose-600! hover:bg-rose-50! sm:min-h-10"
-            onClick={() => setForm(createInitialForm())}
+            onClick={() => resetForm()}
             disabled={Boolean(savingMode)}
           >
             Cancel

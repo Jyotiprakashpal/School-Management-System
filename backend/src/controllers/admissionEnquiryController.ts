@@ -103,7 +103,7 @@ export const getEnquiryByStudentId = async (req: Request<{ studentId: string }>,
 
 export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error: string }, CreateAdmissionEnquiryDto>, res: Response<AdmissionEnquiry | { error: string }>) => {
   try {
-    const { name, fatherName, mobileNumber, classInterested, address, remarks, revenue } = req.body;
+    const { name, fatherName, mobileNumber, classInterested, address, remarks, revenue, createdBy } = req.body;
 
     const validationError = validateEnquiryBody(req.body);
     if (validationError) {
@@ -114,6 +114,15 @@ export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error:
     if (existingEnquiry) {
       return res.status(409).json({ error: 'Enquiry with this mobile number already exists' });
     }
+    if (fatherName?.trim()) {
+      const existingIdentity = await admissionEnquiryRepository.findByStudentAndFather(
+        name,
+        fatherName
+      );
+      if (existingIdentity) {
+        return res.status(409).json({ error: 'An enquiry with this name and father name already exists' });
+      }
+    }
 
     const enquiry = await admissionEnquiryRepository.create({
       name,
@@ -122,7 +131,8 @@ export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error:
       classInterested,
       address,
       remarks,
-      revenue
+      revenue,
+      createdBy: createdBy?.trim() || await getActorUserId(req) || 'System'
     });
 
     if (enquiry.revenue > 0) {
@@ -181,6 +191,30 @@ export const updateEnquiry = async (req: Request<{ studentId: string }, Admissio
     }
     if (classInterested !== undefined && (typeof classInterested !== 'string' || !classInterested.trim())) {
       return res.status(400).json({ error: 'Class interested in must be a non-empty string' });
+    }
+
+    if (mobileNumber !== undefined) {
+      const existingMobile = await admissionEnquiryRepository.findByMobile(mobileNumber.trim(), studentId);
+      if (existingMobile) {
+        return res.status(409).json({ error: 'Enquiry with this mobile number already exists' });
+      }
+    }
+
+    const current = await admissionEnquiryRepository.findByStudentId(studentId);
+    if (!current) {
+      return res.status(404).json({ error: 'Enquiry not found' });
+    }
+    const finalName = name?.trim() || current.name;
+    const finalFatherName = fatherName !== undefined ? fatherName?.trim() : current.fatherName;
+    if (finalFatherName) {
+      const existingIdentity = await admissionEnquiryRepository.findByStudentAndFather(
+        finalName,
+        finalFatherName,
+        studentId
+      );
+      if (existingIdentity) {
+        return res.status(409).json({ error: 'An enquiry with this name and father name already exists' });
+      }
     }
 
     const enquiry = await admissionEnquiryRepository.update(studentId, { name, fatherName, mobileNumber, classInterested, address, remarks, revenue, status });

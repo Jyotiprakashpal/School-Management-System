@@ -56,6 +56,9 @@ interface PaginatedAdmissions {
 const validateAdmissionBody = (body: Partial<CreateAdmissionDto>): string | null => {
   if (typeof body.admissionNo !== 'string' || !body.admissionNo.trim()) return 'Admission number is required';
   if (typeof body.fullName !== 'string' || !body.fullName.trim()) return 'Full name is required';
+  if (body.mobile !== undefined && body.mobile.trim() && !/^[6-9]\d{9}$/.test(body.mobile.trim())) {
+    return 'Enter a valid 10-digit Indian mobile number';
+  }
   return null;
 };
 
@@ -131,6 +134,21 @@ export const createAdmission = async (req: Request<{}, Admission | { error: stri
     if (existingAdmission) {
       return res.status(409).json({ error: 'Admission with this admission number already exists' });
     }
+    if (req.body.mobile?.trim()) {
+      const existingMobile = await admissionRepository.findByMobile(req.body.mobile.trim());
+      if (existingMobile) {
+        return res.status(409).json({ error: 'A student with this mobile number already exists' });
+      }
+    }
+    if (req.body.fatherName?.trim()) {
+      const existingIdentity = await admissionRepository.findByStudentAndFather(
+        req.body.fullName.trim(),
+        req.body.fatherName.trim()
+      );
+      if (existingIdentity) {
+        return res.status(409).json({ error: 'A student with this name and father name already exists' });
+      }
+    }
 
     const admission = await admissionRepository.create(req.body);
 
@@ -161,6 +179,43 @@ export const updateAdmission = async (req: Request<{ id: string }, Admission | {
     const id = parseInt(req.params.id, 10);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'Invalid admission ID' });
+    }
+
+    if (req.body.mobile !== undefined) {
+      if (req.body.mobile.trim() && !/^[6-9]\d{9}$/.test(req.body.mobile.trim())) {
+        return res.status(400).json({ error: 'Enter a valid 10-digit Indian mobile number' });
+      }
+      if (req.body.mobile.trim()) {
+        const existingMobile = await admissionRepository.findByMobile(req.body.mobile.trim(), id);
+        if (existingMobile) {
+          return res.status(409).json({ error: 'A student with this mobile number already exists' });
+        }
+      }
+    }
+    if (req.body.fullName !== undefined && (typeof req.body.fullName !== 'string' || !req.body.fullName.trim())) {
+      return res.status(400).json({ error: 'Full name must be a non-empty string' });
+    }
+    if (req.body.admissionNo !== undefined) {
+      if (!req.body.admissionNo.trim()) {
+        return res.status(400).json({ error: 'Admission number must be a non-empty string' });
+      }
+      const existingAdmission = await admissionRepository.findByAdmissionNo(req.body.admissionNo.trim());
+      if (existingAdmission && existingAdmission.id !== id) {
+        return res.status(409).json({ error: 'Admission with this admission number already exists' });
+      }
+    }
+
+    const current = await admissionRepository.findById(id);
+    if (!current) {
+      return res.status(404).json({ error: 'Admission not found' });
+    }
+    const fullName = req.body.fullName?.trim() || current.fullName;
+    const fatherName = req.body.fatherName !== undefined ? req.body.fatherName?.trim() : current.fatherName;
+    if (fatherName) {
+      const existingIdentity = await admissionRepository.findByStudentAndFather(fullName, fatherName, id);
+      if (existingIdentity) {
+        return res.status(409).json({ error: 'A student with this name and father name already exists' });
+      }
     }
 
     const admission = await admissionRepository.update(id, req.body);

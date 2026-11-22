@@ -247,6 +247,27 @@ export const admissionRepository = {
     return admission ? toAdmissionResponse(admission) : null;
   },
 
+  async findByMobile(mobile: string, excludeId?: number): Promise<Admission | null> {
+    const [admission] = await sql<AdmissionRow[]>`
+      SELECT ${selectAdmissionColumns}
+      FROM admissions
+      WHERE mobile = ${mobile}
+        AND (${excludeId || null}::integer IS NULL OR id <> ${excludeId || null})
+    `;
+    return admission ? toAdmissionResponse(admission) : null;
+  },
+
+  async findByStudentAndFather(fullName: string, fatherName: string, excludeId?: number): Promise<Admission | null> {
+    const [admission] = await sql<AdmissionRow[]>`
+      SELECT ${selectAdmissionColumns}
+      FROM admissions
+      WHERE LOWER(BTRIM("fullName")) = LOWER(BTRIM(${fullName}))
+        AND LOWER(BTRIM(COALESCE("fatherName", ''))) = LOWER(BTRIM(${fatherName}))
+        AND (${excludeId || null}::integer IS NULL OR id <> ${excludeId || null})
+    `;
+    return admission ? toAdmissionResponse(admission) : null;
+  },
+
   async create(data: CreateAdmissionDto): Promise<Admission> {
     const [admission] = await sql<AdmissionRow[]>`
       INSERT INTO admissions (

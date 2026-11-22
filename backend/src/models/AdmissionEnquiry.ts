@@ -126,9 +126,23 @@ export const admissionEnquiryRepository = {
     return enquiry ? toEnquiryResponse(enquiry) : null;
   },
 
-  async findByMobile(mobileNumber: string): Promise<AdmissionEnquiry | null> {
+  async findByMobile(mobileNumber: string, excludeStudentId?: string): Promise<AdmissionEnquiry | null> {
     const [enquiry] = await sql<EnquiryRow[]>`
-      SELECT ${selectEnquiryColumns} FROM admission_enquiries WHERE "mobileNumber" = ${mobileNumber}
+      SELECT ${selectEnquiryColumns}
+      FROM admission_enquiries
+      WHERE "mobileNumber" = ${mobileNumber}
+        AND (${excludeStudentId || null}::text IS NULL OR "studentId" <> ${excludeStudentId || null})
+    `;
+    return enquiry ? toEnquiryResponse(enquiry) : null;
+  },
+
+  async findByStudentAndFather(name: string, fatherName: string, excludeStudentId?: string): Promise<AdmissionEnquiry | null> {
+    const [enquiry] = await sql<EnquiryRow[]>`
+      SELECT ${selectEnquiryColumns}
+      FROM admission_enquiries
+      WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${name}))
+        AND LOWER(BTRIM(COALESCE("fatherName", ''))) = LOWER(BTRIM(${fatherName}))
+        AND (${excludeStudentId || null}::text IS NULL OR "studentId" <> ${excludeStudentId || null})
     `;
     return enquiry ? toEnquiryResponse(enquiry) : null;
   },
