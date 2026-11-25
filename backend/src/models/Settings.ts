@@ -216,6 +216,7 @@ export const settingsRepository = {
            density = ${next.density},
            "securityTwoFactor" = ${next.securityTwoFactor},
            "securityLoginAlerts" = ${next.securityLoginAlerts},
+           "createdBy" = ${data.createdBy ?? current.createdBy},
            "sessionTimeout" = ${next.sessionTimeout},
            "updatedAt" = NOW()
        WHERE id = 1

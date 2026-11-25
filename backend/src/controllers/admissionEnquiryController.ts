@@ -13,14 +13,14 @@ import { cashflowRepository } from '../models/Cashflow.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
-const getActorUserId = async (req: Request): Promise<string | undefined> => {
+const getActorName = async (req: Request): Promise<string> => {
   const token = req.headers.authorization?.startsWith('Bearer ')
     ? req.headers.authorization.slice(7)
     : '';
   const userId = Number(token.match(/^session-(\d+)-/)?.[1] || 0);
-  if (!userId) return undefined;
+  if (!userId) return 'System';
   const user = await userRepository.findById(userId);
-  return user?.userId || undefined;
+  return user?.name || user?.username || 'System';
 };
 
 const createNotification = async (req: Request, data: {
@@ -35,7 +35,7 @@ const createNotification = async (req: Request, data: {
     const notification = await notificationRepository.create({
       ...data,
       entityType: 'enquiry',
-      createdBy: await getActorUserId(req),
+      createdBy: await getActorName(req),
     });
     getIO(req).to(`user:${data.userId || 'all'}`).emit('notification:created', notification);
     if (!data.userId) {
@@ -103,7 +103,7 @@ export const getEnquiryByStudentId = async (req: Request<{ studentId: string }>,
 
 export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error: string }, CreateAdmissionEnquiryDto>, res: Response<AdmissionEnquiry | { error: string }>) => {
   try {
-    const { name, fatherName, mobileNumber, classInterested, address, remarks, revenue, createdBy } = req.body;
+    const { name, fatherName, mobileNumber, classInterested, address, remarks, revenue } = req.body;
 
     const validationError = validateEnquiryBody(req.body);
     if (validationError) {
@@ -132,7 +132,7 @@ export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error:
       address,
       remarks,
       revenue,
-      createdBy: createdBy?.trim() || await getActorUserId(req) || 'System'
+      createdBy: await getActorName(req)
     });
 
     if (enquiry.revenue > 0) {
@@ -144,7 +144,7 @@ export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error:
         date: new Date().toISOString().slice(0, 10),
         mode: 'Cash',
         reference: `ENQUIRY-${enquiry.studentId}`,
-        createdBy: await getActorUserId(req),
+        createdBy: await getActorName(req),
       });
     }
 
@@ -234,7 +234,7 @@ export const updateEnquiry = async (req: Request<{ studentId: string }, Admissio
         reference: `ENQUIRY-${enquiry.studentId}`,
       };
       if (income) await cashflowRepository.updateCashflow(income.id, payload);
-      else await cashflowRepository.createCashflow({ type: 'Income', ...payload, createdBy: await getActorUserId(req) });
+      else await cashflowRepository.createCashflow({ type: 'Income', ...payload, createdBy: await getActorName(req) });
     } else if (income) {
       await cashflowRepository.deleteCashflow(income.id);
     }

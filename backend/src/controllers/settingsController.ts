@@ -6,8 +6,36 @@ import {
   SchoolSettings,
   UpdateSettingsDto
 } from '../models/Settings.js';
+import { notificationRepository } from '../models/Notification.js';
+import { userRepository } from '../models/User.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
+
+const getActorName = async (req: Request): Promise<string> => {
+  const token = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : '';
+  const userId = Number(token.match(/^session-(\d+)-/)?.[1] || 0);
+  if (!userId) return 'System';
+  const user = await userRepository.findById(userId);
+  return user?.name || user?.username || 'System';
+};
+
+const createSettingsNotification = async (req: Request, title: string, message: string, createdBy: string) => {
+  try {
+    const notification = await notificationRepository.create({
+      title,
+      message,
+      type: 'info',
+      entityType: 'settings',
+      entityId: '1',
+      createdBy,
+    });
+    getIO(req).to('notifications').emit('notification:created', notification);
+  } catch (error) {
+    console.error('Failed to create settings notification:', error);
+  }
+};
 
 export const uploadLogo = multer({
   storage: multer.memoryStorage(),
@@ -33,13 +61,15 @@ export const getSettings = async (_req: Request, res: Response<SchoolSettings | 
 
 export const updateSettings = async (req: Request<{}, SchoolSettings | { error: string }, UpdateSettingsDto>, res: Response<SchoolSettings | { error: string }>) => {
   try {
-    const settings = await settingsRepository.updateSettings(req.body);
+    const actorName = await getActorName(req);
+    const settings = await settingsRepository.updateSettings({ ...req.body, createdBy: actorName });
     if (!settings) {
       return res.status(404).json({ error: 'Settings not found' });
     }
 
     // Emit real-time event
     getIO(req).to('settings').emit('settings:updated', settings);
+    await createSettingsNotification(req, 'School Settings Updated', `${actorName} updated the school settings`, actorName);
 
     res.json(settings);
   } catch (error) {
@@ -53,10 +83,12 @@ export const uploadSchoolLogo = async (req: Request, res: Response<SchoolSetting
     if (!req.file) return res.status(400).json({ error: 'A PNG, JPG, or WebP logo image is required' });
 
     const logo = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-    const settings = await settingsRepository.updateSettings({ logo });
+    const actorName = await getActorName(req);
+    const settings = await settingsRepository.updateSettings({ logo, createdBy: actorName });
     if (!settings) return res.status(404).json({ error: 'Settings not found' });
 
     getIO(req).to('settings').emit('settings:updated', settings);
+    await createSettingsNotification(req, 'School Logo Updated', `${actorName} updated the school logo`, actorName);
     res.json(settings);
   } catch (error) {
     console.error('Upload school logo error:', error);

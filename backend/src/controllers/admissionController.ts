@@ -12,14 +12,14 @@ import { userRepository } from '../models/User.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
-const getActorUserId = async (req: Request): Promise<string | undefined> => {
+const getActorName = async (req: Request): Promise<string> => {
   const token = req.headers.authorization?.startsWith('Bearer ')
     ? req.headers.authorization.slice(7)
     : '';
   const userId = Number(token.match(/^session-(\d+)-/)?.[1] || 0);
-  if (!userId) return undefined;
+  if (!userId) return 'System';
   const user = await userRepository.findById(userId);
-  return user?.userId || undefined;
+  return user?.name || user?.username || 'System';
 };
 
 const createNotification = async (req: Request, data: {
@@ -34,7 +34,7 @@ const createNotification = async (req: Request, data: {
     const notification = await notificationRepository.create({
       ...data,
       entityType: 'admission',
-      createdBy: await getActorUserId(req),
+      createdBy: await getActorName(req),
     });
     getIO(req).to(`user:${data.userId || 'all'}`).emit('notification:created', notification);
     if (!data.userId) {
@@ -150,7 +150,10 @@ export const createAdmission = async (req: Request<{}, Admission | { error: stri
       }
     }
 
-    const admission = await admissionRepository.create(req.body);
+    const admission = await admissionRepository.create({
+      ...req.body,
+      createdBy: await getActorName(req),
+    });
 
     // Emit real-time event
     getIO(req).to('admissions').emit('admission:created', admission);

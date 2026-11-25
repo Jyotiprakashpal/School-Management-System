@@ -180,6 +180,13 @@ export const admissionRepository = {
       CREATE INDEX IF NOT EXISTS idx_admissions_class_section ON admissions("className", section)
     `;
     await sql`
+      UPDATE admissions a
+      SET "createdBy" = u.name
+      FROM users u
+      WHERE a."createdBy" IS NOT NULL
+        AND a."createdBy" IN (u."userId", u.username)
+    `;
+    await sql`
       CREATE INDEX IF NOT EXISTS idx_admissions_mobile ON admissions(mobile)
     `;
     const [{ count }] = await sql<{ count: string }[]>`SELECT COUNT(*)::text AS count FROM admissions`;

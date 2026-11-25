@@ -80,6 +80,13 @@ export const admissionEnquiryRepository = {
       ALTER TABLE admission_enquiries
       ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Form Issued'
     `;
+    await sql`
+      UPDATE admission_enquiries e
+      SET "createdBy" = u.name
+      FROM users u
+      WHERE e."createdBy" IS NOT NULL
+        AND e."createdBy" IN (u."userId", u.username)
+    `;
     // Create sequence for auto-generating student IDs
     await sql`
       CREATE SEQUENCE IF NOT EXISTS student_id_seq START 1

@@ -1792,12 +1792,6 @@ export default function AllStudents() {
     }
   }
 
-  const openCreate = () => {
-    setEditingAdmissionNo(null)
-    setFormValues({})
-    setModalOpen(true)
-  }
-
   const openEdit = (row: string[]) => {
     setEditingAdmissionNo(row[0])
     setFormValues({
@@ -2058,25 +2052,6 @@ export default function AllStudents() {
                 </p>
               </div>
             </div>
-            <Button
-              className="shrink-0 px-3"
-              onClick={openCreate}
-              icon={
-                <svg
-                  className="size-4"
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                >
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-              }
-            >
-              Add Student
-            </Button>
           </div>
 
           <div className="all-students-filters grid grid-cols-2 gap-2.5 border-b border-slate-100 bg-linear-to-b from-slate-50/80 to-transparent p-3 max-sm:[&>:first-child]:col-span-2 max-sm:[&>:last-child]:col-span-2 sm:grid-cols-[1fr_9rem_9rem_auto] sm:gap-3 sm:p-4 xl:grid-cols-[1fr_12rem_12rem_auto]">

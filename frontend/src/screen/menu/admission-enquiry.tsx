@@ -482,7 +482,7 @@ export default function AdmissionEnquiry() {
         address: form.address,
         remarks: form.remarks,
         revenue: Number(formPrice) || 0,
-        createdBy: currentUser?.username || currentUser?.name || "System",
+        createdBy: currentUser?.name || currentUser?.username || "System",
       },
     )
     const nextFormNumber = created.studentId

@@ -457,7 +457,7 @@ export default function NewAdmission() {
         transportFee: Math.max(0, Number(form.transportFee) || 0),
         studentPhoto: studentPhoto || undefined,
         remarks: form.remarks?.trim() || undefined,
-        createdBy: user?.username || undefined,
+        createdBy: user?.name || user?.username || undefined,
       })
       showToast(
         `${form.fullName}'s admission has been registered${
