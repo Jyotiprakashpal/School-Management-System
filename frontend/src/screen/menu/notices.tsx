@@ -5,6 +5,7 @@ import Popup from "../../ui/popup";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { del, get, post, put } from "../../api/methods";
 import { onNoticeCreated, onNoticeDeleted, onNoticeUpdated, type NoticeRealtime } from "../../api/socket";
+import { formatConfiguredDate } from "../../utils/date-format";
 
 type NoticePriority = "High" | "Normal";
 type NoticeStatus = "Draft" | "Published" | "Scheduled";
@@ -60,7 +61,7 @@ function formatDate(value: string | null) {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value);
   return Number.isNaN(date.getTime())
     ? "Not set"
-    : date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    : formatConfiguredDate(date);
 }
 
 function dateInputValue(value: string | null) {

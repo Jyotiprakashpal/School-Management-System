@@ -12,6 +12,7 @@ import Popup from "../../ui/popup"
 import { getAuthUser } from "../../auth/session"
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { del, get, post, put } from "../../api/methods"
+import { formatConfiguredDate } from "../../utils/date-format"
 
 type ExpenseStatus = "Approved" | "Pending"
 
@@ -132,11 +133,7 @@ function formatCurrency(value: number) {
 }
 
 function formatDate(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })
+  return formatConfiguredDate(value)
 }
 
 function progressWidth(value: number, max: number) {

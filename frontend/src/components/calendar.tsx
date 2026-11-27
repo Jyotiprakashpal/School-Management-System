@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
+import { formatConfiguredDate } from "../utils/date-format";
 
 type CalendarProps = {
   className?: string;
@@ -32,7 +33,7 @@ export function DatePicker({ id, label, value, onChange, required, disabled, cla
   const [open, setOpen] = useState(false);
   const [draftDate, setDraftDate] = useState<Date | undefined>(() => parseDateValue(value));
   const selectedDate = parseDateValue(value);
-  const displayValue = selectedDate?.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const displayValue = selectedDate ? formatConfiguredDate(selectedDate) : undefined;
 
   useEffect(() => {
     setDraftDate(selectedDate);
@@ -143,7 +144,7 @@ export function Calendar({ className = "", onSelect, selected }: CalendarProps) 
     </div>
     <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
       <button type="button" className="text-xs font-bold text-slate-400 transition hover:text-slate-700" onClick={() => { const today = new Date(); onSelect(today); setVisibleMonth(new Date(today.getFullYear(), today.getMonth(), 1)); }}>Today</button>
-      {selected && <div className="text-xs font-semibold text-teal-600">{selected.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>}
+      {selected && <div className="text-xs font-semibold text-teal-600">{formatConfiguredDate(selected)}</div>}
     </div>
   </div>;
 }

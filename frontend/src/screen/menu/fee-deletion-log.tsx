@@ -16,6 +16,7 @@ import {
   type DeletionRecord,
   type Transaction,
 } from "../../data/feeStore"
+import { formatConfiguredDate } from "../../utils/date-format"
 
 const reasons = [
   "Duplicate payment entry",
@@ -27,7 +28,7 @@ const reasons = [
 const money = (value: number) => `₹${value.toLocaleString("en-IN")}`
 const formatDate = (iso: string) => {
   const d = new Date(iso)
-  return `${d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} · ${d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`
+  return `${formatConfiguredDate(d)} · ${d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`
 }
 const monthKey = (iso: string) => iso.slice(0, 7)
 const monthLabel = (key: string) =>

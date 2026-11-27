@@ -9,6 +9,7 @@ import {
 } from "../../components"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
+import { formatConfiguredDate } from "../../utils/date-format"
 import {
   classBase,
   studentPending,
@@ -49,12 +50,7 @@ const initials = (name: string) =>
     .slice(0, 2)
     .join("")
     .toUpperCase()
-const nowLabel = () =>
-  new Date().toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })
+const nowLabel = () => formatConfiguredDate(new Date())
 const timeLabel = () =>
   new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
 

@@ -20,6 +20,7 @@ import {
   type Student,
   type Transaction,
 } from "../../data/feeStore"
+import { formatConfiguredDate } from "../../utils/date-format"
 
 const methods = [
   { label: "Cash", description: "Collect at counter" },
@@ -30,12 +31,7 @@ const methods = [
 
 const money = (value: number) => `₹${value.toLocaleString("en-IN")}`
 const today = () => new Date().toISOString().slice(0, 10)
-const formatDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })
+const formatDate = (iso: string) => formatConfiguredDate(iso)
 const initials = (name: string) =>
   name
     .split(" ")

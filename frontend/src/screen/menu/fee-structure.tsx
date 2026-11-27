@@ -12,6 +12,7 @@ import Popup from "../../ui/popup"
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { del, get, post, put } from "../../api/methods"
 import { onFeeStructureChanged } from "../../api/socket"
+import { formatConfiguredDateTime } from "../../utils/date-format"
 import {
   useStructure,
   type FeeItem,
@@ -198,7 +199,7 @@ export default function FeeStructure() {
       setFeeForm((current) => ({ ...current, year: current.year || defaultYear, frequency: current.frequency || defaultFrequency }))
       setEditForm((current) => ({ ...current, year: current.year || defaultYear, frequency: current.frequency || defaultFrequency }))
       setFees(feeResponse.data.map((fee) => ({ ...fee, amount: String(fee.amount) })))
-      setAssignments(assignmentResponse.data.map((assignment) => ({ ...assignment, time: new Date(assignment.createdAt ?? Date.now()).toLocaleString("en-IN") })))
+      setAssignments(assignmentResponse.data.map((assignment) => ({ ...assignment, time: formatConfiguredDateTime(assignment.createdAt ?? new Date()) })))
     }).catch((error) => {
       if (active) showToast(error instanceof Error ? error.message : "Unable to load fee structure.", { title: "Fee structure unavailable", tone: "error" })
     }).finally(() => { if (active) setLoading(false) })
@@ -386,7 +387,7 @@ export default function FeeStructure() {
         students: assignment.students,
         heads: heads.length,
         perStudent,
-        time: new Date(assignment.createdAt ?? Date.now()).toLocaleString("en-IN"),
+        time: formatConfiguredDateTime(assignment.createdAt ?? new Date()),
       },
       ...current,
     ])

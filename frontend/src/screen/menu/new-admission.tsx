@@ -20,6 +20,7 @@ import {
   sanitizeMobileNumber,
 } from "../../utils/validation"
 import { onAcademicSessionChanged } from "../../api/socket"
+import { formatConfiguredDate } from "../../utils/date-format"
 
 type FormState = Record<string, string>
 type SchoolClass = {
@@ -140,13 +141,7 @@ function DatePickerField({
   const [open, setOpen] = useState(false)
   const selected = value ? new Date(`${value}T00:00:00`) : undefined
   const [draftDate, setDraftDate] = useState<Date | undefined>(selected)
-  const displayValue = selected
-    ? selected.toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-    : ""
+  const displayValue = selected ? formatConfiguredDate(selected) : ""
   const format = (date: Date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
 

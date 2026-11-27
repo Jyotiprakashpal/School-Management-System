@@ -1,6 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import AppSkeleton from "../components/AppSkeleton";
-import { PasswordChangePopup, SignOutPopup, ToastProvider } from "../components";
+import { PasswordChangePopup, SignOutPopup, ToastProvider, useToast } from "../components";
+import { API_BASE, API_ENDPOINTS } from "../api/endpoints";
+import { get } from "../api/methods";
+import { onSettingsUpdated } from "../api/socket";
 import { useAppController } from "../controllers/useAppController";
 import Dashboard from "../screen/dashboard";
 import AdminSettings from "../screen/admin-settings";
@@ -10,6 +13,7 @@ import Footer from "../ui/footer";
 import Header from "../ui/header";
 import Sidebar from "../ui/sidebar";
 import { ThemeProvider } from "../ui/theme";
+import { getConfiguredDateFormat, setConfiguredDateFormat, subscribeToDateFormat } from "../utils/date-format";
 
 type IconName =
   | "admission" | "alert" | "arrow" | "attendance" | "book" | "calendar"
@@ -443,6 +447,35 @@ function AppContent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
+  const [dateFormat, setDateFormatState] = useState(getConfiguredDateFormat);
+  const { showToast } = useToast();
+
+  useEffect(() => subscribeToDateFormat(setDateFormatState), []);
+
+  useEffect(() => {
+    if (!authenticated || appLoading) return;
+    let active = true;
+    let receivedRealtimeUpdate = false;
+    const unsubscribe = onSettingsUpdated((settings) => {
+      if (typeof settings.dateFormat !== "string") return;
+      receivedRealtimeUpdate = true;
+      setConfiguredDateFormat(settings.dateFormat);
+    });
+
+    void get<{ dateFormat: string }>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`, { cache: "no-store" })
+      .then(({ dateFormat: savedFormat }) => {
+        if (active && !receivedRealtimeUpdate) setConfiguredDateFormat(savedFormat);
+      })
+      .catch((error) => {
+        if (active) showToast(error instanceof Error ? error.message : "Unable to load the saved date format.", { title: "Date format unavailable", tone: "error" });
+      });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [appLoading, authenticated, showToast]);
+
   const confirmSignOut = () => {
     setSignOutOpen(false);
     logout();
@@ -461,7 +494,7 @@ function AppContent() {
     navigate(screen);
   };
 
-  return <div className={`${authenticated ? "fixed inset-0 overflow-hidden" : "min-h-screen"} w-full min-w-0 max-w-full overflow-x-clip bg-slate-50`}>
+  return <div data-date-format={dateFormat} className={`${authenticated ? "fixed inset-0 overflow-hidden" : "min-h-screen"} w-full min-w-0 max-w-full overflow-x-clip bg-slate-50`}>
       {!authenticated ? <Login onLogin={login} /> : appLoading ? <AppSkeleton /> : <>
       <Sidebar open={sidebarOpen} collapsed={sidebarCollapsed} active={activeScreen} onSelect={selectScreen} onClose={closeSidebar} onToggleCollapse={() => setSidebarCollapsed((current) => !current)} />
       <div className={`flex h-full w-full min-w-0 max-w-full flex-col overflow-hidden transition-[padding] duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"}`}>

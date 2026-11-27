@@ -3,6 +3,7 @@ import { del, get, post, put } from "../../api/methods"
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { getAuthUser } from "../../auth/session"
 import { onStaffCreated, onStaffDeleted, onStaffStatusChanged, onStaffUpdated } from "../../api/socket"
+import { formatConfiguredDate } from "../../utils/date-format"
 import {
   Button,
   DatePicker,
@@ -151,11 +152,7 @@ function formatCurrency(value: number) {
 }
 
 function formatDate(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })
+  return formatConfiguredDate(value)
 }
 
 function csvCell(value: string | number) {

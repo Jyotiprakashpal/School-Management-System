@@ -5,6 +5,7 @@ import { useTheme, type ThemeName } from "../../ui/theme";
 import { get, put, upload } from "../../api/methods";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { onAcademicSessionChanged, onSettingsUpdated } from "../../api/socket";
+import { formatConfiguredDateTime, setConfiguredDateFormat } from "../../utils/date-format";
 
 type SectionId = "general" | "academic" | "notifications" | "appearance" | "security";
 type IconName = "bell" | "book" | "building" | "check" | "clock" | "globe" | "lock" | "mail" | "palette" | "phone" | "save" | "settings" | "shield";
@@ -69,14 +70,7 @@ function formatSavedAt(value?: string) {
   if (!value) return "Not saved yet";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Not saved yet";
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date).replace(",", " at");
+  return formatConfiguredDateTime(date).replace(",", " at");
 }
 
 function getDateFormatOptions(date: Date) {
@@ -281,6 +275,7 @@ export default function Settings() {
       });
       setLoadedSettings(updatedSettings);
       setAcademicYear(updatedSettings.academicYear);
+      setConfiguredDateFormat(updatedSettings.dateFormat);
       showToast(`${sections.find((section) => section.id === activeSection)?.label} preferences have been updated.`, { title: "Settings saved" });
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Unable to save settings.", { title: "Settings save failed", tone: "error" });

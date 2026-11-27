@@ -5,6 +5,7 @@ import { get } from "../api/methods";
 import { API_BASE, API_ENDPOINTS } from "../api/endpoints";
 import { onAdmissionsChanged, onFeeCollectionChanged, onAttendanceChanged, onNoticeCreated, onNotificationCreated } from "../api/socket";
 import Header from "../ui/header";
+import { formatConfiguredDate, formatConfiguredDateTime } from "../utils/date-format";
 
 type DashboardIconName = "admission" | "alert" | "arrow" | "attendance" | "calendar" | "chart" | "check" | "checklist" | "clock" | "download" | "expense" | "notice" | "people" | "rupee" | "trend" | "user" | "wallet" | "zap";
 
@@ -172,9 +173,9 @@ export default function Dashboard({ onSelect }: DashboardProps) {
     { value: currency(collected), label: "Fees Collected", helper: `${dashboardData.payments.length} recent payments`, icon: "rupee" as DashboardIconName, color: "amber", trend: "Live" },
     { value: currency(0), label: "Pending Fees", helper: "Live fee status", icon: "alert" as DashboardIconName, color: "red", trend: "Live" },
   ];
-  const livePayments = dashboardData.payments.slice(0, 4).map((payment) => ({ receipt: payment.receiptNumber, name: payment.studentName, className: `${payment.className}-${payment.section}`, mode: payment.mode, amount: currency(payment.amount), time: new Date(payment.paymentDate).toLocaleDateString("en-IN"), initials: initials(payment.studentName) }));
+  const livePayments = dashboardData.payments.slice(0, 4).map((payment) => ({ receipt: payment.receiptNumber, name: payment.studentName, className: `${payment.className}-${payment.section}`, mode: payment.mode, amount: currency(payment.amount), time: formatConfiguredDate(payment.paymentDate), initials: initials(payment.studentName) }));
   const liveClassData = Object.entries(dashboardData.admissions.reduce<Record<string, number>>((result, student) => { const key = student.className || "Unassigned"; result[key] = (result[key] ?? 0) + 1; return result; }, {})).map(([name, students]) => ({ name, students, share: "w-full", color: "bg-teal-500" }));
-  const liveNotices = dashboardData.notices.slice(0, 4).map((notice) => ({ title: notice.title, audience: notice.audience, date: new Date(notice.createdAt).toLocaleDateString("en-IN"), tone: "bg-teal-500" }));
+  const liveNotices = dashboardData.notices.slice(0, 4).map((notice) => ({ title: notice.title, audience: notice.audience, date: formatConfiguredDate(notice.createdAt), tone: "bg-teal-500" }));
   const liveFeeMonths = dashboardData.payments.length ? dashboardData.payments.slice(0, 8).map((payment) => ({ month: new Date(payment.paymentDate).toLocaleDateString("en-IN", { month: "short" }), value: currency(payment.amount), height: "h-2/3" })) : [];
   const liveDefaulters: Array<{ name: string; className: string; due: string; days: string; initials: string }> = [];
   const liveSchedules = dashboardData.schedules.map((schedule) => {
@@ -182,7 +183,9 @@ export default function Dashboard({ onSelect }: DashboardProps) {
     const validDate = !Number.isNaN(parsedDate.getTime());
     return { date: validDate ? parsedDate.toLocaleDateString("en-IN", { day: "2-digit" }) : "—", month: validDate ? parsedDate.toLocaleDateString("en-IN", { month: "short" }).toUpperCase() : "", title: schedule.subject || "Scheduled exam", copy: `${schedule.className || "Class"} · ${schedule.startTime || "Time not set"}`, color: "bg-violet-50 text-violet-600" };
   });
-  const liveActivities = dashboardData.activities.map((activity) => ({ title: activity.title, user: activity.createdBy || "Unknown user", time: new Date(activity.createdAt).toLocaleString("en-IN"), icon: "clock" as DashboardIconName, color: "bg-teal-50 text-teal-600" }));
+  const liveActivities = dashboardData.activities.map((activity) => {
+    return { title: activity.title, user: activity.createdBy || "Unknown user", time: formatConfiguredDateTime(activity.createdAt), icon: "clock" as DashboardIconName, color: "bg-teal-50 text-teal-600" };
+  });
   const today = new Date();
   const currentISTHour = Number(new Intl.DateTimeFormat("en-IN", {
     hour: "2-digit",
@@ -190,12 +193,7 @@ export default function Dashboard({ onSelect }: DashboardProps) {
     timeZone: "Asia/Kolkata",
   }).format(today));
   const greeting = currentISTHour < 12 ? "Good morning" : currentISTHour < 17 ? "Good afternoon" : "Good evening";
-  const currentDate = new Intl.DateTimeFormat("en-IN", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(today);
+  const currentDate = formatConfiguredDate(today, { weekday: "long" });
   return <div className="dashboard-screen min-h-screen">
     <Header title="Dashboard" subtitle={`${greeting}, Super Administrator — here is today's school overview`} />
 

@@ -5,6 +5,7 @@ import Popup from "../../ui/popup";
 import { getAuthUser } from "../../auth/session";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { del, get, post } from "../../api/methods";
+import { formatConfiguredDate } from "../../utils/date-format";
 
 type CashflowType = "Expense" | "Income";
 
@@ -58,7 +59,7 @@ function formatDate(value: string) {
     ? new Date(`${raw}T00:00:00`)
     : new Date(raw);
   if (Number.isNaN(date.getTime())) return "Date unavailable";
-  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return formatConfiguredDate(date);
 }
 
 function csvCell(value: string | number) {

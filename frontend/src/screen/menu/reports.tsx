@@ -4,6 +4,7 @@ import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { del, get, post } from "../../api/methods";
+import { formatConfiguredDateTime } from "../../utils/date-format";
 
 type ReportCategory = "Academic" | "Attendance" | "Finance" | "Students";
 
@@ -176,7 +177,7 @@ export default function Reports() {
     ]).then(([templateResponse, generatedResponse]) => {
       if (!active) return;
       setTemplates(templateResponse.data);
-      setGeneratedReports(generatedResponse.data.filter((item) => item.status !== "Generating").map((item) => ({ ...item, created: new Date(item.createdAt).toLocaleString("en-IN"), status: item.status as "Ready" | "Scheduled" })));
+      setGeneratedReports(generatedResponse.data.filter((item) => item.status !== "Generating").map((item) => ({ ...item, created: formatConfiguredDateTime(item.createdAt), status: item.status as "Ready" | "Scheduled" })));
     }).catch((error) => showToast(error instanceof Error ? error.message : "Unable to load reports.", { title: "Reports unavailable", tone: "error" })).finally(() => { if (active) setInitialLoading(false); });
     return () => { active = false; };
   }, [showToast]);

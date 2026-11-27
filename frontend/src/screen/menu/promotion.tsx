@@ -12,6 +12,7 @@ import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { getAuthUser } from "../../auth/session"
 import Header from "../../ui/header"
 import Popup from "../../ui/popup"
+import { formatConfiguredDateTime } from "../../utils/date-format"
 
 type Result = "Passed" | "Review" | "Failed"
 
@@ -380,7 +381,7 @@ export default function Promotion() {
         setCurrentClass(enrolledClass)
         setSection(nextRoster.find((student) => student.className === enrolledClass)?.section ?? "")
         setTargetClass(nextClass(enrolledClass, nextClasses))
-        setHistory((historyResponse.data ?? []).map((entry) => ({ ...entry, time: entry.time ?? (entry.createdAt ? new Date(entry.createdAt).toLocaleString("en-IN") : "") })))
+        setHistory((historyResponse.data ?? []).map((entry) => ({ ...entry, time: entry.time ?? (entry.createdAt ? formatConfiguredDateTime(entry.createdAt) : "") })))
         const year = new Date().getFullYear()
         setAcademicYear(`${year}-${String(year + 1).slice(-2)}`)
       } catch (error) {
@@ -566,7 +567,7 @@ export default function Promotion() {
         moves: moves.map((move) => ({ ...move, createdBy: getAuthUser()?.username || getAuthUser()?.name || "System" })),
       })
       setRoster((current) => current.map((student) => moveMap.has(student.admissionNo) ? { ...student, className: moveMap.get(student.admissionNo) as string } : student))
-      setHistory((current) => [{ ...created, time: created.time ?? new Date().toLocaleString("en-IN") }, ...current])
+      setHistory((current) => [{ ...created, time: created.time ?? formatConfiguredDateTime(new Date()) }, ...current])
       setSelected(new Set())
       setConfirmOpen(false)
       showToast(`${moves.length} students were promoted successfully.`, { title: "Promotion completed" })

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import Button from "./Button";
 import Dropdown from "./Dropdown";
+import { formatConfiguredDate } from "../utils/date-format";
 
 export type AdmitCardSchedule = {
   date: string;
@@ -45,7 +46,7 @@ const subjectCodes: Record<string, string> = {
 };
 
 function readableDate(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return formatConfiguredDate(value);
 }
 
 export default function AdmitCardPrint({ className, examName, onBack, schedules, session = "2027–28" }: AdmitCardPrintProps) {

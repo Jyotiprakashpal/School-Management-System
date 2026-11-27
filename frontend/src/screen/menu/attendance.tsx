@@ -13,6 +13,7 @@ import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { get, post } from "../../api/methods"
 import { getAuthUser } from "../../auth/session"
 import { onAdmissionsChanged, onAttendanceChanged } from "../../api/socket"
+import { formatConfiguredDate } from "../../utils/date-format"
 
 type Status = "present" | "absent" | "leave" | ""
 type Learner = {
@@ -24,13 +25,7 @@ type Learner = {
 type Marks = Record<string, Status>
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
-const longDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  })
+const longDate = (iso: string) => formatConfiguredDate(iso, { weekday: "long" })
 const initials = (name: string) =>
   name
     .split(" ")

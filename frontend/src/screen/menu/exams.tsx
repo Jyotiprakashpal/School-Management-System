@@ -6,6 +6,7 @@ import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { del, get, post, put } from "../../api/methods";
 import { getAuthUser } from "../../auth/session";
 import { onExamChanged } from "../../api/socket";
+import { formatConfiguredDate } from "../../utils/date-format";
 
 type ExamStatus = "Upcoming" | "Active" | "Completed";
 type Exam = {
@@ -49,8 +50,8 @@ function ExamIcon({ type, className = "size-5" }: { type: IconType; className?: 
   return <svg className={className} aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{paths[type]}</svg>;
 }
 
-const readableDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-const shortDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+const readableDate = (value: string) => formatConfiguredDate(value);
+const shortDate = (value: string) => formatConfiguredDate(value);
 const dayDiff = (from: string, to: string) => Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86400000);
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;

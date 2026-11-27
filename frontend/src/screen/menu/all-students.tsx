@@ -15,6 +15,7 @@ import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { get, post } from "../../api/methods"
 import { getAuthUser } from "../../auth/session"
 import { onAdmissionsChanged, onFeeCollectionChanged, onFeeStructureChanged } from "../../api/socket"
+import { formatConfiguredDate } from "../../utils/date-format"
 
 type AdmissionRecord = {
   id: number
@@ -75,13 +76,7 @@ function AdmissionDateField({
   const [open, setOpen] = useState(false)
   const selected = value ? new Date(`${value}T00:00:00`) : undefined
   const [draftDate, setDraftDate] = useState<Date | undefined>(selected)
-  const displayValue = selected
-    ? selected.toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-    : ""
+  const displayValue = selected ? formatConfiguredDate(selected) : ""
 
   return (
     <div className="min-w-0">
@@ -546,7 +541,7 @@ function StudentProfileView({
             month: new Date(payment.paymentDate).toLocaleDateString("en-IN", { month: "long" }),
             amount: Number(payment.paidAmount),
             balance: Number(payment.balanceAmount),
-            date: new Date(payment.paymentDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+            date: formatConfiguredDate(payment.paymentDate),
             mode: payment.paymentMode,
           })))
         }

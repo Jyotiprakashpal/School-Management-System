@@ -14,6 +14,7 @@ import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { get, post } from "../../api/methods"
 import { getAuthUser } from "../../auth/session"
 import { onFeeCollectionChanged, onFeeStructureChanged } from "../../api/socket"
+import { formatConfiguredDate } from "../../utils/date-format"
 import {
   feeBalance,
   nextReceiptNumber,
@@ -26,12 +27,7 @@ import {
 
 const today = () => new Date().toISOString().slice(0, 10)
 const money = (value: number) => `₹${value.toLocaleString("en-IN")}`
-const formatDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })
+const formatDate = (iso: string) => formatConfiguredDate(iso)
 const csvCell = (value: string | number) =>
   `"${String(value).replace(/"/g, '""')}"`
 const paymentModes = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque"]

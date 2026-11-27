@@ -6,6 +6,7 @@ import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { del, get, post, put } from "../../api/methods";
 import { getAuthUser } from "../../auth/session";
 import { onAcademicSessionChanged, onAcademicSessionCreated, onAcademicSessionDeleted, type AcademicSessionRealtime } from "../../api/socket";
+import { formatConfiguredDate } from "../../utils/date-format";
 
 type AcademicSession = {
   current: boolean;
@@ -65,7 +66,7 @@ function upsertSession(sessions: AcademicSession[], session: AcademicSession) {
 }
 
 function readableDate(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return formatConfiguredDate(value);
 }
 
 export default function Sessions() {

@@ -1,3 +1,5 @@
+import { formatConfiguredDate } from "./date-format";
+
 type NavigatorWithUserAgentData = Navigator & {
   userAgentData?: {
     mobile?: boolean;
@@ -49,12 +51,11 @@ export function recordLoginTime() {
 export function getLoginTime() {
   const stored = window.sessionStorage.getItem("pal-login-time");
   const loginDate = stored ? new Date(stored) : new Date();
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
+  const time = new Intl.DateTimeFormat("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
     timeZone: "Asia/Kolkata",
   }).format(loginDate);
+  return `${formatConfiguredDate(loginDate, { timeZone: "Asia/Kolkata" })}, ${time}`;
 }

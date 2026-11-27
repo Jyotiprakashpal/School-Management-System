@@ -4,6 +4,7 @@ import Header from "../../ui/header";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { get, post, put } from "../../api/methods";
 import { onRoleCreated, onRoleDeleted, onRoleUpdated, onSessionTerminated } from "../../api/socket";
+import { formatConfiguredDateTime } from "../../utils/date-format";
 
 type TabId = "users" | "activity" | "sessions";
 type Role = "Superadmin" | "Admin" | "Operator" | "Accountant" | "Student" | "Teacher";
@@ -517,7 +518,7 @@ function ActivityLog() {
         <div className="min-w-0 flex-1"><div className="truncate font-display text-sm font-bold text-slate-900 sm:font-semibold sm:text-slate-800">{user}</div><div className="mt-0.5 inline-flex items-center gap-1.5 text-[0.65rem] font-semibold text-(--app-accent-dark) sm:hidden"><Icon name="activity" className="size-3.5" />Account activity</div><p className="mt-1 hidden text-xs text-slate-500 sm:block">{action} · <span className="font-medium">{target}</span></p></div>
       </div>
       <div className="rounded-xl border border-slate-100 bg-white/80 p-3 shadow-sm sm:hidden"><div className="text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">{action}</div><div className="mt-1.5 text-xs font-semibold text-slate-700">{target}</div></div>
-      <span className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-500 sm:block sm:bg-transparent sm:p-0 sm:text-slate-400"><span className="sm:hidden">Activity time</span><span className="font-semibold sm:font-normal">{new Date(date).toLocaleString()}</span></span>
+      <span className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-500 sm:block sm:bg-transparent sm:p-0 sm:text-slate-400"><span className="sm:hidden">Activity time</span><span className="font-semibold sm:font-normal">{formatConfiguredDateTime(date)}</span></span>
     </div>)}{hasMore && <div ref={loadMoreRef} className="p-4 text-center text-sm text-slate-400">{loadingMore ? "Loading more activity..." : "Scroll to load more"}</div>}</div>
   </section>;
 }

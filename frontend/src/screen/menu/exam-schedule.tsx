@@ -6,6 +6,7 @@ import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { del, get, post, put } from "../../api/methods";
 import { getAuthUser } from "../../auth/session";
 import { onExamScheduleChanged } from "../../api/socket";
+import { formatConfiguredDate } from "../../utils/date-format";
 
 type Schedule = {
   className: string;
@@ -63,7 +64,7 @@ const footerGrid = "!grid grid-cols-2 items-stretch gap-2.5 sm:!flex [&>button]:
 const parse = (value: string) => new Date(`${value}T00:00:00`);
 const todayIso = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; };
 const daysFromToday = (value: string) => Math.round((parse(value).getTime() - parse(todayIso()).getTime()) / 86400000);
-const readableDate = (value: string) => parse(value).toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+const readableDate = (value: string) => formatConfiguredDate(parse(value), { weekday: "short" });
 const minutes = (time: string) => Number(time.split(":")[0]) * 60 + Number(time.split(":")[1]);
 const durationLabel = (schedule: Schedule) => { const total = minutes(schedule.endTime) - minutes(schedule.startTime); return `${Math.floor(total / 60)}h${total % 60 ? ` ${total % 60}m` : ""}`; };
 const clock = (time: string) => { const [h, m] = time.split(":").map(Number); return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`; };
