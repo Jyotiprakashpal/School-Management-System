@@ -66,7 +66,7 @@ export function useAppController() {
 
   useEffect(() => {
     if (!authenticated) return;
-    const idleTimeoutMs = 3 * 60 * 1000;
+    const idleTimeoutMs = 15 * 60 * 1000;
     const heartbeatIntervalMs = 30 * 1000;
     const lastActivityRef = { current: Date.now() };
     const lastHeartbeatRef = { current: 0 };

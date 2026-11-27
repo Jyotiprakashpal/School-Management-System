@@ -10,6 +10,7 @@ import {
 import { notificationRepository } from '../models/Notification.js';
 import { userRepository } from '../models/User.js';
 import { cashflowRepository } from '../models/Cashflow.js';
+import { sessionRepository } from '../models/Session.js';
 
 const getIO = (req: Request): SocketIOServer => req.app.get('io');
 
@@ -68,7 +69,8 @@ export const getAllEnquiries = async (req: Request<{}, {}, {}, AdmissionEnquiryQ
     const search = req.query.search as string;
     const classInterested = req.query.classInterested as string;
 
-    const { data, total } = await admissionEnquiryRepository.findMany({ page, limit, search, classInterested });
+    const academicYear = req.query.academicYear || (await sessionRepository.findCurrent())?.name;
+    const { data, total } = await admissionEnquiryRepository.findMany({ page, limit, search, classInterested, academicYear });
 
     res.json({
       data,
@@ -103,21 +105,24 @@ export const getEnquiryByStudentId = async (req: Request<{ studentId: string }>,
 
 export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error: string }, CreateAdmissionEnquiryDto>, res: Response<AdmissionEnquiry | { error: string }>) => {
   try {
-    const { name, fatherName, mobileNumber, classInterested, address, remarks, revenue } = req.body;
+    const { name, fatherName, mobileNumber, classInterested, address, remarks, revenue, academicYear } = req.body;
 
     const validationError = validateEnquiryBody(req.body);
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
 
-    const existingEnquiry = await admissionEnquiryRepository.findByMobile(mobileNumber);
+    const selectedAcademicYear = academicYear || (await sessionRepository.findCurrent())?.name || null;
+    const existingEnquiry = await admissionEnquiryRepository.findByMobile(mobileNumber, undefined, selectedAcademicYear);
     if (existingEnquiry) {
       return res.status(409).json({ error: 'Enquiry with this mobile number already exists' });
     }
     if (fatherName?.trim()) {
       const existingIdentity = await admissionEnquiryRepository.findByStudentAndFather(
         name,
-        fatherName
+        fatherName,
+        undefined,
+        selectedAcademicYear
       );
       if (existingIdentity) {
         return res.status(409).json({ error: 'An enquiry with this name and father name already exists' });
@@ -132,6 +137,7 @@ export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error:
       address,
       remarks,
       revenue,
+      academicYear: selectedAcademicYear || undefined,
       createdBy: await getActorName(req)
     });
 
@@ -144,6 +150,7 @@ export const createEnquiry = async (req: Request<{}, AdmissionEnquiry | { error:
         date: new Date().toISOString().slice(0, 10),
         mode: 'Cash',
         reference: `ENQUIRY-${enquiry.studentId}`,
+        academicYear: enquiry.academicYear || undefined,
         createdBy: await getActorName(req),
       });
     }
@@ -177,7 +184,12 @@ export const updateEnquiry = async (req: Request<{ studentId: string }, Admissio
       return res.status(400).json({ error: 'Student ID is required' });
     }
 
-    const { name, fatherName, mobileNumber, classInterested, address, remarks, revenue, status } = req.body;
+    const { name, fatherName, mobileNumber, classInterested, address, remarks, revenue, academicYear, status } = req.body;
+    const current = await admissionEnquiryRepository.findByStudentId(studentId);
+    if (!current) {
+      return res.status(404).json({ error: 'Enquiry not found' });
+    }
+    const selectedAcademicYear = academicYear || current.academicYear || (await sessionRepository.findCurrent())?.name || null;
 
     if (status !== undefined && status !== 'Form Issued' && status !== 'Admitted') {
       return res.status(400).json({ error: 'Invalid enquiry status' });
@@ -194,30 +206,27 @@ export const updateEnquiry = async (req: Request<{ studentId: string }, Admissio
     }
 
     if (mobileNumber !== undefined) {
-      const existingMobile = await admissionEnquiryRepository.findByMobile(mobileNumber.trim(), studentId);
+      const existingMobile = await admissionEnquiryRepository.findByMobile(mobileNumber.trim(), studentId, selectedAcademicYear);
       if (existingMobile) {
         return res.status(409).json({ error: 'Enquiry with this mobile number already exists' });
       }
     }
 
-    const current = await admissionEnquiryRepository.findByStudentId(studentId);
-    if (!current) {
-      return res.status(404).json({ error: 'Enquiry not found' });
-    }
     const finalName = name?.trim() || current.name;
     const finalFatherName = fatherName !== undefined ? fatherName?.trim() : current.fatherName;
     if (finalFatherName) {
       const existingIdentity = await admissionEnquiryRepository.findByStudentAndFather(
         finalName,
         finalFatherName,
-        studentId
+        studentId,
+        selectedAcademicYear
       );
       if (existingIdentity) {
         return res.status(409).json({ error: 'An enquiry with this name and father name already exists' });
       }
     }
 
-    const enquiry = await admissionEnquiryRepository.update(studentId, { name, fatherName, mobileNumber, classInterested, address, remarks, revenue, status });
+    const enquiry = await admissionEnquiryRepository.update(studentId, { name, fatherName, mobileNumber, classInterested, address, remarks, revenue, academicYear: selectedAcademicYear || undefined, status });
 
     if (!enquiry) {
       return res.status(404).json({ error: 'Enquiry not found' });
@@ -232,6 +241,7 @@ export const updateEnquiry = async (req: Request<{ studentId: string }, Admissio
         date: new Date(enquiry.updatedAt).toISOString().slice(0, 10),
         mode: 'Cash',
         reference: `ENQUIRY-${enquiry.studentId}`,
+        academicYear: enquiry.academicYear || undefined,
       };
       if (income) await cashflowRepository.updateCashflow(income.id, payload);
       else await cashflowRepository.createCashflow({ type: 'Income', ...payload, createdBy: await getActorName(req) });

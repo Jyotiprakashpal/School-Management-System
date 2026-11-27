@@ -1,6 +1,6 @@
 import sql from '../config/postgres.js';
 
-export const SESSION_IDLE_MINUTES = 3;
+export const SESSION_IDLE_MINUTES = 15;
 
 export interface UserSession {
   id: number;

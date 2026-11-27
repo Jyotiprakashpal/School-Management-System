@@ -13,6 +13,7 @@ import { API_BASE, API_ENDPOINTS } from "../../api/endpoints"
 import { del, get, post, put } from "../../api/methods"
 import { getAuthUser } from "../../auth/session"
 import { isValidMobileNumber, sanitizeMobileNumber } from "../../utils/validation"
+import { onAcademicSessionChanged } from "../../api/socket"
 
 type Enquiry = {
   studentId?: string
@@ -62,6 +63,7 @@ type SchoolClassResponse = {
   active: boolean
   createdBy: string | null
   createdAt: string
+  academicYear?: string | null
   updatedAt: string
   updatedBy: string | null
 }
@@ -363,6 +365,7 @@ export default function AdmissionEnquiry() {
   const [deleteTarget, setDeleteTarget] = useState<Enquiry | null>(null)
   const [updatingPrice, setUpdatingPrice] = useState(false)
   const [formPrice, setFormPrice] = useState("150")
+  const [academicYear, setAcademicYear] = useState("")
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("")
   const [printEnquiry, setPrintEnquiry] = useState<Enquiry | null>(null)
@@ -374,13 +377,16 @@ export default function AdmissionEnquiry() {
     let active = true
     const loadEnquiries = async () => {
       try {
-        const [enquiryResponse, classResponse] = await Promise.all([
-          get<AdmissionEnquiryListResponse>(
-            `${API_BASE}${API_ENDPOINTS.ADMISSION_ENQUIRIES}?page=1&limit=100`,
-          ),
+        const [sessionResponse, classResponse] = await Promise.all([
+          get<{ name: string }>(`${API_BASE}${API_ENDPOINTS.SESSIONS}/current`),
           get<SchoolClassResponse[]>(`${API_BASE}${API_ENDPOINTS.CLASSES}`),
         ])
+        const selectedAcademicYear = sessionResponse.name
+        const enquiryResponse = await get<AdmissionEnquiryListResponse>(
+          `${API_BASE}${API_ENDPOINTS.ADMISSION_ENQUIRIES}?page=1&limit=100&academicYear=${encodeURIComponent(selectedAcademicYear)}`,
+        )
         if (active) {
+          setAcademicYear(selectedAcademicYear)
           setEnquiries(enquiryResponse.data.map(toEnquiry))
           setClasses(classResponse.filter((item) => item.active).map((item) => item.name))
         }
@@ -396,8 +402,14 @@ export default function AdmissionEnquiry() {
       }
     }
     void loadEnquiries()
+    const removeSessionListener = onAcademicSessionChanged((session) => {
+      if (!session.current) return
+      setAcademicYear(session.name)
+      void loadEnquiries()
+    })
     return () => {
       active = false
+      removeSessionListener()
     }
   }, [showToast])
 
@@ -457,6 +469,7 @@ export default function AdmissionEnquiry() {
             address: form.address,
             remarks: form.remarks,
             revenue: Number(formPrice) || 0,
+            academicYear,
           },
         )
         setEnquiries((current) => current.map((item) => item.studentId === editingStudentId ? toEnquiry(updated) : item))
@@ -482,6 +495,7 @@ export default function AdmissionEnquiry() {
         address: form.address,
         remarks: form.remarks,
         revenue: Number(formPrice) || 0,
+        academicYear,
         createdBy: currentUser?.name || currentUser?.username || "System",
       },
     )

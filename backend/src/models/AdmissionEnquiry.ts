@@ -9,6 +9,7 @@ export interface AdmissionEnquiry {
   address: string | null;
   remarks: string | null;
   revenue: number;
+  academicYear: string | null;
   status: "Form Issued" | "Admitted";
   createdBy: string | null;
   createdAt: Date;
@@ -24,6 +25,7 @@ export interface CreateAdmissionEnquiryDto {
   remarks?: string;
   revenue?: number;
   createdBy?: string;
+  academicYear?: string;
 }
 
 export interface UpdateAdmissionEnquiryDto {
@@ -34,6 +36,7 @@ export interface UpdateAdmissionEnquiryDto {
   address?: string;
   remarks?: string;
   revenue?: number;
+  academicYear?: string;
   status?: "Form Issued" | "Admitted";
 }
 
@@ -42,6 +45,7 @@ export interface AdmissionEnquiryQuery {
   limit?: number;
   search?: string;
   classInterested?: string;
+  academicYear?: string;
 }
 
 type EnquiryRow = Omit<AdmissionEnquiry, 'createdAt' | 'updatedAt'> & { createdAt: string; updatedAt: string };
@@ -51,7 +55,7 @@ function toEnquiryResponse(enquiry: EnquiryRow): AdmissionEnquiry {
 }
 
 const selectEnquiryColumns = sql`
-  "studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, revenue, status, "createdBy", "createdAt", "updatedAt"
+  "studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, revenue, "academicYear", status, "createdBy", "createdAt", "updatedAt"
 `;
 
 export const admissionEnquiryRepository = {
@@ -66,6 +70,7 @@ export const admissionEnquiryRepository = {
         address TEXT,
         remarks TEXT,
         revenue NUMERIC(12, 2) NOT NULL DEFAULT 0,
+        "academicYear" VARCHAR(20),
         status VARCHAR(20) NOT NULL DEFAULT 'Form Issued',
         "createdBy" TEXT,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -79,6 +84,13 @@ export const admissionEnquiryRepository = {
     await sql`
       ALTER TABLE admission_enquiries
       ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Form Issued'
+    `;
+    await sql`ALTER TABLE admission_enquiries ADD COLUMN IF NOT EXISTS "academicYear" VARCHAR(20)`;
+    await sql`
+      UPDATE admission_enquiries e
+      SET "academicYear" = s.name
+      FROM academic_sessions s
+      WHERE s.current = TRUE AND e."academicYear" IS NULL
     `;
     await sql`
       UPDATE admission_enquiries e
@@ -106,12 +118,14 @@ export const admissionEnquiryRepository = {
     const offset = (page - 1) * limit;
     const search = params.search ? '%' + params.search + '%' : null;
     const classInterested = params.classInterested || null;
+    const academicYear = params.academicYear || null;
 
     const enquiries = await sql<EnquiryRow[]>`
       SELECT ${selectEnquiryColumns}
       FROM admission_enquiries
       WHERE (${search}::text IS NULL OR name ILIKE ${search} OR "mobileNumber" ILIKE ${search} OR "classInterested" ILIKE ${search})
         AND (${classInterested}::text IS NULL OR "classInterested" = ${classInterested})
+        AND (${academicYear}::text IS NULL OR "academicYear" = ${academicYear})
       ORDER BY "createdAt" DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
@@ -121,6 +135,7 @@ export const admissionEnquiryRepository = {
       FROM admission_enquiries
       WHERE (${search}::text IS NULL OR name ILIKE ${search} OR "mobileNumber" ILIKE ${search} OR "classInterested" ILIKE ${search})
         AND (${classInterested}::text IS NULL OR "classInterested" = ${classInterested})
+        AND (${academicYear}::text IS NULL OR "academicYear" = ${academicYear})
     `;
 
     return { data: enquiries.map(toEnquiryResponse), total: Number(total?.count || 0) };
@@ -133,23 +148,25 @@ export const admissionEnquiryRepository = {
     return enquiry ? toEnquiryResponse(enquiry) : null;
   },
 
-  async findByMobile(mobileNumber: string, excludeStudentId?: string): Promise<AdmissionEnquiry | null> {
+  async findByMobile(mobileNumber: string, excludeStudentId?: string, academicYear?: string | null): Promise<AdmissionEnquiry | null> {
     const [enquiry] = await sql<EnquiryRow[]>`
       SELECT ${selectEnquiryColumns}
       FROM admission_enquiries
       WHERE "mobileNumber" = ${mobileNumber}
         AND (${excludeStudentId || null}::text IS NULL OR "studentId" <> ${excludeStudentId || null})
+        AND (${academicYear || null}::text IS NULL OR "academicYear" = ${academicYear || null})
     `;
     return enquiry ? toEnquiryResponse(enquiry) : null;
   },
 
-  async findByStudentAndFather(name: string, fatherName: string, excludeStudentId?: string): Promise<AdmissionEnquiry | null> {
+  async findByStudentAndFather(name: string, fatherName: string, excludeStudentId?: string, academicYear?: string | null): Promise<AdmissionEnquiry | null> {
     const [enquiry] = await sql<EnquiryRow[]>`
       SELECT ${selectEnquiryColumns}
       FROM admission_enquiries
       WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${name}))
         AND LOWER(BTRIM(COALESCE("fatherName", ''))) = LOWER(BTRIM(${fatherName}))
         AND (${excludeStudentId || null}::text IS NULL OR "studentId" <> ${excludeStudentId || null})
+        AND (${academicYear || null}::text IS NULL OR "academicYear" = ${academicYear || null})
     `;
     return enquiry ? toEnquiryResponse(enquiry) : null;
   },
@@ -157,8 +174,8 @@ export const admissionEnquiryRepository = {
   async create(data: CreateAdmissionEnquiryDto): Promise<AdmissionEnquiry> {
     const studentId = await this.generateStudentId();
     const [enquiry] = await sql<EnquiryRow[]>`
-      INSERT INTO admission_enquiries ("studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, revenue, "createdBy")
-      VALUES (${studentId}, ${data.name.trim()}, ${data.fatherName?.trim() || null}, ${data.mobileNumber.trim()}, ${data.classInterested.trim()}, ${data.address?.trim() || null}, ${data.remarks?.trim() || null}, ${Math.max(0, Number(data.revenue) || 0)}, ${data.createdBy || null})
+      INSERT INTO admission_enquiries ("studentId", name, "fatherName", "mobileNumber", "classInterested", address, remarks, revenue, "academicYear", "createdBy")
+      VALUES (${studentId}, ${data.name.trim()}, ${data.fatherName?.trim() || null}, ${data.mobileNumber.trim()}, ${data.classInterested.trim()}, ${data.address?.trim() || null}, ${data.remarks?.trim() || null}, ${Math.max(0, Number(data.revenue) || 0)}, ${data.academicYear || null}, ${data.createdBy || null})
       RETURNING ${selectEnquiryColumns}
     `;
     return toEnquiryResponse(enquiry);
@@ -176,6 +193,7 @@ export const admissionEnquiryRepository = {
       address: data.address ?? current.address,
       remarks: data.remarks ?? current.remarks,
       revenue: data.revenue ?? current.revenue,
+      academicYear: data.academicYear ?? current.academicYear,
       status: data.status ?? current.status
     };
 
@@ -188,6 +206,7 @@ export const admissionEnquiryRepository = {
            address = ${next.address?.trim() || null},
            remarks = ${next.remarks?.trim() || null},
            revenue = ${Math.max(0, Number(next.revenue) || 0)},
+           "academicYear" = ${next.academicYear || null},
            status = ${next.status},
            "updatedAt" = NOW()
        WHERE "studentId" = ${studentId}
