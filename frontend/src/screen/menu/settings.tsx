@@ -4,7 +4,7 @@ import Header from "../../ui/header";
 import { useTheme, type ThemeName } from "../../ui/theme";
 import { get, put, upload } from "../../api/methods";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
-import { onSettingsUpdated } from "../../api/socket";
+import { onAcademicSessionChanged, onSettingsUpdated } from "../../api/socket";
 
 type SectionId = "general" | "academic" | "notifications" | "appearance" | "security";
 type IconName = "bell" | "book" | "building" | "check" | "clock" | "globe" | "lock" | "mail" | "palette" | "phone" | "save" | "settings" | "shield";
@@ -79,6 +79,19 @@ function formatSavedAt(value?: string) {
   }).format(date).replace(",", " at");
 }
 
+function getDateFormatOptions(date: Date) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const monthName = new Intl.DateTimeFormat("en-IN", { month: "short" }).format(date);
+  const year = date.getFullYear();
+
+  return [
+    { label: `${day} ${monthName} ${year}`, value: "DD MMM YYYY" },
+    { label: `${day}/${month}/${year}`, value: "DD/MM/YYYY" },
+    { label: `${month}/${day}/${year}`, value: "MM/DD/YYYY" },
+  ];
+}
+
 function SectionHeader({ icon, title, copy }: { icon: IconName; title: string; copy: string }) {
   return <div className="flex items-start gap-3 border-b border-slate-100 p-4 sm:p-6">
     <span className="settings-icon grid size-9 shrink-0 place-items-center rounded-xl sm:size-10"><Icon name={icon} /></span>
@@ -104,6 +117,9 @@ function ToggleRow({ checked, copy, icon, label, onChange }: { checked: boolean;
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<SectionId>("general");
   const [saving, setSaving] = useState(false);
+  const [academicSessions, setAcademicSessions] = useState<{ id: number; name: string }[]>([]);
+  const [academicSessionsLoading, setAcademicSessionsLoading] = useState(true);
+  const [academicYear, setAcademicYear] = useState("");
   const [notifications, setNotifications] = useState({
     email: true,
     sms: true,
@@ -122,7 +138,7 @@ export default function Settings() {
 
   const fieldIds = [
     "school-name", "school-code", "school-email", "school-phone", "school-address", "school-website", "school-principal",
-    "academic-year", "week-start", "language", "timezone", "date-format", "currency", "session-timeout",
+    "week-start", "language", "timezone", "date-format", "currency", "session-timeout",
   ];
 
   const applyFieldValues = (settings: SettingsResponse) => {
@@ -134,7 +150,6 @@ export default function Settings() {
       "school-address": settings.schoolAddress,
       "school-website": settings.schoolWebsite,
       "school-principal": settings.schoolPrincipal,
-      "academic-year": settings.academicYear,
       "week-start": settings.weekStart,
       language: settings.language,
       timezone: settings.timezone,
@@ -154,6 +169,7 @@ export default function Settings() {
       try {
         const settings = await get<SettingsResponse>(`${API_BASE}${API_ENDPOINTS.SETTINGS}`, { cache: "no-store" });
         setLoadedSettings(settings);
+        setAcademicYear(settings.academicYear);
         applyFieldValues(settings);
 
         setNotifications({
@@ -181,6 +197,7 @@ export default function Settings() {
     const unsubscribe = onSettingsUpdated((updated) => {
       const settings = updated as unknown as SettingsResponse;
       setLoadedSettings(settings);
+      setAcademicYear(settings.academicYear);
       setNotifications({
         email: settings.notificationEmail,
         sms: settings.notificationSms,
@@ -194,8 +211,33 @@ export default function Settings() {
       if (settings.density === "comfortable" || settings.density === "compact") setDensity(settings.density);
       applyFieldValues(settings);
     });
-    return unsubscribe;
+    const unsubscribeSession = onAcademicSessionChanged((session) => {
+      if (!session.current) return;
+      setAcademicYear(session.name);
+      setLoadedSettings((current) => current ? { ...current, academicYear: session.name } : current);
+    });
+    return () => {
+      unsubscribe();
+      unsubscribeSession();
+    };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    void get<{ id: number; name: string }[]>(`${API_BASE}${API_ENDPOINTS.SESSIONS}/simple`, { cache: "no-store" })
+      .then((sessions) => {
+        if (active) setAcademicSessions(sessions);
+      })
+      .catch((error) => {
+        if (active) showToast(error instanceof Error ? error.message : "Unable to load academic sessions.", { title: "Sessions unavailable", tone: "error" });
+      })
+      .finally(() => {
+        if (active) setAcademicSessionsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [showToast]);
 
   useEffect(() => {
     if (loadedSettings) applyFieldValues(loadedSettings);
@@ -219,7 +261,7 @@ export default function Settings() {
         schoolAddress: value("school-address", current?.schoolAddress ?? ""),
         schoolWebsite: value("school-website", current?.schoolWebsite ?? ""),
         schoolPrincipal: value("school-principal", current?.schoolPrincipal ?? ""),
-        academicYear: value("academic-year", current?.academicYear ?? ""),
+        academicYear: academicYear || current.academicYear,
         weekStart: value("week-start", current?.weekStart ?? ""),
         language: value("language", current?.language ?? ""),
         timezone: value("timezone", current?.timezone ?? ""),
@@ -238,6 +280,7 @@ export default function Settings() {
         sessionTimeout: Number(value("session-timeout", String(current?.sessionTimeout ?? 30))) || 30,
       });
       setLoadedSettings(updatedSettings);
+      setAcademicYear(updatedSettings.academicYear);
       showToast(`${sections.find((section) => section.id === activeSection)?.label} preferences have been updated.`, { title: "Settings saved" });
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Unable to save settings.", { title: "Settings save failed", tone: "error" });
@@ -248,6 +291,11 @@ export default function Settings() {
 
   const toggleNotification = (key: keyof typeof notifications) => setNotifications((current) => ({ ...current, [key]: !current[key] }));
   const enabledNotificationCount = Object.values(notifications).filter(Boolean).length;
+  const academicYearOptions = academicSessions.map((session) => ({ label: session.name, value: session.name }));
+  const dateFormatOptions = getDateFormatOptions(new Date());
+  if (loadedSettings?.academicYear && !academicYearOptions.some((option) => option.value === loadedSettings.academicYear)) {
+    academicYearOptions.unshift({ label: loadedSettings.academicYear, value: loadedSettings.academicYear });
+  }
 
   const uploadLogo = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -321,11 +369,11 @@ export default function Settings() {
           {activeSection === "academic" && <section className="panel">
             <SectionHeader icon="book" title="Academic & Regional Setup" copy="Choose defaults used across attendance, fees, examinations, and reports." />
             <div className="grid gap-4 p-4 sm:grid-cols-2 sm:gap-5 sm:p-6">
-              <Dropdown id="academic-year" label="Current academic year" defaultValue="" options={[{ label: "2026–27", value: "2026–27" }, { label: "2027–28", value: "2027–28" }, { label: "2028–29", value: "2028–29" }]} />
+              <Dropdown id="academic-year" label="Current academic year" value={academicYear} onChange={(event) => setAcademicYear(event.target.value)} placeholder={academicSessionsLoading ? "Loading academic sessions..." : "Select academic year"} options={academicYearOptions} />
               <Dropdown id="week-start" label="Week starts on" defaultValue="" options={[{ label: "Monday", value: "Monday" }, { label: "Sunday", value: "Sunday" }]} />
               <Dropdown id="language" label="Application language" defaultValue="" options={[{ label: "English", value: "English" }, { label: "Hindi", value: "Hindi" }]} />
               <Dropdown id="timezone" label="Timezone" defaultValue="" options={[{ label: "India Standard Time (UTC+05:30)", value: "Asia/Kolkata" }, { label: "UTC", value: "UTC" }]} />
-              <Dropdown id="date-format" label="Date format" defaultValue="" options={[{ label: "26 Sep 2026", value: "DD MMM YYYY" }, { label: "26/09/2026", value: "DD/MM/YYYY" }, { label: "09/26/2026", value: "MM/DD/YYYY" }]} />
+              <Dropdown id="date-format" label="Date format" defaultValue="" options={dateFormatOptions} />
               <Dropdown id="currency" label="Currency" defaultValue="" options={[{ label: "Indian Rupee (₹)", value: "INR" }, { label: "US Dollar ($)", value: "USD" }]} />
               <div className="settings-callout sm:col-span-2 flex items-start gap-3 rounded-xl border p-4 text-xs leading-5"><Icon name="clock" className="mt-0.5 size-4 shrink-0" /><p>Changing the academic year updates the default selection across modules but does not alter historical records.</p></div>
             </div>

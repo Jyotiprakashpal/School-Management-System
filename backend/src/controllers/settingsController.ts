@@ -6,6 +6,7 @@ import {
   SchoolSettings,
   UpdateSettingsDto
 } from '../models/Settings.js';
+import { sessionRepository, type AcademicSession } from '../models/Session.js';
 import { notificationRepository } from '../models/Notification.js';
 import { userRepository } from '../models/User.js';
 
@@ -62,9 +63,36 @@ export const getSettings = async (_req: Request, res: Response<SchoolSettings | 
 export const updateSettings = async (req: Request<{}, SchoolSettings | { error: string }, UpdateSettingsDto>, res: Response<SchoolSettings | { error: string }>) => {
   try {
     const actorName = await getActorName(req);
+    let selectedSession: AcademicSession | null = null;
+    let shouldSetCurrent = false;
+    if (req.body.academicYear !== undefined) {
+      const currentSettings = await settingsRepository.getSettings();
+      if (!currentSettings) {
+        return res.status(404).json({ error: 'Settings not found' });
+      }
+
+      selectedSession = await sessionRepository.findByName(req.body.academicYear);
+      if (selectedSession) {
+        shouldSetCurrent = !selectedSession.current || currentSettings.academicYear !== selectedSession.name;
+      } else if (req.body.academicYear !== currentSettings.academicYear) {
+        return res.status(400).json({ error: 'Academic session not found' });
+      }
+    }
+
     const settings = await settingsRepository.updateSettings({ ...req.body, createdBy: actorName });
     if (!settings) {
       return res.status(404).json({ error: 'Settings not found' });
+    }
+
+    const updatedSession = shouldSetCurrent && selectedSession
+      ? await sessionRepository.setCurrent(selectedSession.id)
+      : null;
+    if (shouldSetCurrent && !updatedSession) {
+      return res.status(404).json({ error: 'Academic session not found' });
+    }
+
+    if (updatedSession) {
+      getIO(req).to('sessions').emit('session:current_changed', updatedSession);
     }
 
     // Emit real-time event

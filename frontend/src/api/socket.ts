@@ -98,7 +98,21 @@ export function onSessionTerminated(listener: (payload: { id: number; token: str
   }
 }
 
-export type AcademicSessionRealtime = { id: number; name: string; current: boolean; [key: string]: unknown }
+export type AcademicSessionRealtime = {
+  id: number
+  name: string
+  startDate: string
+  endDate: string
+  current: boolean
+  createdBy: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export function onAcademicSessionCreated(listener: (session: AcademicSessionRealtime) => void) {
+  socket.on("session:created", listener)
+  return () => socket.off("session:created", listener)
+}
 
 export function onAcademicSessionChanged(listener: (session: AcademicSessionRealtime) => void) {
   socket.on("session:current_changed", listener)
@@ -107,6 +121,11 @@ export function onAcademicSessionChanged(listener: (session: AcademicSessionReal
     socket.off("session:current_changed", listener)
     socket.off("session:updated", listener)
   }
+}
+
+export function onAcademicSessionDeleted(listener: (payload: { id: number }) => void) {
+  socket.on("session:deleted", listener)
+  return () => socket.off("session:deleted", listener)
 }
 
 export function onSettingsUpdated(listener: (settings: SettingsUpdated) => void) {

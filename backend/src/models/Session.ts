@@ -89,7 +89,7 @@ export const sessionRepository = {
       SELECT ${selectSessionColumns}
       FROM academic_sessions
       WHERE (${search}::text IS NULL OR name ILIKE ${search})
-      ORDER BY "createdAt" DESC
+      ORDER BY "createdAt" DESC, id DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
 
@@ -106,7 +106,7 @@ export const sessionRepository = {
     const sessions = await sql<AcademicSession[]>`
       SELECT ${selectSessionColumns}
       FROM academic_sessions
-      ORDER BY "createdAt" DESC
+      ORDER BY "createdAt" DESC, id DESC
     `;
     return sessions;
   },
@@ -114,6 +114,13 @@ export const sessionRepository = {
   async findById(id: number): Promise<AcademicSession | null> {
     const [session] = await sql<AcademicSession[]>`
       SELECT ${selectSessionColumns} FROM academic_sessions WHERE id = ${id}
+    `;
+    return session || null;
+  },
+
+  async findByName(name: string): Promise<AcademicSession | null> {
+    const [session] = await sql<AcademicSession[]>`
+      SELECT ${selectSessionColumns} FROM academic_sessions WHERE name = ${name}
     `;
     return session || null;
   },
@@ -126,59 +133,87 @@ export const sessionRepository = {
   },
 
   async create(data: CreateSessionDto): Promise<AcademicSession> {
-    // If setting as current, unset all others
-    if (data.current) {
-      await sql`
-        UPDATE academic_sessions SET current = FALSE, "updatedAt" = NOW()
-      `;
-    }
+    return sql.begin(async (transaction) => {
+      if (data.current) {
+        await transaction`
+          UPDATE academic_sessions SET current = FALSE, "updatedAt" = NOW()
+        `;
+      }
 
-    const [session] = await sql<AcademicSession[]>`
-      INSERT INTO academic_sessions (name, "startDate", "endDate", current, "createdBy")
-      VALUES (${data.name}, ${data.startDate}, ${data.endDate}, ${data.current || false}, ${data.createdBy || null})
-      RETURNING ${selectSessionColumns}
-    `;
-    return session;
+      const [session] = await transaction<AcademicSession[]>`
+        INSERT INTO academic_sessions (name, "startDate", "endDate", current, "createdBy")
+        VALUES (${data.name}, ${data.startDate}, ${data.endDate}, ${data.current || false}, ${data.createdBy || null})
+        RETURNING ${selectSessionColumns}
+      `;
+      if (session?.current) {
+        await transaction`
+          UPDATE school_settings SET "academicYear" = ${session.name}, "updatedAt" = NOW() WHERE id = 1
+        `;
+      }
+      return session;
+    });
   },
 
   async update(id: number, data: Partial<UpdateSessionDto>): Promise<AcademicSession | null> {
-    // If setting as current, unset all others
-    if (data.current === true) {
-      await sql`
-        UPDATE academic_sessions SET current = FALSE, "updatedAt" = NOW()
+    return sql.begin(async (transaction) => {
+      if (data.current === true) {
+        const [existing] = await transaction<{ id: number }[]>`
+          SELECT id FROM academic_sessions WHERE id = ${id} FOR UPDATE
+        `;
+        if (!existing) return null;
+
+        await transaction`
+          UPDATE academic_sessions SET current = FALSE, "updatedAt" = NOW()
+        `;
+      }
+
+      if (data.name === undefined && data.startDate === undefined && data.endDate === undefined && data.current === undefined) {
+        const [session] = await transaction<AcademicSession[]>`
+          SELECT ${selectSessionColumns} FROM academic_sessions WHERE id = ${id}
+        `;
+        return session || null;
+      }
+
+      const [session] = await transaction<AcademicSession[]>`
+        UPDATE academic_sessions
+        SET name = CASE WHEN ${data.name !== undefined} THEN ${data.name ?? null} ELSE name END,
+            "startDate" = CASE WHEN ${data.startDate !== undefined} THEN ${data.startDate ?? null} ELSE "startDate" END,
+            "endDate" = CASE WHEN ${data.endDate !== undefined} THEN ${data.endDate ?? null} ELSE "endDate" END,
+            current = CASE WHEN ${data.current !== undefined} THEN ${data.current ?? null} ELSE current END,
+            "updatedAt" = NOW()
+        WHERE id = ${id}
+        RETURNING ${selectSessionColumns}
       `;
-    }
-
-    const updates: string[] = [];
-    const values: any[] = [];
-
-    if (data.name !== undefined) { updates.push('name = $' + (values.length + 1)); values.push(data.name); }
-    if (data.startDate !== undefined) { updates.push('"startDate" = $' + (values.length + 1)); values.push(data.startDate); }
-    if (data.endDate !== undefined) { updates.push('"endDate" = $' + (values.length + 1)); values.push(data.endDate); }
-    if (data.current !== undefined) { updates.push('current = $' + (values.length + 1)); values.push(data.current); }
-
-    if (updates.length === 0) {
-      return this.findById(id);
-    }
-
-    updates.push('"updatedAt" = NOW()');
-    values.push(id);
-
-    const query = `UPDATE academic_sessions SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING ${selectSessionColumns}`;
-    const [session] = await sql.unsafe(query, values) as AcademicSession[];
-    return session || null;
+      if (session?.current && (data.current === true || data.name !== undefined)) {
+        await transaction`
+          UPDATE school_settings SET "academicYear" = ${session.name}, "updatedAt" = NOW() WHERE id = 1
+        `;
+      }
+      return session || null;
+    });
   },
 
   async setCurrent(id: number): Promise<AcademicSession | null> {
-    // Unset all current
-    await sql`
-      UPDATE academic_sessions SET current = FALSE, "updatedAt" = NOW()
-    `;
+    return sql.begin(async (transaction) => {
+      const [existing] = await transaction<AcademicSession[]>`
+        SELECT ${selectSessionColumns} FROM academic_sessions WHERE id = ${id} FOR UPDATE
+      `;
+      if (!existing) return null;
 
-    const [session] = await sql<AcademicSession[]>`
-      UPDATE academic_sessions SET current = TRUE, "updatedAt" = NOW() WHERE id = ${id} RETURNING ${selectSessionColumns}
-    `;
-    return session || null;
+      await transaction`
+        UPDATE academic_sessions SET current = FALSE, "updatedAt" = NOW()
+        WHERE current = TRUE AND id <> ${id}
+      `;
+
+      const [session] = await transaction<AcademicSession[]>`
+        UPDATE academic_sessions SET current = TRUE, "updatedAt" = NOW()
+        WHERE id = ${id} RETURNING ${selectSessionColumns}
+      `;
+      await transaction`
+        UPDATE school_settings SET "academicYear" = ${session.name}, "updatedAt" = NOW() WHERE id = 1
+      `;
+      return session || null;
+    });
   },
 
   async delete(id: number): Promise<boolean> {

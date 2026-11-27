@@ -1,17 +1,21 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Button, DatePicker, Input, SessionSkeleton, useToast } from "../../components";
+import { Button, DatePicker, Dropdown, SessionSkeleton, useToast } from "../../components";
 import Header from "../../ui/header";
 import Popup from "../../ui/popup";
 import { API_BASE, API_ENDPOINTS } from "../../api/endpoints";
 import { del, get, post, put } from "../../api/methods";
 import { getAuthUser } from "../../auth/session";
+import { onAcademicSessionChanged, onAcademicSessionCreated, onAcademicSessionDeleted, type AcademicSessionRealtime } from "../../api/socket";
 
 type AcademicSession = {
   current: boolean;
+  createdAt: string;
+  createdBy: string | null;
   endDate: string;
   id: number;
   name: string;
   startDate: string;
+  updatedAt: string;
 };
 
 type SessionPayload = Pick<AcademicSession, "name" | "startDate" | "endDate"> & { createdBy: string };
@@ -33,9 +37,31 @@ function SessionIcon({ name, className = "size-5" }: { name: SessionIconName; cl
 const blankForm = { name: "", startDate: "", endDate: "" };
 
 const sessionUrl = `${API_BASE}${API_ENDPOINTS.SESSIONS}`;
+const currentYear = new Date().getFullYear();
+const sessionYearOptions = Array.from({ length: 41 }, (_, index) => {
+  const year = currentYear - 30 + index;
+  const sessionName = `${year}–${String(year + 1).slice(-2)}`;
+  return { label: sessionName, value: sessionName };
+});
+
+function getSessionYearOptions(currentName: string) {
+  return sessionYearOptions.some((option) => option.value === currentName)
+    ? sessionYearOptions
+    : [{ label: currentName, value: currentName }, ...sessionYearOptions];
+}
 
 function normalizeSession(session: AcademicSession): AcademicSession {
   return { ...session, startDate: session.startDate.slice(0, 10), endDate: session.endDate.slice(0, 10) };
+}
+
+function newestFirst(sessions: AcademicSession[]) {
+  return [...sessions].sort((first, second) =>
+    Date.parse(second.createdAt) - Date.parse(first.createdAt) || second.id - first.id,
+  );
+}
+
+function upsertSession(sessions: AcademicSession[], session: AcademicSession) {
+  return newestFirst([normalizeSession(session), ...sessions.filter((item) => item.id !== session.id)]);
 }
 
 function readableDate(value: string) {
@@ -55,11 +81,31 @@ export default function Sessions() {
   useEffect(() => {
     let active = true;
     void get<AcademicSession[]>(`${sessionUrl}/simple`, { cache: "no-store" })
-      .then((data) => { if (active) setSessions(data.map(normalizeSession)); })
+      .then((data) => { if (active) setSessions(newestFirst(data.map(normalizeSession))); })
       .catch((error) => { if (active) showToast(error instanceof Error ? error.message : "Failed to load academic sessions.", { title: "Sessions unavailable", tone: "error" }); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [showToast]);
+
+  useEffect(() => {
+    const removeCreated = onAcademicSessionCreated((session: AcademicSessionRealtime) => {
+      setSessions((current) => upsertSession(current, session));
+    });
+    const removeChanged = onAcademicSessionChanged((session: AcademicSessionRealtime) => {
+      setSessions((current) => newestFirst(current.map((item) => {
+        if (item.id === session.id) return normalizeSession(session);
+        return session.current ? { ...item, current: false } : item;
+      })));
+    });
+    const removeDeleted = onAcademicSessionDeleted(({ id }) => {
+      setSessions((current) => current.filter((session) => session.id !== id));
+    });
+    return () => {
+      removeCreated();
+      removeChanged();
+      removeDeleted();
+    };
+  }, []);
 
   const currentSession = sessions.find((session) => session.current) ?? sessions[0];
 
@@ -85,7 +131,7 @@ export default function Sessions() {
     try {
       const currentUser = getAuthUser();
       const created = await post<AcademicSession>(sessionUrl, { name: form.name.trim(), startDate: form.startDate, endDate: form.endDate, createdBy: currentUser?.username || currentUser?.name || "System" } satisfies SessionPayload);
-      setSessions((current) => [...current, normalizeSession(created)]);
+      setSessions((current) => upsertSession(current, created));
       setForm(blankForm);
       showToast(`${created.name} has been added. Set it as current when you are ready to use it.`, { title: "Session created" });
     } catch (error) {
@@ -106,7 +152,7 @@ export default function Sessions() {
     try {
       const currentUser = getAuthUser();
       const updated = await put<AcademicSession>(`${sessionUrl}/${editingSession.id}`, { name: editForm.name.trim(), startDate: editForm.startDate, endDate: editForm.endDate, createdBy: currentUser?.username || currentUser?.name || "System" } satisfies SessionPayload);
-      setSessions((current) => current.map((session) => session.id === updated.id ? normalizeSession(updated) : session));
+      setSessions((current) => newestFirst(current.map((session) => session.id === updated.id ? normalizeSession(updated) : session)));
       setEditingSession(null);
       showToast(`${updated.name} has been updated.`, { title: "Session updated" });
     } catch (error) {
@@ -120,7 +166,7 @@ export default function Sessions() {
     setSaving(true);
     try {
       const currentSession = await put<AcademicSession>(`${sessionUrl}/${session.id}/set-current`);
-      setSessions((current) => current.map((item) => ({ ...item, current: item.id === currentSession.id })));
+      setSessions((current) => newestFirst(current.map((item) => ({ ...item, current: item.id === currentSession.id }))));
       showToast(`${currentSession.name} is now the current academic session.`, { title: "Current session changed" });
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to change the current session.", { title: "Session change failed", tone: "error" });
@@ -186,7 +232,7 @@ export default function Sessions() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(10rem,.8fr)_repeat(2,minmax(11rem,1fr))]">
                 <div className="sm:col-span-2 xl:col-span-1">
-                  <Input id="session-name" label="Session name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. 2028–29" />
+                  <Dropdown id="session-name" label="Session name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Select academic year" options={sessionYearOptions} />
                 </div>
                 <DatePicker id="session-start" label="Start date" value={form.startDate} onChange={(value) => setForm((current) => ({ ...current, startDate: value }))} />
                 <DatePicker id="session-end" label="End date" value={form.endDate} onChange={(value) => setForm((current) => ({ ...current, endDate: value }))} />
@@ -247,7 +293,7 @@ export default function Sessions() {
 
     <Popup open={Boolean(editingSession)} onClose={() => !saving && setEditingSession(null)} title="Edit Academic Session" description={editingSession?.name} footer={<><Button variant="outline" onClick={() => setEditingSession(null)} disabled={saving}>Cancel</Button><Button onClick={updateSession} isLoading={saving} loadingText="Updating session...">Update Session</Button></>}>
       <div className="space-y-4">
-        <Input label="Session Name *" value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} />
+        <Dropdown label="Session name" value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} placeholder="Select academic year" options={getSessionYearOptions(editForm.name)} />
         <div className="grid gap-4 sm:grid-cols-2"><DatePicker label="Start Date" required value={editForm.startDate} onChange={(value) => setEditForm((current) => ({ ...current, startDate: value }))} /><DatePicker label="End Date" required value={editForm.endDate} onChange={(value) => setEditForm((current) => ({ ...current, endDate: value }))} /></div>
         {editingSession?.current && <div className="session-edit-warning rounded-xl border border-amber-100 bg-amber-50 p-4 text-xs leading-5 text-amber-800">You are editing the current session. Date changes affect the active academic year across the application.</div>}
       </div>
