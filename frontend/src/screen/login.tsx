@@ -7,6 +7,7 @@ import { storeAuthUser, type AuthUser } from "../auth/session"
 import campusImage from "../assets/school-campus.jpg"
 
 type LoginIconName = "arrow" | "book" | "check" | "eye" | "eyeOff" | "lock" | "mail" | "people" | "person" | "shield" | "spark"
+type LoginLocation = { address: string; latitude: number | null; longitude: number | null }
 
 const iconPaths: Record<LoginIconName, ReactNode> = {
   arrow: <path d="M5 12h14m-5-5 5 5-5 5" />,
@@ -132,21 +133,21 @@ function normalizeLoginBranding(settings: LoginBranding): LoginBranding {
   return { ...settings, logo: resolveLogoUrl(settings.logo) }
 }
 
-async function getReadableLoginLocation(): Promise<string> {
+async function getReadableLoginLocation(): Promise<LoginLocation> {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown location"
   const getIpLocation = async () => {
     try {
       const response = await fetch("https://ipapi.co/json/", { headers: { Accept: "application/json" } })
-      if (!response.ok) return timezone
+      if (!response.ok) return { address: timezone, latitude: null, longitude: null }
       const result = (await response.json()) as {
         city?: string
         region?: string
         postal?: string
         country_name?: string
       }
-      return [result.city, result.region, result.postal, result.country_name].filter(Boolean).join(", ") || timezone
+      return { address: [result.city, result.region, result.postal, result.country_name].filter(Boolean).join(", ") || timezone, latitude: null, longitude: null }
     } catch {
-      return timezone
+      return { address: timezone, latitude: null, longitude: null }
     }
   }
 
@@ -165,7 +166,7 @@ async function getReadableLoginLocation(): Promise<string> {
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1&namedetails=1&accept-language=en`,
       { headers: { Accept: "application/json" } },
     )
-    if (!response.ok) return timezone
+    if (!response.ok) return { address: timezone, latitude, longitude }
     const result = (await response.json()) as {
       display_name?: string
       name?: string
@@ -188,24 +189,35 @@ async function getReadableLoginLocation(): Promise<string> {
         town?: string
         city?: string
         city_district?: string
+        district?: string
+        state_district?: string
         state?: string
         postcode?: string
         country?: string
       }
     }
     const address = result.address || {}
-    const place = address.amenity || address.office || address.commercial || address.building || address.shop || address.industrial
-    const locality = address.neighbourhood || address.suburb || address.quarter || address.village || address.town || address.city_district || address.city
-    const city = address.city || address.town || address.village || address.state
+    const place = result.name || result.namedetails?.name || address.amenity || address.office || address.commercial || address.building || address.shop || address.industrial
     const street = [address.house_number, address.road].filter(Boolean).join(" ")
-    const parts = [place, street, locality, city, address.postcode, address.country]
+    const parts = [
+      place,
+      street,
+      address.neighbourhood,
+      address.suburb,
+      address.quarter,
+      address.city_district,
+      address.village,
+      address.town,
+      address.city,
+      address.district,
+      address.state_district,
+      address.state,
+      address.postcode,
+      address.country,
+    ]
       .filter(Boolean)
       .filter((part, index, values) => values.indexOf(part) === index)
-    const formattedAddress = result.display_name || (parts.length > 1 ? parts.join(", ") : timezone)
-    const landmark = result.name || result.namedetails?.name || place
-    return landmark && !formattedAddress.toLowerCase().includes(landmark.toLowerCase())
-      ? `${landmark}, ${formattedAddress}`
-      : formattedAddress
+    return { address: parts.length > 1 ? parts.join(", ") : result.display_name || timezone, latitude, longitude }
   } catch {
     return getIpLocation()
   }
@@ -238,12 +250,14 @@ export default function Login({ onLogin }: LoginProps) {
     event.preventDefault()
     setSubmitting(true)
     try {
-      const location = await getReadableLoginLocation()
+      const loginLocation = await getReadableLoginLocation()
       const response = await post<LoginResponse>(`${API_BASE}${API_ENDPOINTS.LOGIN}`, {
         username: username.trim(),
         password,
         rememberMe,
-        location,
+        location: loginLocation.address,
+        latitude: loginLocation.latitude,
+        longitude: loginLocation.longitude,
       })
       console.log("Login response:", response)
       const storage = rememberMe ? window.localStorage : window.sessionStorage

@@ -21,10 +21,12 @@ type LoginSession = {
   device: string;
   id: number;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
   user: string;
   current?: boolean;
 };
-type IconName = "activity" | "calendar" | "check" | "close" | "eye" | "eyeOff" | "key" | "lock" | "plus" | "settings" | "shield" | "users";
+type IconName = "activity" | "calendar" | "check" | "close" | "eye" | "eyeOff" | "key" | "location" | "lock" | "plus" | "settings" | "shield" | "users";
 
 const iconPaths: Record<IconName, ReactNode> = {
   activity: <><path d="M3 12h4l2-6 4 12 2-6h6" /><circle cx="12" cy="12" r="9" /></>,
@@ -34,6 +36,7 @@ const iconPaths: Record<IconName, ReactNode> = {
   eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="2.5" /></>,
   eyeOff: <><path d="m3 3 18 18M10.6 6.2A9.8 9.8 0 0 1 12 6c6.5 0 10 6 10 6a16 16 0 0 1-2.1 2.8M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6a9.7 9.7 0 0 0 3.8-.8" /><path d="M10.5 10.5a2.1 2.1 0 0 0 3 3" /></>,
   key: <><circle cx="8" cy="15" r="4" /><path d="m11 12 8-8m-3 3 2 2m-5 1 2 2" /></>,
+  location: <><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></>,
   lock: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
   plus: <path d="M12 5v14M5 12h14" />,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A8 8 0 0 0 15 6l-.3-2.6h-4L10.4 6A8 8 0 0 0 8 7.2l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 2.4 1.2l.3 2.6h4l.3-2.6a8 8 0 0 0 2.4-1.2l2.4 1 2-3.4-2-1.5A7 7 0 0 0 19 12Z" /></>,
@@ -538,6 +541,23 @@ function Sessions({ sessions, hasMore, loadingMore, onLoadMore, onTerminate }: {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, onLoadMore]);
 
+  const mapUrl = (session: LoginSession) => {
+    const query = typeof session.latitude === "number" && typeof session.longitude === "number"
+      ? `${session.latitude},${session.longitude}`
+      : session.location;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  };
+  const renderLocation = (session: LoginSession, mobile = false) => {
+    const location = session.location || "Unknown location";
+    return <div className={mobile ? "mt-1.5" : ""}>
+      <div className="flex items-start gap-1.5">
+        <Icon name="location" className="mt-0.5 size-4 shrink-0 text-slate-400" />
+        <span className="min-w-0 break-words whitespace-normal text-xs font-semibold leading-5 text-slate-700 sm:text-sm sm:font-normal">{location}</span>
+      </div>
+      {location !== "Unknown location" && <a href={mapUrl(session)} target="_blank" rel="noreferrer" className="ml-5 mt-1 inline-block text-xs font-semibold text-sky-600 hover:text-sky-700 hover:underline">View map</a>}
+    </div>;
+  };
+
   return <>
   <section className="user-sessions-panel panel">
     <PanelTitle title={`Active Sessions (${sessions.length})`} icon="calendar" />
@@ -551,14 +571,14 @@ function Sessions({ sessions, hasMore, loadingMore, onLoadMore, onTerminate }: {
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <div className="rounded-xl border border-slate-100 bg-white/80 p-3 shadow-sm"><div className="flex items-center gap-1.5 text-[0.6rem] font-bold uppercase tracking-wider text-slate-400"><Icon name="settings" className="size-3.5" />Device</div><div className="mt-1.5 truncate text-xs font-semibold text-slate-700">{session.device}</div></div>
-          <div className="rounded-xl border border-slate-100 bg-white/80 p-3 shadow-sm"><div className="flex items-center gap-1.5 text-[0.6rem] font-bold uppercase tracking-wider text-slate-400"><Icon name="calendar" className="size-3.5" />Location</div><div className="mt-1.5 truncate text-xs font-semibold text-slate-700">{session.location}</div></div>
+          <div className="rounded-xl border border-slate-100 bg-white/80 p-3 shadow-sm"><div className="flex items-center gap-1.5 text-[0.6rem] font-bold uppercase tracking-wider text-slate-400"><Icon name="location" className="size-3.5" />Location</div>{renderLocation(session, true)}</div>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5"><div><div className="text-[0.6rem] font-bold uppercase tracking-wider text-slate-400">Last activity</div><div className="mt-0.5 text-xs font-semibold text-emerald-600">{session.active}</div></div><Icon name="activity" className="size-5 text-(--app-accent)" /></div>
         {session.current ? <div className="mt-3 flex min-h-10 items-center justify-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 text-xs font-bold text-emerald-700"><Icon name="check" />Current Session</div> : <Button variant="danger" className="mt-3 w-full" onClick={() => setSessionToTerminate(session)} icon={<Icon name="lock" />}>Terminate Session</Button>}
       </div>
       <div className="hidden sm:block"><div className="font-semibold text-slate-900">{session.user}</div><div className="mt-1 text-xs text-slate-400">{session.current ? "This device" : "Authenticated user"}</div></div>
       <div className="hidden text-sm text-slate-600 sm:block">{session.device}</div>
-      <div className="hidden sm:block"><div className="text-sm text-slate-600">{session.location}</div><div className="mt-1 text-xs text-emerald-600">{session.active}</div></div>
+      <div className="hidden min-w-0 sm:block">{renderLocation(session)}<div className="mt-1 text-xs text-emerald-600">{session.active}</div></div>
       <div className="hidden sm:block sm:text-right">{session.current ? <span className="status-success">Current</span> : <Button variant="danger" onClick={() => setSessionToTerminate(session)}>Terminate</Button>}</div>
     </div>)}{hasMore && <div ref={loadMoreRef} className="p-4 text-center text-sm text-slate-400">{loadingMore ? "Loading more sessions..." : "Scroll to load more"}</div>}</div>
   </section>

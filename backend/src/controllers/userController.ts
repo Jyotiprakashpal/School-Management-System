@@ -21,7 +21,7 @@ function parseDevice(userAgent: string): string {
 
 export const loginUser = async (req: Request, res: Response) => {
   try {
-    const { username, password, device, location } = req.body as { username?: string; password?: string; device?: string; location?: string };
+    const { username, password, device, location, latitude, longitude } = req.body as { username?: string; password?: string; device?: string; location?: string; latitude?: number | null; longitude?: number | null };
     if (!username?.trim() || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
     }
@@ -34,7 +34,26 @@ export const loginUser = async (req: Request, res: Response) => {
     const userAgent = String(req.headers['user-agent'] || 'Unknown device');
     const detectedDevice = typeof device === 'string' && device.trim() ? device.trim() : parseDevice(userAgent);
     const detectedLocation = typeof location === 'string' && location.trim() ? location.trim() : 'Unknown location';
-    await userSessionRepository.create({ userId: user.id, token, device: detectedDevice, location: detectedLocation });
+    const validCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
+    await userSessionRepository.create({ userId: user.id, token, device: detectedDevice, location: detectedLocation, latitude: validCoordinates ? Number(latitude) : null, longitude: validCoordinates ? Number(longitude) : null });
+
+    // Login is an account activity as well. Persist it before responding so
+    // the notification is visible when the newly authenticated dashboard
+    // loads, and broadcast it to other open sessions in real time.
+    try {
+      const notification = await notificationRepository.create({
+        title: 'New Login',
+        message: `${user.name} signed in from ${detectedDevice}`,
+        type: 'success',
+        entityType: 'user',
+        entityId: user.id.toString(),
+        createdBy: user.name,
+      });
+      getIO(req).to('notifications').emit('notification:created', notification);
+    } catch (notificationError) {
+      console.error('Failed to create login notification:', notificationError);
+    }
+
     res.json({ token, user });
   } catch (error) {
     console.error('Login error:', error);

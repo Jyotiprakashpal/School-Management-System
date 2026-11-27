@@ -9,6 +9,8 @@ export interface UserSession {
   user: string;
   device: string;
   location: string;
+  latitude: number | null;
+  longitude: number | null;
   active: string;
   token: string;
   createdAt: string;
@@ -23,25 +25,32 @@ export const userSessionRepository = {
         "userId" INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         token TEXT NOT NULL UNIQUE,
         device VARCHAR(120) NOT NULL DEFAULT 'Unknown device',
-        location VARCHAR(160) NOT NULL DEFAULT 'Unknown location',
+        location TEXT NOT NULL DEFAULT 'Unknown location',
+        latitude DOUBLE PRECISION,
+        longitude DOUBLE PRECISION,
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "lastActive" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
+    // Existing installations may still have the original VARCHAR limit. Keep
+    // the complete reverse-geocoded address so landmarks are not truncated.
+    await sql`ALTER TABLE user_sessions ALTER COLUMN location TYPE TEXT`;
+    await sql`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION`;
+    await sql`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION`;
     await sql`CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions("userId")`;
   },
 
-  async create(data: { userId: number; token: string; device: string; location: string }): Promise<void> {
+  async create(data: { userId: number; token: string; device: string; location: string; latitude?: number | null; longitude?: number | null }): Promise<void> {
     await sql`
-      INSERT INTO user_sessions ("userId", token, device, location)
-      VALUES (${data.userId}, ${data.token}, ${data.device}, ${data.location})
+      INSERT INTO user_sessions ("userId", token, device, location, latitude, longitude)
+      VALUES (${data.userId}, ${data.token}, ${data.device}, ${data.location}, ${data.latitude ?? null}, ${data.longitude ?? null})
     `;
   },
 
   async findAll(): Promise<UserSession[]> {
     return sql<UserSession[]>`
       SELECT s.id, s."userId" AS "userId", u.username, u.name AS "user",
-        s.device, s.location, s.token, s."createdAt" AS "createdAt", s."lastActive" AS "lastActive",
+        s.device, s.location, s.latitude, s.longitude, s.token, s."createdAt" AS "createdAt", s."lastActive" AS "lastActive",
         CASE WHEN s."lastActive" > NOW() - (${SESSION_IDLE_MINUTES} * INTERVAL '1 minute') THEN 'Active' ELSE 'Inactive' END AS active
       FROM user_sessions s
       INNER JOIN users u ON u.id = s."userId"
@@ -61,7 +70,7 @@ export const userSessionRepository = {
     const pageSize = Math.min(100, Math.max(1, limit));
     const rows = await sql<UserSession[]>`
       SELECT s.id, s."userId" AS "userId", u.username, u.name AS "user",
-        s.device, s.location, s.token, s."createdAt" AS "createdAt", s."lastActive" AS "lastActive",
+        s.device, s.location, s.latitude, s.longitude, s.token, s."createdAt" AS "createdAt", s."lastActive" AS "lastActive",
         CASE WHEN s."lastActive" > NOW() - (${SESSION_IDLE_MINUTES} * INTERVAL '1 minute') THEN 'Active' ELSE 'Inactive' END AS active
       FROM user_sessions s
       INNER JOIN users u ON u.id = s."userId"
